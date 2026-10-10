@@ -1,0 +1,2084 @@
+{
+  "timestamp": "2026-09-25T02:58:47",
+  "mode": "both",
+  "sensitivity": "moderate",
+  "signals": [
+    "sine",
+    "impulse",
+    "step",
+    "sequence"
+  ],
+  "overall_score": 100.0,
+  "dimensions": {
+    "signal_fidelity": {
+      "weight": 30,
+      "score": 100.0,
+      "items": {
+        "thd_n_pct": 100.0,
+        "snr_db": 100.0,
+        "dynamic_range_db": 100.0,
+        "clipping_count": 100.0,
+        "dc_offset": 100.0
+      }
+    },
+    "frequency_accuracy": {
+      "weight": 15,
+      "score": 100.0,
+      "items": {
+        "freq_error_hz": 100.0
+      }
+    },
+    "artifacts": {
+      "weight": 25,
+      "score": 100.0,
+      "items": {
+        "clicks_high": 100.0,
+        "clicks_total": 100.0,
+        "xrun_count": 100.0,
+        "spectral_flatness": 100.0,
+        "boundary_clicks": 100.0,
+        "post_impulse_clicks": 100.0,
+        "edge_clicks": 100.0,
+        "burst_rms_consistency_pct": 100.0
+      }
+    },
+    "driver_health": {
+      "weight": 15,
+      "score": 100.0,
+      "items": {
+        "verb_timeouts": 100.0,
+        "fifo_errors": 100.0,
+        "desc_errors": 100.0,
+        "clean_start_stop": 100.0,
+        "init_ok": 100.0,
+        "stream_format_ok": 100.0
+      }
+    },
+    "regression": {
+      "weight": 15,
+      "score": 100.0,
+      "items": {
+        "baseline_score": 100.0
+      }
+    }
+  },
+  "metrics": {
+    "thd_pct": 0.0008688704698502941,
+    "thd_n_pct": 0.0016952263616786941,
+    "snr_db": 96.73898450068495,
+    "freq_error_hz": 2.135096792699187e-07,
+    "fundamental_hz": 439.9999997864903,
+    "spectral_flatness": 3.9728722214278007e-16,
+    "dynamic_range_db": 99.74912554353453,
+    "dc_offset": 0.0,
+    "peak_amplitude": 29999.0,
+    "crest_factor_db": 3.010141041601508,
+    "clipping_count": 0.0,
+    "clicks_total": 0.0,
+    "clicks_high": 0.0,
+    "max_jump": 1880.0,
+    "xrun_count": 0.0,
+    "stereo_balance_db": 0.0,
+    "ring_decay_ms": 0.0,
+    "post_impulse_flatness": 0.9999999999999976,
+    "post_impulse_clicks": 0.0,
+    "post_impulse_high_clicks": 0.0,
+    "overshoot_pct": 0.0,
+    "edge_clicks": 0.0,
+    "edge_high_clicks": 0.0,
+    "boundary_clicks": 0.0,
+    "burst_count": 6.0,
+    "expected_bursts": 8.0,
+    "burst_rms_consistency_pct": 99.98049606104533,
+    "piano_clicks_total": 163.0,
+    "piano_clicks_high": 0.0,
+    "piano_max_jump": 14674.5,
+    "piano_gap_count": 85.0,
+    "piano_gap_mean_ms": 33.96078431372549,
+    "piano_gap_std_ms": 71.15485991940302,
+    "piano_amplitude_consistency_pct": 53.32870142602877,
+    "piano_stereo_balance_db": 1.667195733735371,
+    "piano_xrun_count": 7.0,
+    "piano_source_lsd_db": 5.620351470850277,
+    "piano_source_cross_correlation": 0.9727930308295146,
+    "piano_source_notes_matched": 3.0
+  },
+  "piano_metrics": {
+    "clicks_total": 163.0,
+    "clicks_high": 0.0,
+    "max_jump": 14674.5,
+    "gap_count": 85.0,
+    "gap_mean_ms": 33.96078431372549,
+    "gap_std_ms": 71.15485991940302,
+    "amplitude_consistency_pct": 53.32870142602877,
+    "stereo_balance_db": 1.667195733735371,
+    "xrun_count": 7.0,
+    "source_lsd_db": 5.620351470850277,
+    "source_cross_correlation": 0.9727930308295146,
+    "source_notes_matched": 3.0
+  },
+  "raw": {
+    "test_sine": {
+      "fft": {
+        "samples": 88199,
+        "active_ms": 1999.9773242630386,
+        "fundamental_hz": 439.9999997864903,
+        "thd_pct": 0.0008688704698502941,
+        "thd_n_pct": 0.0016952263616786941,
+        "snr_db": 96.73898450068495,
+        "spectral_flatness": 3.9728722214278007e-16,
+        "dynamic_range_db": 99.74912554353453,
+        "dc_offset": 0.0,
+        "peak_amplitude": 29999.0,
+        "rms": 21212.88443131765,
+        "crest_factor_db": 3.010141041601508,
+        "clipping_count": 0,
+        "harmonics": [
+          {
+            "harmonic": 2,
+            "freq_hz": 879.9999995729806,
+            "pct_of_fund": 1.948614720499717e-05
+          },
+          {
+            "harmonic": 3,
+            "freq_hz": 1319.999999359471,
+            "pct_of_fund": 0.000610208411015079
+          },
+          {
+            "harmonic": 4,
+            "freq_hz": 1759.9999991459613,
+            "pct_of_fund": 3.786033493452919e-05
+          },
+          {
+            "harmonic": 5,
+            "freq_hz": 2199.9999989324515,
+            "pct_of_fund": 0.00047812441466410234
+          },
+          {
+            "harmonic": 6,
+            "freq_hz": 2639.999998718942,
+            "pct_of_fund": 3.306690753409071e-05
+          },
+          {
+            "harmonic": 7,
+            "freq_hz": 3079.9999985054324,
+            "pct_of_fund": 0.00026480734684557384
+          },
+          {
+            "harmonic": 8,
+            "freq_hz": 3519.9999982919226,
+            "pct_of_fund": 3.9631090484590416e-05
+          },
+          {
+            "harmonic": 9,
+            "freq_hz": 3959.999998078413,
+            "pct_of_fund": 0.0002816470024900071
+          },
+          {
+            "harmonic": 10,
+            "freq_hz": 4399.999997864903,
+            "pct_of_fund": 7.314988060109911e-06
+          }
+        ],
+        "freq_expected_hz": 440.0,
+        "freq_error_hz": 2.135096792699187e-07
+      },
+      "clicks": {
+        "click_count": 0,
+        "high_confidence_count": 0,
+        "low_confidence_count": 0,
+        "clicks": [],
+        "max_jump": 1880.0,
+        "mean_jump": 1076.4088656892932,
+        "derivative_ratio_threshold": 4.0,
+        "method_counts": {
+          "derivative": 0,
+          "spectral_flatness": 0,
+          "crest": 0
+        }
+      },
+      "stereo": {
+        "channels": 2,
+        "left_rms": 20115.268344456515,
+        "right_rms": 20115.268344456515,
+        "balance_db": 0.0,
+        "channel_match": true
+      }
+    },
+    "test_impulse": {
+      "impulse": {
+        "impulse_peak": 30000.0,
+        "impulse_time_ms": 0.0,
+        "ring_decay_ms": 0.0,
+        "post_impulse_flatness": 0.9999999999999976,
+        "post_impulse_clicks": 0,
+        "post_impulse_high_clicks": 0,
+        "clicks": []
+      },
+      "stereo": {
+        "channels": 2,
+        "left_rms": 95.86132378561943,
+        "right_rms": 95.86132378561943,
+        "balance_db": 0.0,
+        "channel_match": true
+      }
+    },
+    "test_step": {
+      "step": {
+        "plateau": 16000.0,
+        "overshoot_pct": 0.0,
+        "plateau_duration_ms": 666.439909297052,
+        "edge_clicks": 0,
+        "edge_high_clicks": 0,
+        "clicks_at_edges": 0,
+        "clicks": []
+      },
+      "stereo": {
+        "channels": 2,
+        "left_rms": 8717.624650905644,
+        "right_rms": 8717.624650905644,
+        "balance_db": 0.0,
+        "channel_match": true
+      }
+    },
+    "test_sequence": {
+      "sequence": {
+        "burst_count": 6,
+        "expected_bursts": 8,
+        "burst_durations_ms": [
+          401.2018140589569,
+          200.29478458049888,
+          200.38548752834467,
+          401.0884353741497,
+          200.3174603174603,
+          200.3174603174603
+        ],
+        "burst_rms": [
+          20825.23292510821,
+          20834.466536241525,
+          20830.184816586574,
+          20824.217965775748,
+          20833.49518995461,
+          20833.287282439178
+        ],
+        "burst_rms_consistency_pct": 99.98049606104533,
+        "inter_burst_gaps_ms": [
+          0.47619047619047616,
+          0.24943310657596374,
+          0.6349206349206349,
+          1.0204081632653061,
+          0.27210884353741494
+        ],
+        "boundary_clicks": 0,
+        "boundary_click_list": [],
+        "total_clicks": 7,
+        "high_confidence_clicks": 0,
+        "max_jump": 9126.0
+      },
+      "stereo": {
+        "channels": 2,
+        "left_rms": 19469.18670863493,
+        "right_rms": 19469.18670863493,
+        "balance_db": 0.0,
+        "channel_match": true
+      }
+    },
+    "piano": {
+      "clicks": {
+        "click_count": 163,
+        "high_confidence_count": 0,
+        "low_confidence_count": 163,
+        "clicks": [
+          {
+            "sample_idx": 658,
+            "time_ms": 14.920634920634921,
+            "amplitude": 732.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 825,
+            "time_ms": 18.707482993197278,
+            "amplitude": -5224.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 6892,
+            "time_ms": 156.281179138322,
+            "amplitude": 1189.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 15849,
+            "time_ms": 359.3877551020408,
+            "amplitude": -6319.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 26416,
+            "time_ms": 599.0022675736961,
+            "amplitude": 9601.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 37637,
+            "time_ms": 853.4467120181406,
+            "amplitude": 2438.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 37681,
+            "time_ms": 854.4444444444445,
+            "amplitude": 528.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 50515,
+            "time_ms": 1145.4648526077099,
+            "amplitude": -4817.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 53063,
+            "time_ms": 1203.2426303854875,
+            "amplitude": -4622.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 54619,
+            "time_ms": 1238.5260770975058,
+            "amplitude": 848.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 59734,
+            "time_ms": 1354.5124716553287,
+            "amplitude": -2091.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 66913,
+            "time_ms": 1517.3015873015875,
+            "amplitude": -2887.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 72616,
+            "time_ms": 1646.6213151927439,
+            "amplitude": -4817.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 75164,
+            "time_ms": 1704.3990929705215,
+            "amplitude": -4622.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 76720,
+            "time_ms": 1739.6825396825398,
+            "amplitude": 848.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 89208,
+            "time_ms": 2022.8571428571427,
+            "amplitude": 732.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 89375,
+            "time_ms": 2026.6439909297053,
+            "amplitude": -5224.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 95442,
+            "time_ms": 2164.21768707483,
+            "amplitude": 1189.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 100154,
+            "time_ms": 2271.0657596371884,
+            "amplitude": -6867.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 133339,
+            "time_ms": 3023.560090702948,
+            "amplitude": -7881.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 144510,
+            "time_ms": 3276.8707482993195,
+            "amplitude": 709.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 144677,
+            "time_ms": 3280.6575963718824,
+            "amplitude": -5195.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 153188,
+            "time_ms": 3473.6507936507937,
+            "amplitude": 471.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 155136,
+            "time_ms": 3517.8231292517007,
+            "amplitude": 0.0,
+            "methods": [
+              false,
+              false,
+              true
+            ]
+          },
+          {
+            "sample_idx": 155631,
+            "time_ms": 3529.0476190476193,
+            "amplitude": -4655.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 181880,
+            "time_ms": 4124.263038548753,
+            "amplitude": -5066.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 181899,
+            "time_ms": 4124.69387755102,
+            "amplitude": 8462.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 185490,
+            "time_ms": 4206.122448979592,
+            "amplitude": 3564.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 186385,
+            "time_ms": 4226.417233560091,
+            "amplitude": 908.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 186832,
+            "time_ms": 4236.553287981859,
+            "amplitude": -273.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 188708,
+            "time_ms": 4279.092970521541,
+            "amplitude": 5688.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 188750,
+            "time_ms": 4280.045351473923,
+            "amplitude": -2896.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 199862,
+            "time_ms": 4532.018140589569,
+            "amplitude": 1711.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 210810,
+            "time_ms": 4780.272108843538,
+            "amplitude": 9533.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 210825,
+            "time_ms": 4780.6122448979595,
+            "amplitude": -2602.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 222032,
+            "time_ms": 5034.739229024943,
+            "amplitude": -14674.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 229872,
+            "time_ms": 5212.517006802721,
+            "amplitude": 2668.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 230166,
+            "time_ms": 5219.183673469388,
+            "amplitude": -3331.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 230464,
+            "time_ms": 5225.941043083901,
+            "amplitude": -3696.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 233053,
+            "time_ms": 5284.648526077097,
+            "amplitude": 2835.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 233115,
+            "time_ms": 5286.0544217687075,
+            "amplitude": 4083.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 244085,
+            "time_ms": 5534.8072562358275,
+            "amplitude": 12037.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 251952,
+            "time_ms": 5713.197278911565,
+            "amplitude": 2668.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 252246,
+            "time_ms": 5719.863945578231,
+            "amplitude": -3331.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 252544,
+            "time_ms": 5726.621315192744,
+            "amplitude": -3696.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 254976,
+            "time_ms": 5781.768707482994,
+            "amplitude": 0.0,
+            "methods": [
+              false,
+              false,
+              true
+            ]
+          },
+          {
+            "sample_idx": 266370,
+            "time_ms": 6040.136054421769,
+            "amplitude": 732.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 266537,
+            "time_ms": 6043.922902494331,
+            "amplitude": -5224.0,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 272604,
+            "time_ms": 6181.496598639455,
+            "amplitude": 1189.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          },
+          {
+            "sample_idx": 277346,
+            "time_ms": 6289.024943310657,
+            "amplitude": 2630.5,
+            "methods": [
+              true,
+              false,
+              false
+            ]
+          }
+        ],
+        "max_jump": 14674.5,
+        "mean_jump": 430.59833902686734,
+        "derivative_ratio_threshold": 4.0,
+        "method_counts": {
+          "derivative": 156,
+          "spectral_flatness": 0,
+          "crest": 7
+        }
+      },
+      "silence": {
+        "lead_silence_ms": 13.287981859410431,
+        "tail_silence_ms": 216.30385487528343,
+        "active_start_ms": 13.287981859410431,
+        "active_end_ms": 24343.809523809523,
+        "total_duration_ms": 24560.113378684808,
+        "gap_count": 85,
+        "gaps": [
+          {
+            "start_ms": 247.59637188208617,
+            "duration_ms": 111.79138321995464
+          },
+          {
+            "start_ms": 498.5034013605442,
+            "duration_ms": 100.49886621315193
+          },
+          {
+            "start_ms": 750.9977324263039,
+            "duration_ms": 102.44897959183673
+          },
+          {
+            "start_ms": 1000.4761904761905,
+            "duration_ms": 15.691609977324262
+          },
+          {
+            "start_ms": 1252.108843537415,
+            "duration_ms": 102.40362811791383
+          },
+          {
+            "start_ms": 1500.8843537414966,
+            "duration_ms": 16.417233560090704
+          },
+          {
+            "start_ms": 1753.265306122449,
+            "duration_ms": 22.766439909297056
+          },
+          {
+            "start_ms": 2004.0589569160998,
+            "duration_ms": 17.165532879818592
+          },
+          {
+            "start_ms": 2255.532879818594,
+            "duration_ms": 15.532879818594106
+          },
+          {
+            "start_ms": 2504.6485260770974,
+            "duration_ms": 23.46938775510204
+          },
+          {
+            "start_ms": 2757.3922902494332,
+            "duration_ms": 20.884353741496597
+          },
+          {
+            "start_ms": 3006.3038548752834,
+            "duration_ms": 17.2562358276644
+          },
+          {
+            "start_ms": 3258.321995464853,
+            "duration_ms": 16.91609977324263
+          },
+          {
+            "start_ms": 3507.233560090703,
+            "duration_ms": 21.8140589569161
+          },
+          {
+            "start_ms": 4010.9297052154193,
+            "duration_ms": 113.33333333333333
+          },
+          {
+            "start_ms": 4259.410430839002,
+            "duration_ms": 19.682539682539684
+          },
+          {
+            "start_ms": 4512.2675736961455,
+            "duration_ms": 19.750566893424036
+          },
+          {
+            "start_ms": 4763.832199546485,
+            "duration_ms": 16.439909297052154
+          },
+          {
+            "start_ms": 5014.399092970521,
+            "duration_ms": 20.340136054421766
+          },
+          {
+            "start_ms": 5267.66439909297,
+            "duration_ms": 16.984126984126984
+          },
+          {
+            "start_ms": 5516.530612244897,
+            "duration_ms": 18.276643990929706
+          },
+          {
+            "start_ms": 5768.344671201814,
+            "duration_ms": 23.333333333333336
+          },
+          {
+            "start_ms": 6019.705215419501,
+            "duration_ms": 18.798185941043084
+          },
+          {
+            "start_ms": 6272.81179138322,
+            "duration_ms": 15.10204081632653
+          },
+          {
+            "start_ms": 6523.492063492064,
+            "duration_ms": 22.312925170068027
+          },
+          {
+            "start_ms": 6775.079365079365,
+            "duration_ms": 21.201814058956916
+          },
+          {
+            "start_ms": 7024.308390022676,
+            "duration_ms": 18.820861678004537
+          },
+          {
+            "start_ms": 7277.34693877551,
+            "duration_ms": 13.741496598639456
+          },
+          {
+            "start_ms": 7527.165532879819,
+            "duration_ms": 19.909297052154194
+          },
+          {
+            "start_ms": 8029.002267573696,
+            "duration_ms": 19.79591836734694
+          },
+          {
+            "start_ms": 8282.380952380952,
+            "duration_ms": 16.93877551020408
+          },
+          {
+            "start_ms": 8532.902494331065,
+            "duration_ms": 23.356009070294785
+          },
+          {
+            "start_ms": 8785.532879818595,
+            "duration_ms": 13.80952380952381
+          },
+          {
+            "start_ms": 9034.716553287983,
+            "duration_ms": 15.80498866213152
+          },
+          {
+            "start_ms": 9286.462585034014,
+            "duration_ms": 16.439909297052154
+          },
+          {
+            "start_ms": 9536.054421768707,
+            "duration_ms": 18.798185941043084
+          },
+          {
+            "start_ms": 9788.049886621317,
+            "duration_ms": 23.12925170068027
+          },
+          {
+            "start_ms": 10039.20634920635,
+            "duration_ms": 19.274376417233558
+          },
+          {
+            "start_ms": 10291.08843537415,
+            "duration_ms": 12.290249433106576
+          },
+          {
+            "start_ms": 10541.882086167801,
+            "duration_ms": 22.56235827664399
+          },
+          {
+            "start_ms": 10793.718820861677,
+            "duration_ms": 20.997732426303855
+          },
+          {
+            "start_ms": 11042.743764172335,
+            "duration_ms": 18.41269841269841
+          },
+          {
+            "start_ms": 11544.036281179138,
+            "duration_ms": 18.367346938775512
+          },
+          {
+            "start_ms": 11796.009070294785,
+            "duration_ms": 15.510204081632654
+          },
+          {
+            "start_ms": 12045.124716553288,
+            "duration_ms": 17.052154195011337
+          },
+          {
+            "start_ms": 12293.696145124717,
+            "duration_ms": 13.764172335600906
+          },
+          {
+            "start_ms": 12547.48299319728,
+            "duration_ms": 17.2562358276644
+          },
+          {
+            "start_ms": 12798.140589569162,
+            "duration_ms": 16.71201814058957
+          },
+          {
+            "start_ms": 13047.528344671202,
+            "duration_ms": 13.219954648526077
+          },
+          {
+            "start_ms": 13299.773242630385,
+            "duration_ms": 16.961451247165535
+          },
+          {
+            "start_ms": 13548.684807256237,
+            "duration_ms": 20.158730158730158
+          },
+          {
+            "start_ms": 13801.40589569161,
+            "duration_ms": 22.766439909297056
+          },
+          {
+            "start_ms": 14052.19954648526,
+            "duration_ms": 12.517006802721088
+          },
+          {
+            "start_ms": 14304.761904761905,
+            "duration_ms": 21.45124716553288
+          },
+          {
+            "start_ms": 14554.240362811792,
+            "duration_ms": 23.26530612244898
+          },
+          {
+            "start_ms": 14806.780045351474,
+            "duration_ms": 19.04761904761905
+          },
+          {
+            "start_ms": 15058.526077097506,
+            "duration_ms": 21.405895691609977
+          },
+          {
+            "start_ms": 15559.886621315194,
+            "duration_ms": 16.50793650793651
+          },
+          {
+            "start_ms": 16060.02267573696,
+            "duration_ms": 427.891156462585
+          },
+          {
+            "start_ms": 16720.136054421768,
+            "duration_ms": 19.002267573696145
+          },
+          {
+            "start_ms": 16971.8820861678,
+            "duration_ms": 15.215419501133786
+          },
+          {
+            "start_ms": 17221.06575963719,
+            "duration_ms": 19.931972789115648
+          },
+          {
+            "start_ms": 17474.557823129253,
+            "duration_ms": 15.510204081632654
+          },
+          {
+            "start_ms": 17723.673469387755,
+            "duration_ms": 16.417233560090704
+          },
+          {
+            "start_ms": 17975.555555555555,
+            "duration_ms": 22.403628117913833
+          },
+          {
+            "start_ms": 18225.98639455782,
+            "duration_ms": 17.233560090702948
+          },
+          {
+            "start_ms": 18477.460317460318,
+            "duration_ms": 12.721088435374151
+          },
+          {
+            "start_ms": 18726.462585034013,
+            "duration_ms": 17.12018140589569
+          },
+          {
+            "start_ms": 18977.891156462585,
+            "duration_ms": 16.05442176870748
+          },
+          {
+            "start_ms": 19227.573696145126,
+            "duration_ms": 18.140589569160998
+          },
+          {
+            "start_ms": 19478.662131519275,
+            "duration_ms": 17.619047619047617
+          },
+          {
+            "start_ms": 19729.342403628118,
+            "duration_ms": 18.20861678004535
+          },
+          {
+            "start_ms": 19981.08843537415,
+            "duration_ms": 13.605442176870747
+          },
+          {
+            "start_ms": 20229.750566893425,
+            "duration_ms": 19.138321995464853
+          },
+          {
+            "start_ms": 20481.791383219952,
+            "duration_ms": 23.242630385487526
+          },
+          {
+            "start_ms": 20733.061224489797,
+            "duration_ms": 19.97732426303855
+          },
+          {
+            "start_ms": 20987.34693877551,
+            "duration_ms": 14.625850340136054
+          },
+          {
+            "start_ms": 21236.984126984127,
+            "duration_ms": 21.97278911564626
+          },
+          {
+            "start_ms": 21488.231292517008,
+            "duration_ms": 21.088435374149658
+          },
+          {
+            "start_ms": 21737.34693877551,
+            "duration_ms": 12.448979591836736
+          },
+          {
+            "start_ms": 21989.455782312925,
+            "duration_ms": 15.011337868480727
+          },
+          {
+            "start_ms": 22239.04761904762,
+            "duration_ms": 17.619047619047617
+          },
+          {
+            "start_ms": 23232.92517006803,
+            "duration_ms": 512.2222222222223
+          },
+          {
+            "start_ms": 23959.50113378685,
+            "duration_ms": 9.614512471655328
+          },
+          {
+            "start_ms": 24209.138321995466,
+            "duration_ms": 21.97278911564626
+          }
+        ],
+        "gap_durations_ms": [
+          111.79138321995464,
+          100.49886621315193,
+          102.44897959183673,
+          15.691609977324262,
+          102.40362811791383,
+          16.417233560090704,
+          22.766439909297056,
+          17.165532879818592,
+          15.532879818594106,
+          23.46938775510204,
+          20.884353741496597,
+          17.2562358276644,
+          16.91609977324263,
+          21.8140589569161,
+          113.33333333333333,
+          19.682539682539684,
+          19.750566893424036,
+          16.439909297052154,
+          20.340136054421766,
+          16.984126984126984,
+          18.276643990929706,
+          23.333333333333336,
+          18.798185941043084,
+          15.10204081632653,
+          22.312925170068027,
+          21.201814058956916,
+          18.820861678004537,
+          13.741496598639456,
+          19.909297052154194,
+          19.79591836734694,
+          16.93877551020408,
+          23.356009070294785,
+          13.80952380952381,
+          15.80498866213152,
+          16.439909297052154,
+          18.798185941043084,
+          23.12925170068027,
+          19.274376417233558,
+          12.290249433106576,
+          22.56235827664399,
+          20.997732426303855,
+          18.41269841269841,
+          18.367346938775512,
+          15.510204081632654,
+          17.052154195011337,
+          13.764172335600906,
+          17.2562358276644,
+          16.71201814058957,
+          13.219954648526077,
+          16.961451247165535,
+          20.158730158730158,
+          22.766439909297056,
+          12.517006802721088,
+          21.45124716553288,
+          23.26530612244898,
+          19.04761904761905,
+          21.405895691609977,
+          16.50793650793651,
+          427.891156462585,
+          19.002267573696145,
+          15.215419501133786,
+          19.931972789115648,
+          15.510204081632654,
+          16.417233560090704,
+          22.403628117913833,
+          17.233560090702948,
+          12.721088435374151,
+          17.12018140589569,
+          16.05442176870748,
+          18.140589569160998,
+          17.619047619047617,
+          18.20861678004535,
+          13.605442176870747,
+          19.138321995464853,
+          23.242630385487526,
+          19.97732426303855,
+          14.625850340136054,
+          21.97278911564626,
+          21.088435374149658,
+          12.448979591836736,
+          15.011337868480727,
+          17.619047619047617,
+          512.2222222222223,
+          9.614512471655328,
+          21.97278911564626
+        ]
+      },
+      "envelope": {
+        "mean_rms": 6185.3454941392065,
+        "std_rms": 2886.7810634013854,
+        "consistency_pct": 53.32870142602877,
+        "window_ms": 50.0
+      },
+      "stereo": {
+        "channels": 2,
+        "left_rms": 7881.104768154107,
+        "right_rms": 6504.700639649708,
+        "balance_db": 1.667195733735371,
+        "channel_match": false
+      },
+      "source_compare": [
+        {
+          "alignment_offset_ms": 315.4421768707483,
+          "cross_correlation": 0.8038192226913546,
+          "max_sample_diff": 26036.5,
+          "rms_diff": 6805.009393955821,
+          "log_spectral_distance_db": 14.71628324985776,
+          "spectral_convergence": 0.7714503091105643,
+          "index": 1,
+          "file": "s69.wav"
+        },
+        {
+          "alignment_offset_ms": 785.4648526077098,
+          "cross_correlation": 0.6228783951280528,
+          "max_sample_diff": 23784.5,
+          "rms_diff": 5790.81203363879,
+          "log_spectral_distance_db": 14.28179308178427,
+          "spectral_convergence": 0.6870153973753612,
+          "index": 3,
+          "file": "s74.wav"
+        },
+        {
+          "alignment_offset_ms": 1283.1292517006802,
+          "cross_correlation": 0.6373934554552523,
+          "max_sample_diff": 16394.5,
+          "rms_diff": 4726.209531455438,
+          "log_spectral_distance_db": 14.899627272679805,
+          "spectral_convergence": 0.6780745061116652,
+          "index": 5,
+          "file": "s76.wav"
+        },
+        {
+          "alignment_offset_ms": 1834.6031746031745,
+          "cross_correlation": 0.6768925731142844,
+          "max_sample_diff": 21012.0,
+          "rms_diff": 7194.610779455115,
+          "log_spectral_distance_db": 8.682896697880397,
+          "spectral_convergence": 0.8264483332088612,
+          "index": 7,
+          "file": "s71.wav"
+        },
+        {
+          "alignment_offset_ms": 2244.467120181406,
+          "cross_correlation": 0.9318165213108647,
+          "max_sample_diff": 23909.5,
+          "rms_diff": 3953.934374495675,
+          "log_spectral_distance_db": 10.138357561775289,
+          "spectral_convergence": 0.3123727083400853,
+          "index": 9,
+          "file": "s69.wav"
+        },
+        {
+          "alignment_offset_ms": 2760.045351473923,
+          "cross_correlation": 0.9999999988935415,
+          "max_sample_diff": 5291.0,
+          "rms_diff": 1985.3574106036,
+          "log_spectral_distance_db": 2.0843312103866802,
+          "spectral_convergence": 0.36499001827652183,
+          "index": 11,
+          "file": "s71.wav"
+        },
+        {
+          "alignment_offset_ms": 3251.7913832199547,
+          "cross_correlation": 0.7764379228361694,
+          "max_sample_diff": 22481.0,
+          "rms_diff": 2489.263012788347,
+          "log_spectral_distance_db": 2.6586361454171685,
+          "spectral_convergence": 0.3424644292791302,
+          "index": 13,
+          "file": "s67.wav"
+        },
+        {
+          "alignment_offset_ms": 4263.401360544218,
+          "cross_correlation": 0.9865625722841377,
+          "max_sample_diff": 16934.0,
+          "rms_diff": 2573.2663453444384,
+          "log_spectral_distance_db": 4.638365640388862,
+          "spectral_convergence": 0.35479162751681487,
+          "index": 16,
+          "file": "s69.wav"
+        }
+      ]
+    }
+  },
+  "log": {
+    "init": {
+      "device_found": true,
+      "codec_present": true,
+      "bar0": "0xfebf0000",
+      "pci_cmd": "0x0107",
+      "bus_master": true,
+      "gcap": "0x4401",
+      "version": "1.0",
+      "oss": 1,
+      "iss": 0,
+      "bss": 4,
+      "gctl": "0x00000101",
+      "crst": true,
+      "intctl": "0x80000000",
+      "statests": "0x0001",
+      "codec_cad": 0
+    },
+    "verbs": {
+      "total_count": 10,
+      "timeout_count": 0,
+      "all_responded": true,
+      "set_converter_ok": true,
+      "nids_scanned": 0,
+      "set_converter_verb": "70640"
+    },
+    "stream": {
+      "started": true,
+      "stopped": true,
+      "cbl": 524288,
+      "rate": 44100,
+      "channels": 2,
+      "bits": 16,
+      "tail_ms": 250
+    },
+    "errors": {
+      "fifo_errors": 0,
+      "desc_errors": 0,
+      "position_ms": 24594,
+      "has_xrun": false
+    },
+    "sort": {
+      "verify_ok": true,
+      "total_steps": 351
+    },
+    "melody": {
+      "notes_played": 84,
+      "note_list": [
+        {
+          "index": 0,
+          "midi_note": 67,
+          "ms": 250,
+          "voices": 3,
+          "file": "s67.wav"
+        },
+        {
+          "index": 1,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 1,
+          "file": "s69.wav"
+        },
+        {
+          "index": 2,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 3,
+          "file": "s71.wav"
+        },
+        {
+          "index": 3,
+          "midi_note": 74,
+          "ms": 250,
+          "voices": 1,
+          "file": "s74.wav"
+        },
+        {
+          "index": 4,
+          "midi_note": 74,
+          "ms": 250,
+          "voices": 3,
+          "file": "s74.wav"
+        },
+        {
+          "index": 5,
+          "midi_note": 76,
+          "ms": 250,
+          "voices": 1,
+          "file": "s76.wav"
+        },
+        {
+          "index": 6,
+          "midi_note": 74,
+          "ms": 250,
+          "voices": 3,
+          "file": "s74.wav"
+        },
+        {
+          "index": 7,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 1,
+          "file": "s71.wav"
+        },
+        {
+          "index": 8,
+          "midi_note": 67,
+          "ms": 250,
+          "voices": 3,
+          "file": "s67.wav"
+        },
+        {
+          "index": 9,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 1,
+          "file": "s69.wav"
+        },
+        {
+          "index": 10,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 3,
+          "file": "s71.wav"
+        },
+        {
+          "index": 11,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 1,
+          "file": "s71.wav"
+        },
+        {
+          "index": 12,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 3,
+          "file": "s69.wav"
+        },
+        {
+          "index": 13,
+          "midi_note": 67,
+          "ms": 250,
+          "voices": 1,
+          "file": "s67.wav"
+        },
+        {
+          "index": 14,
+          "midi_note": 69,
+          "ms": 500,
+          "voices": 3,
+          "file": "s69.wav"
+        },
+        {
+          "index": 15,
+          "midi_note": 67,
+          "ms": 250,
+          "voices": 3,
+          "file": "s67.wav"
+        },
+        {
+          "index": 16,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 1,
+          "file": "s69.wav"
+        },
+        {
+          "index": 17,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 3,
+          "file": "s71.wav"
+        },
+        {
+          "index": 18,
+          "midi_note": 74,
+          "ms": 250,
+          "voices": 1,
+          "file": "s74.wav"
+        },
+        {
+          "index": 19,
+          "midi_note": 74,
+          "ms": 250,
+          "voices": 3,
+          "file": "s74.wav"
+        },
+        {
+          "index": 20,
+          "midi_note": 76,
+          "ms": 250,
+          "voices": 1,
+          "file": "s76.wav"
+        },
+        {
+          "index": 21,
+          "midi_note": 74,
+          "ms": 250,
+          "voices": 3,
+          "file": "s74.wav"
+        },
+        {
+          "index": 22,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 1,
+          "file": "s71.wav"
+        },
+        {
+          "index": 23,
+          "midi_note": 67,
+          "ms": 250,
+          "voices": 3,
+          "file": "s67.wav"
+        },
+        {
+          "index": 24,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 1,
+          "file": "s69.wav"
+        },
+        {
+          "index": 25,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 3,
+          "file": "s71.wav"
+        },
+        {
+          "index": 26,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 1,
+          "file": "s71.wav"
+        },
+        {
+          "index": 27,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 3,
+          "file": "s69.wav"
+        },
+        {
+          "index": 28,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 1,
+          "file": "s69.wav"
+        },
+        {
+          "index": 29,
+          "midi_note": 67,
+          "ms": 500,
+          "voices": 3,
+          "file": "s67.wav"
+        },
+        {
+          "index": 30,
+          "midi_note": 67,
+          "ms": 250,
+          "voices": 3,
+          "file": "s67.wav"
+        },
+        {
+          "index": 31,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 1,
+          "file": "s69.wav"
+        },
+        {
+          "index": 32,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 3,
+          "file": "s71.wav"
+        },
+        {
+          "index": 33,
+          "midi_note": 74,
+          "ms": 250,
+          "voices": 1,
+          "file": "s74.wav"
+        },
+        {
+          "index": 34,
+          "midi_note": 74,
+          "ms": 250,
+          "voices": 3,
+          "file": "s74.wav"
+        },
+        {
+          "index": 35,
+          "midi_note": 76,
+          "ms": 250,
+          "voices": 1,
+          "file": "s76.wav"
+        },
+        {
+          "index": 36,
+          "midi_note": 74,
+          "ms": 250,
+          "voices": 3,
+          "file": "s74.wav"
+        },
+        {
+          "index": 37,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 1,
+          "file": "s71.wav"
+        },
+        {
+          "index": 38,
+          "midi_note": 67,
+          "ms": 250,
+          "voices": 3,
+          "file": "s67.wav"
+        },
+        {
+          "index": 39,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 1,
+          "file": "s69.wav"
+        },
+        {
+          "index": 40,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 3,
+          "file": "s71.wav"
+        },
+        {
+          "index": 41,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 1,
+          "file": "s71.wav"
+        },
+        {
+          "index": 42,
+          "midi_note": 69,
+          "ms": 500,
+          "voices": 3,
+          "file": "s69.wav"
+        },
+        {
+          "index": 43,
+          "midi_note": 67,
+          "ms": 250,
+          "voices": 3,
+          "file": "s67.wav"
+        },
+        {
+          "index": 44,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 1,
+          "file": "s69.wav"
+        },
+        {
+          "index": 45,
+          "midi_note": 67,
+          "ms": 250,
+          "voices": 3,
+          "file": "s67.wav"
+        },
+        {
+          "index": 46,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 1,
+          "file": "s69.wav"
+        },
+        {
+          "index": 47,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 3,
+          "file": "s71.wav"
+        },
+        {
+          "index": 48,
+          "midi_note": 74,
+          "ms": 250,
+          "voices": 1,
+          "file": "s74.wav"
+        },
+        {
+          "index": 49,
+          "midi_note": 74,
+          "ms": 250,
+          "voices": 3,
+          "file": "s74.wav"
+        },
+        {
+          "index": 50,
+          "midi_note": 76,
+          "ms": 250,
+          "voices": 1,
+          "file": "s76.wav"
+        },
+        {
+          "index": 51,
+          "midi_note": 74,
+          "ms": 250,
+          "voices": 3,
+          "file": "s74.wav"
+        },
+        {
+          "index": 52,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 1,
+          "file": "s71.wav"
+        },
+        {
+          "index": 53,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 3,
+          "file": "s69.wav"
+        },
+        {
+          "index": 54,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 1,
+          "file": "s71.wav"
+        },
+        {
+          "index": 55,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 3,
+          "file": "s71.wav"
+        },
+        {
+          "index": 56,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 1,
+          "file": "s69.wav"
+        },
+        {
+          "index": 57,
+          "midi_note": 69,
+          "ms": 500,
+          "voices": 3,
+          "file": "s69.wav"
+        },
+        {
+          "index": 58,
+          "midi_note": 67,
+          "ms": 500,
+          "voices": 3,
+          "file": "s67.wav"
+        },
+        {
+          "index": 59,
+          "midi_note": 72,
+          "ms": 250,
+          "voices": 3,
+          "file": "s72.wav"
+        },
+        {
+          "index": 60,
+          "midi_note": 72,
+          "ms": 250,
+          "voices": 1,
+          "file": "s72.wav"
+        },
+        {
+          "index": 61,
+          "midi_note": 76,
+          "ms": 250,
+          "voices": 3,
+          "file": "s76.wav"
+        },
+        {
+          "index": 62,
+          "midi_note": 76,
+          "ms": 250,
+          "voices": 1,
+          "file": "s76.wav"
+        },
+        {
+          "index": 63,
+          "midi_note": 76,
+          "ms": 250,
+          "voices": 3,
+          "file": "s76.wav"
+        },
+        {
+          "index": 64,
+          "midi_note": 74,
+          "ms": 250,
+          "voices": 1,
+          "file": "s74.wav"
+        },
+        {
+          "index": 65,
+          "midi_note": 74,
+          "ms": 250,
+          "voices": 3,
+          "file": "s74.wav"
+        },
+        {
+          "index": 66,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 1,
+          "file": "s71.wav"
+        },
+        {
+          "index": 67,
+          "midi_note": 67,
+          "ms": 250,
+          "voices": 3,
+          "file": "s67.wav"
+        },
+        {
+          "index": 68,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 1,
+          "file": "s69.wav"
+        },
+        {
+          "index": 69,
+          "midi_note": 67,
+          "ms": 250,
+          "voices": 3,
+          "file": "s67.wav"
+        },
+        {
+          "index": 70,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 1,
+          "file": "s69.wav"
+        },
+        {
+          "index": 71,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 3,
+          "file": "s71.wav"
+        },
+        {
+          "index": 72,
+          "midi_note": 74,
+          "ms": 250,
+          "voices": 1,
+          "file": "s74.wav"
+        },
+        {
+          "index": 73,
+          "midi_note": 74,
+          "ms": 250,
+          "voices": 3,
+          "file": "s74.wav"
+        },
+        {
+          "index": 74,
+          "midi_note": 76,
+          "ms": 250,
+          "voices": 1,
+          "file": "s76.wav"
+        },
+        {
+          "index": 75,
+          "midi_note": 74,
+          "ms": 250,
+          "voices": 3,
+          "file": "s74.wav"
+        },
+        {
+          "index": 76,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 1,
+          "file": "s71.wav"
+        },
+        {
+          "index": 77,
+          "midi_note": 67,
+          "ms": 250,
+          "voices": 3,
+          "file": "s67.wav"
+        },
+        {
+          "index": 78,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 1,
+          "file": "s69.wav"
+        },
+        {
+          "index": 79,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 3,
+          "file": "s71.wav"
+        },
+        {
+          "index": 80,
+          "midi_note": 71,
+          "ms": 250,
+          "voices": 1,
+          "file": "s71.wav"
+        },
+        {
+          "index": 81,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 3,
+          "file": "s69.wav"
+        },
+        {
+          "index": 82,
+          "midi_note": 69,
+          "ms": 250,
+          "voices": 1,
+          "file": "s69.wav"
+        },
+        {
+          "index": 83,
+          "midi_note": 67,
+          "ms": 1000,
+          "voices": 3,
+          "file": "s67.wav"
+        }
+      ],
+      "note_durations_ms": [
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        500,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        500,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        500,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        500,
+        500,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        1000
+      ]
+    },
+    "completion": {
+      "demo_finished": true,
+      "test_tone_finished": false,
+      "vga_ok": true,
+      "sort_ok": true,
+      "melody_ok": true
+    },
+    "test_signal": null,
+    "volume": 80,
+    "warnings": [],
+    "line_count": 1012
+  },
+  "regression": {
+    "score": 100.0,
+    "penalties": []
+  },
+  "recommendations": [],
+  "baseline_diff": {
+    "snr_db": 0.0,
+    "thd_n_pct": 0.0,
+    "freq_error_hz": 0.0,
+    "clicks_high": -2.0,
+    "xrun_count": -7.0
+  }
+}
