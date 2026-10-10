@@ -52,4 +52,14 @@ int     ioctl(int fd, uint32_t req, void *pv);
 ssize_t recv(int sockfd, void *buf, size_t len, int flags);
 ssize_t send(int sockfd, const void *buf, size_t len, int flags);
 
+int audio_play_file_ms(const char *filename, uint32_t max_ms);
+int audio_play_silence_ms(uint32_t ms);
+int audio_stop(void);
+int audio_play_voices_ms(const char **files, uint32_t n, uint32_t ms);
+int audio_set_volume(uint32_t volume);
+uint32_t audio_get_errors(void);
+uint32_t audio_get_position_ms(void);
+int audio_play_pcm_ms(const void *pcm, uint32_t len, uint32_t rate,
+                      uint32_t ch, uint32_t bits, uint32_t ms);
+
 #endif /*_SYSCALL_H*/

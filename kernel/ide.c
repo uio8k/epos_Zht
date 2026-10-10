@@ -152,6 +152,16 @@ static void ata_select(uint16_t bus)
 	outportb(bus + ATA_REG_HDDEVSEL, 0xA0);
 }
 
+/* 检测 bus 上是否存在 IDE 控制器/设备。
+   q35 默认没有 legacy IDE 控制器（用 AHCI），读 0x1F7 会返回 0xFF，
+   而 ata_wait_ready() 会因 BSY=1 死循环。返回 0 表示无控制器。 */
+static int ata_present(uint16_t bus)
+{
+	uint8_t status = inportb(bus + ATA_REG_STATUS);
+	/* 无设备时总线被拉高读到 0xFF；正常控制器读回有效状态寄存器值 */
+	return (status != 0xFF);
+}
+
 void ide_init(uint16_t bus)
 {
 	int i;
@@ -163,6 +173,13 @@ void ide_init(uint16_t bus)
 
 	ata_select(bus);
 	delay400ns(bus);
+
+	/* 防御：无 IDE 控制器时直接返回，避免 ata_wait_ready 死循环
+	   （q35 默认磁盘在 AHCI 上，0x1f0 无设备） */
+	if (!ata_present(bus)) {
+		printk("(no IDE controller at 0x%03x, skipping) ", bus);
+		return;
+	}
 
 	outportb(bus + ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
 	delay400ns(bus);

@@ -160,6 +160,15 @@ void isr_timer(uint32_t irq, struct context *ctx);
 void isr_keyboard(uint32_t irq, struct context *ctx);
 
 void sys_beep(int freq);
+int  sys_audio_play_file_ms(const char *filename, uint32_t max_ms);
+int  sys_audio_play_silence_ms(uint32_t ms);
+int  sys_audio_play_voices_ms(const char **files, uint32_t n, uint32_t ms);
+int  sys_audio_stop(void);
+int  sys_audio_set_volume(uint32_t volume);
+uint32_t sys_audio_get_errors(void);
+uint32_t sys_audio_get_position_ms(void);
+int  sys_audio_play_pcm_ms(const void *pcm, uint32_t len, uint32_t rate,
+                           uint32_t ch, uint32_t bits, uint32_t ms);
 
 struct vm86_context {
     uint32_t  : 32;    /* 0*/
@@ -204,6 +213,9 @@ void ide_write_sector(uint16_t bus, uint8_t slave, uint32_t lba, uint8_t *buf);
 uint8_t  pci_get_intr_line(uint16_t vendor, uint16_t product);
 uint32_t pci_get_bar_size(uint16_t vendor, uint16_t product);
 uint32_t pci_get_bar_addr(uint16_t vendor, uint16_t product);
+uint16_t pci_config_read16(uint16_t vendor, uint16_t product, uint8_t offset);
+void     pci_config_write16(uint16_t vendor, uint16_t product, uint8_t offset, uint16_t value);
+void     pci_enable_bus_master(uint16_t vendor, uint16_t product);
 void     pci_init();
 
 void e1000_send(uint8_t *pkt, uint32_t length);

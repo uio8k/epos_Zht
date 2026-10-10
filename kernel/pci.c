@@ -170,6 +170,45 @@ uint8_t pci_get_intr_line(uint16_t vendor, uint16_t product)
 	return 0xff;
 }
 
+uint16_t pci_config_read16(uint16_t vendor, uint16_t product, uint8_t offset)
+{
+	struct pci_device *dev = get_device(vendor, product);
+	if (dev == NULL)
+		return 0xFFFF;
+
+	uint32_t addr = PCI_CONF_ADDR(GET_BUS(dev->bsf),
+				      GET_SLOT(dev->bsf),
+				      GET_FUNC(dev->bsf),
+				      offset);
+	return (uint16_t)(pci_read(addr) >> ((offset & 2) * 8));
+}
+
+void pci_config_write16(uint16_t vendor, uint16_t product,
+			uint8_t offset, uint16_t value)
+{
+	struct pci_device *dev = get_device(vendor, product);
+	if (dev == NULL)
+		return;
+
+	uint32_t addr = PCI_CONF_ADDR(GET_BUS(dev->bsf),
+				      GET_SLOT(dev->bsf),
+				      GET_FUNC(dev->bsf),
+				      offset);
+	uint32_t old = pci_read(addr);
+	uint32_t shift = (offset & 2) * 8;
+	uint32_t mask  = 0xFFFFu << shift;
+	uint32_t val   = (old & ~mask) | ((uint32_t)value << shift);
+	pci_write(addr, val);
+}
+
+void pci_enable_bus_master(uint16_t vendor, uint16_t product)
+{
+	uint16_t cmd = pci_config_read16(vendor, product, 0x04);
+	/* bit 1 = Memory Space Enable, bit 2 = Bus Master Enable */
+	cmd |= 0x0006;  /* 0x0006 = MSE (bit1) + BME (bit2) */
+	pci_config_write16(vendor, product, 0x04, cmd);
+}
+
 void pci_init()
 {
 	uint32_t bus;

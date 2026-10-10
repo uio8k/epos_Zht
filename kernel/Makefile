@@ -8,6 +8,7 @@ all: run
 CPPFLAGS=-DVERBOSE=0 -nostdinc -I../include
 ASFLAGS=-m32 -march=i386 -Wall -D__ASSEMBLY__
 CFLAGS=	-m32 -march=i386 -Wall -pipe -Wno-address-of-packed-member \
+	-std=gnu11 \
 	-fomit-frame-pointer \
 	-ffreestanding -fleading-underscore -mno-ms-bitfields \
 	-fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector
@@ -18,7 +19,7 @@ LDFLAGS+=-Wl,-melf_i386
 endif
 LDFLAGS+=-Wl,--build-id=none
 
-COBJS=	ide.o floppy.o e1000.o pci.o vm86.o \
+COBJS=	ide.o floppy.o e1000.o hda.o hda_stream.o hda_audio.o pci.o vm86.o \
 	kbd.o timer.o machdep.o task.o mktime.o sem.o \
 	page.o startup.o frame.o kmalloc.o dosfs.o pe.o \
 	elf.o printk.o bitmap.o

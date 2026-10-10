@@ -19,6 +19,7 @@
  */
 #include <stddef.h>
 #include "kernel.h"
+#include "hda.h"
 
 /*中断向量表*/
 void (*g_intr_vector[NR_IRQ])(uint32_t irq, struct context *ctx);
@@ -112,6 +113,7 @@ void start_user_task()
 
     vm86_init();          //初始化8086模拟器
     e1000_init();         //初始化E1000网卡
+    hda_init();           //初始化HDA音频
 
     /*
      * 初始化FAT文件系统
@@ -160,6 +162,10 @@ void start_user_task()
     }
 }
 
+/* 内核堆大小：默认 4MiB；HDA 采样缓存需缓存全部 88keyVoice
+   采样（约 9.7MB），故扩大到 12MiB（物理页按需提交，RAM 足够）。 */
+#define KERNEL_HEAP_SIZE  (12 * 1024 * PAGE_SIZE)
+
 /**
  * 机器无关（Machine Independent）的初始化
  */
@@ -193,14 +199,14 @@ void mi_startup()
     brk = init_frame(brk);
 
     /*
-     * 初始化虚拟地址空间，为内核堆预留4MiB的地址空间
+     * 初始化虚拟地址空间，为内核堆预留地址空间
      */
-    init_vmspace(brk+1024*PAGE_SIZE);
+    init_vmspace(brk+KERNEL_HEAP_SIZE);
 
     /*
-     * 初始化内核堆，大小为4MiB，由kmalloc/kfree管理.
+     * 初始化内核堆，大小为 12MiB，由kmalloc/kfree管理.
      */
-    init_kmalloc((uint8_t *)brk, 1024*PAGE_SIZE);
+    init_kmalloc((uint8_t *)brk, KERNEL_HEAP_SIZE);
 
     /*
      * 初始化多线程子系统

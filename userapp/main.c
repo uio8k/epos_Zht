@@ -1,43 +1,419 @@
 /*
  * vim: filetype=c:fenc=utf-8:ts=4:et:sw=4:sts=4
+ *
+ * VGA 8-bit 图形模式 + 希尔排序柱状图动态演示
+ *
+ * 通过 serial.log 判断程序是否成功：
+ *   [VGA] 行 -> 图形模式是否进入成功
+ *   [SORT] 行 -> 排序过程每一步的数组状态
+ *   末尾 [SORT] verify OK -> 排序正确完成
  */
 #include <inttypes.h>
 #include <stddef.h>
-#include <math.h>
 #include <stdio.h>
+#include <string.h>
+#include <math.h>
 #include <sys/mman.h>
 #include <syscall.h>
-#include <netinet/in.h>
 #include <stdlib.h>
+#include <time.h>
 #include "graphics.h"
+#include "melody_player.h"
 
-extern void *tlsf_create_with_pool(void* mem, size_t bytes);
+extern int vm86call(int fintr, uint32_t n, struct vm86_context *vm86ctx);
+
+extern void *tlsf_create_with_pool(void *mem, size_t bytes);
 extern void *g_heap;
 
-/**
- * GCC insists on __main
- *    http://gcc.gnu.org/onlinedocs/gccint/Collect2.html
- */
+/* ================= 排序/显示参数 ================= */
+#define N           64          /* 待排序元素个数（扩充以支撑完整旋律长度） */
+#define BAR_MIN     20          /* 数值下限 */
+#define BAR_MAX     200         /* 数值上限 */
+/* 柱高缩放改为动态计算 bar_scale()（见下方），保证不同分辨率下柱子填满屏幕 */
+
+/* VBE 8-bit(256色) 模式候选 */
+static const int g_modes[] = { 0x101, /* 640x480x8 */
+                               0x103, /* 800x600x8 */
+                               0x100, /* 640x400x8 */
+                               0x105  /* 1024x768x8 */
+                             };
+#define N_MODES (int)(sizeof(g_modes)/sizeof(g_modes[0]))
+
+/* 调色板索引 */
+#define COL_BG      0   /* 黑 */
+#define COL_WHITE   1   /* 白 */
+#define COL_GREEN   2   /* 绿 */
+#define COL_RED     3   /* 红 */
+#define COL_YELLOW  4   /* 黄 */
+#define COL_BLUE    5   /* 蓝 */
+#define COL_GRAD_START 6   /* 渐变起始索引 */
+#define COL_GRAD_END   250 /* 渐变结束索引 */
+
+static int g_gfx_ok = 0;    /* 图形模式是否进入成功 */
+static int a[N];            /* 待排序数组 */
+static int g_steps = 0;     /* 已执行的操作数 */
+
+/* ================= 简单伪随机数 ================= */
+static uint32_t g_seed = 0x12345678;
+static uint32_t next_rand(void)
+{
+    g_seed = g_seed * 1103515245u + 12345u;
+    return (g_seed >> 16) & 0x7fff;
+}
+
+/* ================= 256 色渐变调色板 ================= */
+/* t in [0,1000): 蓝->青->绿->黄->红 */
+static void rgb_from_t(int t, int *r, int *g, int *b)
+{
+    if (t < 200)      { *r=0;   *g=255*t/200;      *b=255; }
+    else if (t < 400) { *r=0;   *g=255;            *b=255-255*(t-200)/200; }
+    else if (t < 600) { *r=255*(t-400)/200; *g=255; *b=0; }
+    else if (t < 800) { *r=255; *g=255-255*(t-600)/200; *b=0; }
+    else              { *r=255; *g=0;              *b=255*(t-800)/200; }
+}
+
+static void set_palette(void)
+{
+    /* 把 256 项 RGB 表写到 vm86_init() 已映射为可写的低内存 0xE8000
+       （QEMU 中 0xE8000-0xEFFFF 是 pc.ram，且 vm86.c 已 L2E_V|L2E_W|L2E_U 映射），
+       再通过 vm86 int 0x10 AX=0x1002 写入 VGA DAC。
+       注意：不能用 mmap(0x60000)，因为 vm86 仿真器按线性地址访问，
+       0x60000 未映射会导致页错误。 */
+    uint8_t *pal = (uint8_t *)0xE8000;
+    for (int i = 0; i < 256; i++) {
+        int r = 0, g = 0, b = 0;
+        if (i == COL_BG)         { r=0;   g=0;   b=0; }
+        else if (i == COL_WHITE) { r=255; g=255; b=255; }
+        else if (i == COL_GREEN) { r=0;   g=255; b=0; }
+        else if (i == COL_RED)   { r=255; g=0;   b=0; }
+        else if (i == COL_YELLOW){ r=255; g=255; b=0; }
+        else if (i == COL_BLUE)  { r=0;   g=0;   b=255; }
+        else {
+            int t = (i - COL_GRAD_START) * 1000 /
+                    (COL_GRAD_END - COL_GRAD_START);
+            rgb_from_t(t, &r, &g, &b);
+        }
+        pal[i*3+0] = (uint8_t)(r >> 2);   /* VGA DAC 是 6-bit */
+        pal[i*3+1] = (uint8_t)(g >> 2);
+        pal[i*3+2] = (uint8_t)(b >> 2);
+    }
+    struct vm86_context vm86ctx = { .ss = 0x0000, .esp = 0x1000 };
+    vm86ctx.eax = 0x1002;      /* 设置全部 256 个调色板寄存器 */
+    vm86ctx.es  = 0xE800;
+    vm86ctx.edx = 0x0000;
+    if (vm86call(1, 0x10, &vm86ctx) != 0)
+        printf("[VGA] palette set via vm86 FAILED\r\n");
+    else
+        printf("[VGA] 256-color palette set OK\r\n");
+}
+
+/* ================= 进入 VGA 8-bit 图形模式 ================= */
+static int enter_vga8(void)
+{
+    printf("[VGA] Entering VGA 8-bit (256-color) graphics mode...\r\n");
+    for (int m = 0; m < N_MODES; m++) {
+        int mode = g_modes[m];
+        printf("[VGA] trying VBE mode 0x%04x ... ", mode);
+        if (init_graphic(mode) == 0) {
+            printf("OK (%dx%dx%d)\r\n",
+                   g_graphic_dev.XResolution,
+                   g_graphic_dev.YResolution,
+                   g_graphic_dev.BitsPerPixel);
+            set_palette();
+            printf("[VGA] FrameBuffer=0x%08x size=%u bytes\r\n",
+                   (uint32_t)g_graphic_dev.FrameBuffer,
+                   g_graphic_dev.FrameBufferSize);
+            return 0;
+        }
+        printf("failed\r\n");
+    }
+    printf("[VGA] No 8-bit graphics mode available!\r\n");
+    return -1;
+}
+
+/* ================= 柱状图绘制 ================= */
+static int bar_width(void)
+{
+    return g_graphic_dev.XResolution / N;
+}
+
+/* 动态柱高缩放：让最高柱（BAR_MAX）约占屏幕高度的 90%，适配不同分辨率 */
+static int bar_scale(void)
+{
+    int s = (g_graphic_dev.YResolution - 24) / BAR_MAX;
+    return s < 1 ? 1 : s;
+}
+
+/* 用指定颜色画第 i 根柱子 */
+static void draw_bar(int i, COLORREF cr)
+{
+    int w = bar_width();
+    int x0 = i * w;
+    int x1 = (i + 1) * w - 1;
+    int h  = a[i] * bar_scale();
+    int y0 = g_graphic_dev.YResolution - 1 - h;
+    for (int x = x0; x <= x1; x++)
+        for (int y = y0; y < g_graphic_dev.YResolution; y++)
+            setPixel(x, y, cr);
+}
+
+/* 清空第 i 根柱子的列（画背景色） */
+static void clear_bar(int i)
+{
+    int w = bar_width();
+    int x0 = i * w;
+    int x1 = (i + 1) * w - 1;
+    for (int x = x0; x <= x1; x++)
+        for (int y = 0; y < g_graphic_dev.YResolution; y++)
+            setPixel(x, y, COL_BG);
+}
+
+/* 按数值给柱子一个渐变颜色 */
+static COLORREF bar_color(int value)
+{
+    int t = (value - BAR_MIN) * (COL_GRAD_END - COL_GRAD_START) /
+            (BAR_MAX - BAR_MIN);
+    return (COLORREF)(COL_GRAD_START + t);
+}
+
+/* 重画第 i 根柱子（先清后画，正常颜色） */
+static void redraw_bar(int i)
+{
+    clear_bar(i);
+    draw_bar(i, bar_color(a[i]));
+}
+
+/* 画全部柱子（初始画面） */
+static void draw_all_bars(void)
+{
+    for (int i = 0; i < N; i++)
+        draw_bar(i, bar_color(a[i]));
+}
+
+/* ================= 数组打印（serial.log 判读依据） ================= */
+static void print_array(const char *tag)
+{
+    printf("[SORT] %-10s step=%3d : ", tag, g_steps);
+    for (int i = 0; i < N; i++)
+        printf("%d ", a[i]);
+    printf("\r\n");
+}
+
+/* ================= 希尔排序 ================= */
+static void shell_sort(void)
+{
+    printf("[SORT] Shell sort: N=%d, value range [%d,%d]\r\n", N, BAR_MIN, BAR_MAX);
+    print_array("initial");
+
+    if (g_gfx_ok)
+        draw_all_bars();
+
+    for (int gap = N / 2; gap > 0; gap /= 2) {
+        printf("[SORT] ---- gap = %d ----\r\n", gap);
+        for (int i = gap; i < N; i++) {
+            int tmp = a[i];
+            int j = i;
+            while (j >= gap && a[j - gap] > tmp) {
+                /* 前移大数：a[j] = a[j-gap] */
+                a[j] = a[j - gap];
+                g_steps++;
+                if (g_gfx_ok) {
+                    clear_bar(j);
+                    draw_bar(j, COL_YELLOW);   /* 高亮被移动的位置 */
+                }
+                print_array("move");
+                trigger_next_sort_note();      /* 每次 swap 播放下一个音符（停留==播放时长） */
+                if (g_gfx_ok)
+                    redraw_bar(j);
+                j -= gap;
+            }
+            if (a[j] != tmp) {
+                /* 把 tmp 放到正确位置 */
+                a[j] = tmp;
+                g_steps++;
+                if (g_gfx_ok) {
+                    clear_bar(j);
+                    draw_bar(j, COL_RED);      /* 高亮新放置的位置 */
+                }
+                print_array("insert");
+                if (g_gfx_ok)
+                    redraw_bar(j);
+            }
+        }
+    }
+
+    printf("[SORT] ---- done in %d steps ----\r\n", g_steps);
+    print_array("sorted");
+
+    /* 校验是否升序 */
+    int ok = 1;
+    for (int i = 1; i < N; i++)
+        if (a[i] < a[i - 1]) { ok = 0; break; }
+    printf("[SORT] verify: array is ascending = %s\r\n", ok ? "OK" : "FAIL");
+}
+
+/* ================= 测试信号（音频质量评估用） ================= */
+#ifdef TEST_MODE
+/* 生成已知参考信号 -> 走完整 HDA DMA 路径 -> 由 tools/eval_audio.py 做 FFT/
+   THD/SNR/click 分析。信号在编译期选择（TEST_SIGNAL_*）：
+     sine     : 440Hz 纯音，THD/SNR/频率准确度测量的核心信号
+     impulse  : 单样本冲激，检测频率响应平坦度与缓冲边界 click
+     step     : 中段 DC 阶跃，检测增益变化处的瞬态
+     sequence : 8 段 200ms 短音（独立调用），暴露音符边界 click
+   满音量(100 = Q8 1.0)播放，避免软件增益缩放引入测量误差。 */
+static void run_test_signal(void)
+{
+    const int rate = 44100, dur_ms = 2000;
+    const int n = rate * dur_ms / 1000;             /* 总采样数 */
+    int16_t *pcm = (int16_t *)malloc(n * 2 * sizeof(int16_t));
+
+    if (pcm == NULL) {
+        printf("[TEST] pcm alloc failed\r\n");
+        return;
+    }
+
+    audio_set_volume(100);
+    printf("[TEST] volume set to 100\r\n");
+
+#ifdef TEST_SIGNAL_sequence
+    /* 音符序列：8 次独立调用播放 200ms 短音。与音符播放共用同一连续流路径，
+       每次调用都重新对齐写位置(wrpos=rdpos)，用于暴露音符边界 click。
+       每段自带 5ms 淡入淡出，故参考信号本身不含阶跃。 */
+    {
+        const int bn = rate * 200 / 1000;
+        const int fade = rate * 5 / 1000;
+        printf("[TEST] sequence 8x200ms bursts\r\n");
+        for (int b = 0; b < 8; b++) {
+            for (int i = 0; i < bn; i++) {
+                double env = 1.0;
+                if (i < fade)
+                    env = (double)i / fade;
+                else if (i >= bn - fade)
+                    env = (double)(bn - 1 - i) / fade;
+                double s = sin(2.0 * M_PI * 440.0 * (double)i / rate) * 30000.0 * env;
+                pcm[i * 2]     = (int16_t)s;
+                pcm[i * 2 + 1] = (int16_t)s;
+            }
+            audio_play_pcm_ms(pcm, bn * 4, rate, 2, 16, 200);
+        }
+    }
+#else
+#  if defined(TEST_SIGNAL_impulse)
+    printf("[TEST] impulse, %dms\r\n", dur_ms);
+    memset(pcm, 0, n * 2 * sizeof(int16_t));
+    pcm[0] = 30000;
+    pcm[1] = 30000;
+#  elif defined(TEST_SIGNAL_step)
+    printf("[TEST] step response, %dms\r\n", dur_ms);
+    memset(pcm, 0, n * 2 * sizeof(int16_t));
+    {
+        /* 中段 1/3 为 DC 平台，边沿加 5ms 线性斜坡 —— 参考信号本身不含阶跃，
+           这样在边沿附近检出的 click 才能归因于驱动而非测试信号。 */
+        const int ramp = rate * 5 / 1000;
+        const int s0 = n / 3;
+        const int s1 = 2 * (n / 3);
+        for (int i = s0; i < s1; i++) {
+            int dist = i - s0;
+            if (s1 - 1 - i < dist)
+                dist = s1 - 1 - i;
+            int16_t v = (dist >= ramp) ? 16000 : (int16_t)(16000 * dist / ramp);
+            pcm[i * 2]     = v;
+            pcm[i * 2 + 1] = v;
+        }
+    }
+#  else
+    printf("[TEST] sine 440Hz, %dms\r\n", dur_ms);
+    for (int i = 0; i < n; i++) {
+        double s = sin(2.0 * M_PI * 440.0 * (double)i / rate) * 30000.0;
+        pcm[i * 2]     = (int16_t)s;
+        pcm[i * 2 + 1] = (int16_t)s;
+    }
+#  endif
+    audio_play_pcm_ms(pcm, n * 4, rate, 2, 16, dur_ms);
+#endif
+
+    free(pcm);
+    audio_stop();
+
+    uint32_t errs = audio_get_errors();
+    uint32_t pos  = audio_get_position_ms();
+    printf("[AUDIO] errors: fifo=%u desc=%u  position: %u ms\r\n",
+           errs & 0xFFFF, errs >> 16, pos);
+
+    printf("========================================\r\n");
+    printf("=== Test tone finished. Check serial.log\r\n");
+    printf("========================================\r\n");
+}
+#endif /* TEST_MODE */
+
+/* ================= 主函数 ================= */
 void __main()
 {
     size_t heap_size = 32*1024*1024;
-    void  *heap_base = mmap(NULL, heap_size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
-	g_heap = tlsf_create_with_pool(heap_base, heap_size);
+    void  *heap_base = mmap(NULL, heap_size, PROT_READ|PROT_WRITE,
+                            MAP_PRIVATE|MAP_ANON, -1, 0);
+    g_heap = tlsf_create_with_pool(heap_base, heap_size);
 }
 
-/**
- * 第一个运行在用户模式的线程所执行的函数
- */
 void main(void *pv)
 {
-    printf("task #%d: I'm the first user task(pv=0x%08x)!\r\n",
-            task_getid(), pv);
+#ifdef TEST_MODE
+    /* 音频质量评估：播放单一测试信号后停在此处，等待 watcher 优雅退出 */
+    run_test_signal();
+    while (1)
+        ;
+#else
+    printf("========================================\r\n");
+    printf("=== VGA 8-bit Shell Sort + Piano Demo =\r\n");
+    printf("========================================\r\n\r\n");
 
-    //TODO: Your code goes here
+    /* 设置初始音量（功能完善：音量控制） */
+    audio_set_volume(80);
+    printf("[AUDIO] volume set to 80\r\n");
 
+    /* 1. 生成初始数据 */
+    for (int i = 0; i < N; i++)
+        a[i] = BAR_MIN + (int)(next_rand() % (BAR_MAX - BAR_MIN + 1));
+
+    /* 2. 进入 VGA 8-bit 图形模式 */
+    if (enter_vga8() == 0) {
+        g_gfx_ok = 1;
+        printf("[VGA] graphics mode entered, drawing bar chart\r\n");
+    } else {
+        printf("[VGA] graphics FAILED - running sort without visualization\r\n");
+    }
+
+    /* 3. 希尔排序 + 柱状图动态展示：每次 swap 触发一个音符，
+       音符阻塞播完 -> 排序动画与音乐节奏严格同步。 */
+    reset_score_playback();
+    printf("[MELODY] Shell sort driving melody, one note per swap\r\n");
+    shell_sort();
+
+    /* 排序结束后补齐剩余音符，保证整首乐谱只播一遍、完整播完（含左手伴奏） */
+    play_score_to_end();
+
+    /* 播放结束：停止连续流（追加尾静音吸收截断） */
+    audio_stop();
+    printf("[AUDIO] continuous stream stopped\r\n");
+
+    /* 功能完善：流状态查询（错误计数 + 播放位置） */
+    {
+        uint32_t errs = audio_get_errors();
+        uint32_t pos  = audio_get_position_ms();
+        printf("[AUDIO] errors: fifo=%u desc=%u  position: %u ms\r\n",
+               errs & 0xFFFF, errs >> 16, pos);
+    }
+
+    printf("========================================\r\n");
+    printf("=== Demo finished. Check serial.log =====\r\n");
+    printf("===   [VGA] ... OK   (graphics entered) =\r\n");
+    printf("===   [SORT] verify OK (sort correct)  ==\r\n");
+    printf("===   [MELODY] notes played (piano)    ==\r\n");
+    printf("========================================\r\n");
 
     while(1)
         ;
     task_exit(0);
+#endif /* TEST_MODE */
 }
 

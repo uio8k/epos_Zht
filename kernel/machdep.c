@@ -25,6 +25,7 @@
 
 #include "kernel.h"
 #include "multiboot.h"
+#include "hda.h"
 
 #define __CONCAT1(x,y)  x ## y
 #define __CONCAT(x,y)   __CONCAT1(x,y)
@@ -471,6 +472,17 @@ int sys_putchar(int c)
     outportb(0x3d5, curpos >> 8);
     restore_flags(flags);
 
+    /*
+     * 同时输出到串口 COM1（0x3F8），用于 QEMU -serial 重定向
+     */
+    if (c == '\n') {
+        /* 串口终端需要 CR+LF */
+        while ((inportb(0x3FD) & 0x20) == 0);  /* 等待 THR 空 */
+        outportb(0x3F8, '\r');
+    }
+    while ((inportb(0x3FD) & 0x20) == 0);      /* 等待 THR 空 */
+    outportb(0x3F8, (uint8_t)c);
+
     return c;
 }
 
@@ -883,6 +895,65 @@ void syscall(struct context *ctx)
             struct timeval *tv = *( struct timeval **)(ctx->esp+4);
             struct timezone *tz = *( struct timezone **)(ctx->esp+8);
             ctx->eax = sys_gettimeofday(tv, tz);
+        }
+        break;
+    case SYSCALL_audio_play_file_ms:
+        {
+            const char *filename = *(const char **)(ctx->esp + 4);
+            uint32_t max_ms      = *(uint32_t *)(ctx->esp + 8);
+            if (!IN_USER_VM(filename, 0)) {
+                ctx->eax = -1;
+                break;
+            }
+            ctx->eax = sys_audio_play_file_ms(filename, max_ms);
+        }
+        break;
+    case SYSCALL_audio_play_silence_ms:
+        {
+            uint32_t ms = *(uint32_t *)(ctx->esp + 4);
+            ctx->eax = sys_audio_play_silence_ms(ms);
+        }
+        break;
+    case SYSCALL_audio_stop:
+        ctx->eax = sys_audio_stop();
+        break;
+    case SYSCALL_audio_play_voices_ms:
+        {
+            const char **files = *(const char ***)(ctx->esp + 4);
+            uint32_t n         = *(uint32_t *)(ctx->esp + 8);
+            uint32_t ms        = *(uint32_t *)(ctx->esp + 12);
+            if (!IN_USER_VM(files, n * sizeof(const char *))) {
+                ctx->eax = -1;
+                break;
+            }
+            ctx->eax = sys_audio_play_voices_ms(files, n, ms);
+        }
+        break;
+    case SYSCALL_audio_set_volume:
+        {
+            uint32_t volume = *(uint32_t *)(ctx->esp + 4);
+            ctx->eax = sys_audio_set_volume(volume);
+        }
+        break;
+    case SYSCALL_audio_get_errors:
+        ctx->eax = sys_audio_get_errors();
+        break;
+    case SYSCALL_audio_get_position_ms:
+        ctx->eax = sys_audio_get_position_ms();
+        break;
+    case SYSCALL_audio_play_pcm_ms:
+        {
+            const void *pcm = *(const void **)(ctx->esp + 4);
+            uint32_t len    = *(uint32_t *)(ctx->esp + 8);
+            uint32_t rate   = *(uint32_t *)(ctx->esp + 12);
+            uint32_t ch     = *(uint32_t *)(ctx->esp + 16);
+            uint32_t bits   = *(uint32_t *)(ctx->esp + 20);
+            uint32_t ms     = *(uint32_t *)(ctx->esp + 24);
+            if (!IN_USER_VM(pcm, len)) {
+                ctx->eax = -1;
+                break;
+            }
+            ctx->eax = sys_audio_play_pcm_ms(pcm, len, rate, ch, bits, ms);
         }
         break;
     default:
