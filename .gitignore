@@ -1,0 +1,14 @@
+# 构建产物
+*.o
+*.map
+*.dep
+kernel/eposkrnl.*
+kernel/kernel.ld
+userapp/a.out
+userapp/.testmode_*
+hd.img
+hd.vmdk
+# 工具二进制
+tools/**/*.exe
+# 评测输出报告（baseline_report.json 是基线，保留）
+tools/eval_report.json
