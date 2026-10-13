@@ -31,8 +31,11 @@ CFLAGS+= -Wno-unused-function -Wno-unused-variable
 endif
 MODE_STAMP = .testmode_$(TEST_MODE)_$(TEST_SIGNAL)
 main.o: $(MODE_STAMP)
+# 注意：此处必须直接写 rm 而不是 $(RM)——本环境 Makefile.inc 未定义 $(RM)，
+# 展开为空命令会静默失败（- 前缀吞错），旧标记残留导致切换 TEST_SIGNAL 后
+# main.o 不重建、a.out 仍是上一个信号的版本（实测踩坑）。
 $(MODE_STAMP):
-	-$(RM) .testmode_*
+	-rm -f .testmode_*
 	touch $@
 
 COBJS=	vm86call.o graphics.o main.o melody_player.o NoteSequence.o

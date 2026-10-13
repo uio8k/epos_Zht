@@ -230,6 +230,12 @@ int hda_init(void)
         return -1;
     }
 
+    /* 调用链日志：分配失败仅关闭日志，不影响音频功能 */
+    hda_trace_init();
+
+    /* 注册 BCIS 中断（IRQ 不可用/已被占用时自动退回轮询等待） */
+    hda_cont_register_irq();
+
     return 0;
 }
 

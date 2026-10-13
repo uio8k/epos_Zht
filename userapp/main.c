@@ -14,6 +14,7 @@
 #include <string.h>
 #include <math.h>
 #include <sys/mman.h>
+#include <sys/time.h>
 #include <syscall.h>
 #include <stdlib.h>
 #include <time.h>
@@ -264,6 +265,119 @@ static void shell_sort(void)
 static void run_test_signal(void)
 {
     const int rate = 44100, dur_ms = 2000;
+
+#ifdef TEST_SIGNAL_tempo
+    /* 节拍抖动测试：连续播放等长标准音符（每次独立提交），打印每次提交的
+       相对时刻与间隔。改造前：play 返回时机 = 音符播完 + 用户程序开销，
+       间隔偏大且抖动大；改造后：驱动预留安全余量、音符严格首尾相接，
+       间隔应稳定在「音符时值」附近。eval_audio.py 据此计算间隔方差。 */
+    {
+        const int note_ms = 200;
+        const int bn = rate * note_ms / 1000;
+        const int reps = 40;
+        const int fade = rate * 5 / 1000;
+        int16_t *pcm = (int16_t *)malloc(bn * 2 * sizeof(int16_t));
+
+        if (pcm == NULL) {
+            printf("[TEMPO] pcm alloc failed\r\n");
+            return;
+        }
+        for (int i = 0; i < bn; i++) {
+            double env = 1.0;
+            if (i < fade)
+                env = (double)i / fade;
+            else if (i >= bn - fade)
+                env = (double)(bn - 1 - i) / fade;
+            double s = sin(2.0 * M_PI * 440.0 * (double)i / rate) * 30000.0 * env;
+            pcm[i * 2]     = (int16_t)s;
+            pcm[i * 2 + 1] = (int16_t)s;
+        }
+
+        audio_set_volume(100);
+        printf("[TEST] tempo %d notes x %d ms\r\n", reps, note_ms);
+
+        struct timeval t0, tv, prev;
+        gettimeofday(&t0, NULL);
+        prev = t0;
+        for (int b = 0; b < reps; b++) {
+            audio_play_pcm_ms(pcm, bn * 4, rate, 2, 16, note_ms);
+            gettimeofday(&tv, NULL);
+            printf("[TEMPO] #%d t=%u interval=%u\r\n", b,
+                   (uint32_t)((tv.tv_sec - t0.tv_sec) * 1000 +
+                              (tv.tv_usec - t0.tv_usec) / 1000),
+                   (uint32_t)((tv.tv_sec - prev.tv_sec) * 1000 +
+                              (tv.tv_usec - prev.tv_usec) / 1000));
+            prev = tv;
+        }
+
+        free(pcm);
+        audio_stop();   /* 内部自动导出 [TRACE] 调用链日志 */
+        printf("[TEMPO] done, underruns=%u\r\n", audio_get_underruns(0));
+
+        printf("========================================\r\n");
+        printf("=== Test tone finished. Check serial.log\r\n");
+        printf("========================================\r\n");
+        return;
+    }
+#endif /* TEST_SIGNAL_tempo */
+
+#ifdef TEST_SIGNAL_underrun
+    /* underrun 注入测试：音符之间人为停顿超过驱动安全余量（约 93ms）的
+       时间，迫使 DMA 越过真实数据末尾。验证三件事：
+         ① underrun 被计数（audio_get_underruns）
+         ② 越界区间输出为静音（预填静音生效）而非重复旧数据
+         ③ [TRACE] 日志含 UNDERRUN 事件（stop 时自动导出） */
+    {
+        const int note_ms = 200;
+        const int bn = rate * note_ms / 1000;
+        const int reps = 6;
+        const int fade = rate * 5 / 1000;
+        int16_t *pcm = (int16_t *)malloc(bn * 2 * sizeof(int16_t));
+
+        if (pcm == NULL) {
+            printf("[UNDERRUN] pcm alloc failed\r\n");
+            return;
+        }
+        for (int i = 0; i < bn; i++) {
+            double env = 1.0;
+            if (i < fade)
+                env = (double)i / fade;
+            else if (i >= bn - fade)
+                env = (double)(bn - 1 - i) / fade;
+            double s = sin(2.0 * M_PI * 440.0 * (double)i / rate) * 30000.0 * env;
+            pcm[i * 2]     = (int16_t)s;
+            pcm[i * 2 + 1] = (int16_t)s;
+        }
+
+        audio_set_volume(100);
+        printf("[TEST] underrun injection, %d notes with stall\r\n", reps);
+
+        for (int b = 0; b < reps; b++) {
+            audio_play_pcm_ms(pcm, bn * 4, rate, 2, 16, note_ms);
+            if (b == 1) {
+                /* 停顿 400ms（> 安全余量），制造 underrun 条件 */
+                struct timeval t0, tv;
+                printf("[UNDERRUN] injecting 400 ms stall\r\n");
+                gettimeofday(&t0, NULL);
+                do {
+                    gettimeofday(&tv, NULL);
+                } while ((tv.tv_sec - t0.tv_sec) * 1000 +
+                         (tv.tv_usec - t0.tv_usec) / 1000 < 400);
+            }
+        }
+
+        free(pcm);
+        audio_stop();
+        printf("[UNDERRUN] detected=%u\r\n", audio_get_underruns(0));
+
+        printf("========================================\r\n");
+        printf("=== Test tone finished. Check serial.log\r\n");
+        printf("========================================\r\n");
+        return;
+    }
+#endif /* TEST_SIGNAL_underrun */
+
+
     const int n = rate * dur_ms / 1000;             /* 总采样数 */
     int16_t *pcm = (int16_t *)malloc(n * 2 * sizeof(int16_t));
 

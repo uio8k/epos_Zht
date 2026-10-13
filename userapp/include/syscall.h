@@ -59,6 +59,8 @@ int audio_play_voices_ms(const char **files, uint32_t n, uint32_t ms);
 int audio_set_volume(uint32_t volume);
 uint32_t audio_get_errors(void);
 uint32_t audio_get_position_ms(void);
+/* dump 非零时顺带导出驱动调用链日志（[TRACE] 段落） */
+uint32_t audio_get_underruns(uint32_t dump);
 int audio_play_pcm_ms(const void *pcm, uint32_t len, uint32_t rate,
                       uint32_t ch, uint32_t bits, uint32_t ms);
 

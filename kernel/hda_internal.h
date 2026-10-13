@@ -62,4 +62,47 @@ int hda_cont_play_note(uint32_t rate, uint32_t ch, uint32_t bits,
                        const uint8_t *pcm, uint32_t note_bytes,
                        uint32_t lead_ms, uint32_t tail_ms);
 
+/* 注册 BCIS 中断（hda_stream.c 定义；由 hda_init 调用）。
+   仅当 IRQ 号合法且向量槽空闲时注册；返回非 0 表示退回轮询等待。 */
+int hda_cont_register_irq(void);
+
+/* ========== 调用链日志（hda_trace.c 定义） ==========
+   内存环形缓冲记录关键事件与全部错误路径，播放期间零串口开销
+   （避免 printk 刷屏拖慢播放，见 g_hda_quiet 的教训），
+   播放结束后经 hda_trace_dump 批量导出，由 tools/serial_parser.py 落盘。 */
+#define HDA_TRACE_RECS   4096                    /* 64KB / 16B */
+#define HDA_TRACE_BYTES  (HDA_TRACE_RECS * 16)
+
+enum hda_trace_ev {
+    HTEV_STREAM_START = 1,
+    HTEV_STREAM_STOP,
+    HTEV_NOTE_SUBMIT,
+    HTEV_NOTE_WRITTEN,
+    HTEV_NOTE_DONE,
+    HTEV_UNDERRUN,
+    HTEV_REALIGN,
+    HTEV_BCIS_IRQ,
+    HTEV_IRQ_FALLBACK,
+    HTEV_WAIT_TIMEOUT,
+};
+
+struct hda_trace_rec {
+    uint32_t tick;      /* PIT 时基（kernel.h 的 g_timer_ticks，HZ=100） */
+    uint8_t  ev;        /* enum hda_trace_ev */
+    uint8_t  note_id;   /* 音符序号：调用链区间嵌套的关联键 */
+    uint16_t flags;     /* 保留 */
+    uint32_t start;     /* 绝对字节区间 [start, end) */
+    uint32_t end;
+    uint32_t rdpos;     /* 事件时刻指针快照 */
+    uint32_t wrpos;
+};
+
+int  hda_trace_init(void);
+void hda_trace_log(uint8_t ev, uint8_t note_id, uint32_t start, uint32_t end);
+void hda_trace_dump(void);
+
+/* hda_stream.c 提供的指针快照（trace 条目记录用） */
+uint32_t hda_cont_rdpos_snapshot(void);
+uint32_t hda_cont_wrpos_snapshot(void);
+
 #endif /* _HDA_INTERNAL_H */

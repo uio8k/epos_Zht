@@ -941,6 +941,12 @@ void syscall(struct context *ctx)
     case SYSCALL_audio_get_position_ms:
         ctx->eax = sys_audio_get_position_ms();
         break;
+    case SYSCALL_audio_get_underruns:
+        {
+            uint32_t dump = *(uint32_t *)(ctx->esp + 4);
+            ctx->eax = sys_audio_get_underruns(dump);
+        }
+        break;
     case SYSCALL_audio_play_pcm_ms:
         {
             const void *pcm = *(const void **)(ctx->esp + 4);

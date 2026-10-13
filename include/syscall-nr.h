@@ -46,6 +46,7 @@
 #define SYSCALL_audio_get_errors 194
 #define SYSCALL_audio_get_position_ms 195
 #define SYSCALL_audio_play_pcm_ms 196
+#define SYSCALL_audio_get_underruns 197
 
 #define SYSCALL_putchar       1000
 #define SYSCALL_getchar       1001

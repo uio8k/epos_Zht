@@ -110,7 +110,9 @@
 #define HDA_RIRB_SIZE       256
 
 /* ========== BDL (Buffer Descriptor List) ========== */
-#define HDA_BDL_ENTRIES     16
+/* 条目上限：LVI 为 8 位（0-255），即最多 256 条目。连续流按 4KB 分段，
+   512KB 缓冲需 128 条 —— 留足余量。 */
+#define HDA_BDL_ENTRIES     256
 #define HDA_FIFO_SIZE       0x00FF  /* 最大 FIFO 大小 */
 
 struct hda_bdl_entry {
@@ -160,6 +162,7 @@ int  sys_audio_play_voices_ms(const char **files, uint32_t n, uint32_t ms);
 int  sys_audio_stop(void);
 int  sys_audio_set_volume(uint32_t volume);
 uint32_t sys_audio_get_errors(void);
+uint32_t sys_audio_get_underruns(uint32_t dump);
 uint32_t sys_audio_get_position_ms(void);
 
 /* ========== HDA Verb 定义 ========== */

@@ -12,3 +12,8 @@ hd.vmdk
 tools/**/*.exe
 # 评测输出报告（baseline_report.json 是基线，保留）
 tools/eval_report.json
+# 无头运行与验收产物
+userapp/serial.log
+out_*.wav
+tools/audio_trace.log
+__pycache__/

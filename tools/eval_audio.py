@@ -47,9 +47,11 @@ for _s in (sys.stdout, sys.stderr):
     except Exception:
         pass
 
+# ROOT = 源码仓库根（tools 的上一级）。历史脚本假定仓库目录名为 'epos'，
+# 本仓库实际为 'epos_Zht'，故路径不含中间目录段。
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SERIAL_LOG = os.path.join(ROOT, 'epos', 'userapp', 'serial.log')
-SAMPLES_DIR = os.path.join(ROOT, 'epos', 'samples')
+SERIAL_LOG = os.path.join(ROOT, 'userapp', 'serial.log')
+SAMPLES_DIR = os.path.join(ROOT, 'samples')
 DEFAULT_OUTPUT = os.path.join(ROOT, 'tools', 'eval_report.json')
 DEFAULT_BASELINE = os.path.join(ROOT, 'tools', 'baseline_report.json')
 
@@ -96,8 +98,11 @@ ADVICE = {
 
 # ============================ 运行 ============================
 
-def run_headless(signal, out_wav, timeout=900, verbose=False):
-    """调用 tools/run_headless.bat 构建并运行（TEST_MODE 经环境变量传入）。"""
+def run_headless(signal, out_wav, timeout=900, verbose=False, watch=600):
+    """调用 tools/run_headless.bat 构建并运行（TEST_MODE 经环境变量传入）。
+
+    watch = watcher 超时秒数（QEMU 串口文件带缓冲，外部通常读不到实时
+    marker，靠该超时兜底发 quit 优雅退出；短测试可传 60-90 秒）。"""
     env = dict(os.environ)
     if signal:
         env['TEST_MODE'] = '1'
@@ -109,7 +114,7 @@ def run_headless(signal, out_wav, timeout=900, verbose=False):
         marker = 'Demo finished. Check serial.log'
 
     bat = os.path.join(ROOT, 'tools', 'run_headless.bat')
-    cmd = ['cmd', '/c', bat, 'wav', out_wav, marker]
+    cmd = ['cmd', '/c', bat, 'wav', out_wav, marker, str(int(watch))]
     print(f'  [run] signal={signal or "piano"}  ->  {os.path.basename(out_wav)}')
     p = subprocess.run(cmd, cwd=ROOT, env=env, capture_output=True,
                        text=True, errors='replace', timeout=timeout)
@@ -265,6 +270,49 @@ def _compare_sources(cap_mono, rate, notes, max_notes=8):
         t = (r['alignment_offset_ms'] + note['ms']
              if r.get('cross_correlation', 0.0) > 0.5 else t + note['ms'])
     return out
+
+
+# ============================ 节拍 / underrun 验收 ============================
+
+def analyze_tempo(logp):
+    """节拍抖动：连续等高音符的提交间隔统计（跳过首条含启动开销的间隔）。
+
+    改造前：play 返回时机 = 音符播完 + 用户程序开销，间隔偏大且随调度波动；
+    改造后：驱动保留安全余量提前返回、音符严格首尾相接，间隔应稳定于音符时值。
+    返回 (metrics, raw)。"""
+    tr = logp.get('tempo') or {}
+    iv = tr.get('intervals_ms') or []
+    metrics, raw = {}, {}
+    if len(iv) >= 2:
+        steady = np.array(iv[1:], dtype=float)
+        metrics['tempo_interval_mean_ms'] = float(np.mean(steady))
+        metrics['tempo_interval_std_ms'] = float(np.std(steady))
+        metrics['tempo_interval_maxdev_ms'] = float(np.max(np.abs(steady - np.median(steady))))
+        metrics['tempo_interval_count'] = len(iv)
+        raw['intervals_ms'] = iv
+    if tr.get('underruns') is not None:
+        metrics['tempo_underruns'] = int(tr['underruns'])
+    return metrics, raw
+
+
+def analyze_underrun(logp):
+    """underrun 注入测试：注入超余量停滞后，驱动必须检出 underrun
+    （计数 + [TRACE] 事件），且越界区间输出为静音而非重复旧数据。
+    返回 (metrics, raw)。"""
+    ut = logp.get('underrun_test') or {}
+    metrics, raw = {}, {}
+    if ut.get('present'):
+        metrics['underrun_stall_ms'] = int(ut.get('stall_ms') or 0)
+        if ut.get('detected') is not None:
+            metrics['underrun_detected'] = int(ut['detected'])
+        trace = logp.get('trace') or {}
+        events = trace.get('events') or []
+        metrics['trace_present'] = 1 if trace.get('present') else 0
+        metrics['trace_underrun_events'] = sum(1 for e in events if e['ev'] == 'UNDERRUN')
+        metrics['trace_note_events'] = sum(
+            1 for e in events if e['ev'] in ('NOTE_SUBMIT', 'NOTE_WRITTEN', 'NOTE_DONE'))
+        raw['trace_recs'] = trace.get('recs')
+    return metrics, raw
 
 
 # ============================ 评分 ============================
@@ -532,21 +580,127 @@ def print_report(report):
 
 # ============================ main ============================
 
+def run_acceptance(args, sens):
+    """三项验收（改造计划中与用户确认的验收标准）：
+      ① 音质：sine 的 SNR/THD 不低于 baseline_report.json 基线；
+      ② 节拍：tempo 测试的提交间隔标准差达标、且无 underrun；
+      ③ underrun 注入：超余量停滞后被检出、[TRACE] 日志含 UNDERRUN 事件。
+    返回进程退出码（0 = 全部通过）。"""
+    baseline = None
+    if os.path.exists(args.baseline):
+        with open(args.baseline, 'r', encoding='utf-8') as f:
+            baseline = json.load(f)
+    bm = (baseline or {}).get('metrics', {})
+
+    print('=' * 66)
+    print('  HDA 驱动改造验收（acceptance）')
+    print('=' * 66)
+
+    checks = []
+
+    def check(name, ok, detail=''):
+        checks.append({'check': name, 'ok': bool(ok), 'detail': detail})
+        print(f"      -> {'PASS' if ok else 'FAIL'}  {name}  {detail}")
+
+    # ---- ① 音质：sine 对比基线 ----
+    wav_sine = os.path.join(ROOT, 'out_accept_sine.wav')
+    if not args.no_run:
+        run_headless('sine', wav_sine, verbose=args.verbose, watch=60)
+    log_sine = sp.parse_serial_log(SERIAL_LOG)
+    m_sine, _ = analyze_test_tone(wav_sine, 'sine', sens)
+    print('  [1] 音质（sine 440Hz）')
+    for k in ('snr_db', 'thd_n_pct', 'freq_error_hz', 'clicks_high'):
+        print(f"      {k:<18} cur={m_sine.get(k)!r:<12} base={bm.get(k)!r}")
+    snr_b, snr_c = bm.get('snr_db'), m_sine.get('snr_db')
+    check('SNR 不低于基线',
+          snr_b is None or (snr_c is not None and snr_c >= snr_b - 0.5),
+          f'cur={snr_c} base={snr_b}')
+    thd_b, thd_c = bm.get('thd_n_pct'), m_sine.get('thd_n_pct')
+    check('THD+N 不高于基线',
+          thd_b is None or (thd_c is not None and thd_c <= thd_b * 1.1 + 0.01),
+          f'cur={thd_c} base={thd_b}')
+
+    # ---- ② 节拍抖动 ----
+    wav_tempo = os.path.join(ROOT, 'out_accept_tempo.wav')
+    if not args.no_run:
+        run_headless('tempo', wav_tempo, verbose=args.verbose, watch=75)
+    log_tempo = sp.parse_serial_log(SERIAL_LOG)
+    m_tempo, _ = analyze_tempo(log_tempo)
+    print('  [2] 节拍抖动（40 x 200ms 标准音符）')
+    print(f"      mean={m_tempo.get('tempo_interval_mean_ms')} ms  "
+          f"std={m_tempo.get('tempo_interval_std_ms')} ms  "
+          f"maxdev={m_tempo.get('tempo_interval_maxdev_ms')} ms")
+    std = m_tempo.get('tempo_interval_std_ms')
+    check(f'间隔标准差 <= {args.tempo_std_max} ms',
+          std is not None and std <= args.tempo_std_max, f'std={std}')
+    check('节拍测试无 underrun', m_tempo.get('tempo_underruns', 0) == 0,
+          f"underruns={m_tempo.get('tempo_underruns')}")
+
+    # ---- ③ underrun 注入 ----
+    wav_ud = os.path.join(ROOT, 'out_accept_underrun.wav')
+    if not args.no_run:
+        run_headless('underrun', wav_ud, verbose=args.verbose, watch=60)
+    log_ud = sp.parse_serial_log(SERIAL_LOG)
+    m_ud, _ = analyze_underrun(log_ud)
+    print('  [3] underrun 注入（400ms 停顿）')
+    print(f"      detected={m_ud.get('underrun_detected')}  "
+          f"trace_underrun_events={m_ud.get('trace_underrun_events')}  "
+          f"trace_recs={(log_ud.get('trace') or {}).get('recs')}")
+    check('注入后 underrun 被检出', (m_ud.get('underrun_detected') or 0) > 0,
+          f"detected={m_ud.get('underrun_detected')}")
+    check('调用链日志含 UNDERRUN 事件',
+          (m_ud.get('trace_underrun_events') or 0) > 0,
+          f"events={m_ud.get('trace_underrun_events')}")
+
+    # 落盘调用链日志（underrun 一轮最有诊断价值）
+    trace_path = os.path.join(ROOT, 'tools', 'audio_trace.log')
+    n = sp.write_trace_log(log_ud, trace_path, SERIAL_LOG)
+    print(f"  调用链日志: {trace_path} ({n} events)")
+
+    passed = sum(1 for c in checks if c['ok'])
+    print('-' * 66)
+    print(f'  验收结果: {passed}/{len(checks)} 通过')
+    print('=' * 66)
+
+    report = {
+        'timestamp': datetime.now().isoformat(timespec='seconds'),
+        'mode': 'acceptance',
+        'baseline': args.baseline,
+        'metrics': {**{f'sine_{k}': v for k, v in m_sine.items()},
+                    **m_tempo, **m_ud},
+        'checks': checks,
+        'passed': passed, 'total': len(checks),
+        'log': log_ud,
+    }
+    os.makedirs(os.path.dirname(args.output), exist_ok=True)
+    with open(args.output, 'w', encoding='utf-8') as f:
+        json.dump(report, f, ensure_ascii=False, indent=2)
+    print(f"  报告已写入: {args.output}")
+    return 0 if passed == len(checks) else 1
+
+
 def main():
     ap = argparse.ArgumentParser(description='HDA 音频驱动质量评价体系')
-    ap.add_argument('--mode', choices=['test-tone', 'piano', 'both'], default='both')
+    ap.add_argument('--mode', choices=['test-tone', 'piano', 'both', 'acceptance'],
+                    default='both',
+                    help='acceptance = 三项验收（音质基线 + 节拍抖动 + underrun 注入）')
     ap.add_argument('--full', action='store_true',
                     help='test-tone 额外跑 impulse/step/sequence')
     ap.add_argument('--sensitivity', choices=list(SENSITIVITY), default='moderate')
     ap.add_argument('--output', default=DEFAULT_OUTPUT)
     ap.add_argument('--baseline', default=DEFAULT_BASELINE)
     ap.add_argument('--update-baseline', action='store_true')
+    ap.add_argument('--tempo-std-max', type=float, default=25.0,
+                    help='acceptance：节拍间隔标准差上限（ms）')
     ap.add_argument('--no-run', action='store_true', help='仅分析已有文件')
     ap.add_argument('--verbose', action='store_true')
     args = ap.parse_args()
 
     sens = SENSITIVITY[args.sensitivity]
     signals = ['sine'] + (FULL_SIGNALS if args.full else [])
+
+    if args.mode == 'acceptance':
+        return run_acceptance(args, sens)
 
     metrics, piano_metrics, raw = {}, {}, {}
     logp = sp.parse_serial_log(SERIAL_LOG)

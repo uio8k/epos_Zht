@@ -192,6 +192,9 @@ int sys_gettimeofday(struct timeval *tv, struct timezone *tz)
     if(tv == NULL)
         return -1;
     tv->tv_sec = g_startup_time + g_timer_ticks/HZ;
-    tv->tv_usec = (g_timer_ticks%HZ) * 1000;
+    /* 每 tick = 1000000/HZ 微秒（HZ=100 → 10000μs）。原实现误写为 *1000
+       （每 tick 只计 1ms），使时间流速只有真实的 1/10，且跨秒时
+       sec/usec 组合失真——节拍抖动测量的 9.2s 伪影即源于此。 */
+    tv->tv_usec = (g_timer_ticks % HZ) * (1000000 / HZ);
     return 0;
 }
