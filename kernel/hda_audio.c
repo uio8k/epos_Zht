@@ -34,13 +34,13 @@ struct wav_fmt {
     uint16_t bits_per_sample;
 };
 
-/* 从磁盘读取 WAV 文件，把 PCM 数据读入 kmalloc 缓冲区。
-   成功返回 0 并填充各输出参数（*pcm_out 需调用方 kfree），失败返回负值。 */
-static int hda_read_wav(const char *filename, uint8_t **pcm_out, uint32_t *len_out,
-                        uint32_t *rate_out, uint32_t *ch_out, uint32_t *bits_out)
+/* 打开 WAV 并解析到 data 区起点：校验 RIFF/WAVE、扫描 fmt/data chunk，
+   输出 PCM 格式与数据长度；fi 停在 data 数据起点（供整块或分块读取）。
+   scratch 由调用方提供（SECTOR_SIZE，dosfs 需要）。失败返回负值。 */
+static int hda_wav_open(const char *filename, FILEINFO *fi, uint8_t *scratch,
+                        uint32_t *data_size_out, uint32_t *rate_out,
+                        uint32_t *ch_out, uint32_t *bits_out)
 {
-    FILEINFO fi;
-    uint8_t scratch[SECTOR_SIZE];
     struct wav_header hdr;
     struct wav_chunk   chunk;
     struct wav_fmt     fmt;
@@ -50,14 +50,14 @@ static int hda_read_wav(const char *filename, uint8_t **pcm_out, uint32_t *len_o
     hda_log("HDA: Opening %s...\r\n", filename);
 
     /* 1. 打开文件 */
-    if (DFS_OpenFile(&g_volinfo, (char *)filename, DFS_READ, scratch, &fi) != DFS_OK) {
+    if (DFS_OpenFile(&g_volinfo, (char *)filename, DFS_READ, scratch, fi) != DFS_OK) {
         printk("HDA: Failed to open %s\r\n", filename);
         return -1;
     }
-    hda_log("HDA: File opened, size=%u bytes\r\n", fi.filelen);
+    hda_log("HDA: File opened, size=%u bytes\r\n", fi->filelen);
 
     /* 2. 读取 RIFF 头 */
-    result = DFS_ReadFile(&fi, scratch, (uint8_t *)&hdr, &read, sizeof(hdr));
+    result = DFS_ReadFile(fi, scratch, (uint8_t *)&hdr, &read, sizeof(hdr));
     if (result != DFS_OK || read != sizeof(hdr)) {
         printk("HDA: Failed to read RIFF header\r\n");
         return -1;
@@ -73,8 +73,8 @@ static int hda_read_wav(const char *filename, uint8_t **pcm_out, uint32_t *len_o
     int found_fmt = 0;
     uint32_t data_size = 0;
 
-    while (fi.pointer < fi.filelen) {
-        result = DFS_ReadFile(&fi, scratch, (uint8_t *)&chunk, &read, sizeof(chunk));
+    while (fi->pointer < fi->filelen) {
+        result = DFS_ReadFile(fi, scratch, (uint8_t *)&chunk, &read, sizeof(chunk));
         if (result != DFS_OK || read != sizeof(chunk))
             break;
 
@@ -84,14 +84,14 @@ static int hda_read_wav(const char *filename, uint8_t **pcm_out, uint32_t *len_o
                 printk("HDA: fmt chunk too small (%u)\r\n", chunk.size);
                 return -1;
             }
-            result = DFS_ReadFile(&fi, scratch, (uint8_t *)&fmt, &read, sizeof(fmt));
+            result = DFS_ReadFile(fi, scratch, (uint8_t *)&fmt, &read, sizeof(fmt));
             if (result != DFS_OK || read != sizeof(fmt)) {
                 printk("HDA: Failed to read fmt chunk\r\n");
                 return -1;
             }
             /* 跳过 fmt chunk 剩余字节（如果有扩展） */
             if (chunk.size > sizeof(fmt))
-                DFS_Seek(&fi, fi.pointer + chunk.size - sizeof(fmt), scratch);
+                DFS_Seek(fi, fi->pointer + chunk.size - sizeof(fmt), scratch);
 
             hda_log("HDA: fmt: PCM=%u ch=%u rate=%u bits=%u\r\n",
                     fmt.audio_format, fmt.num_channels,
@@ -104,7 +104,7 @@ static int hda_read_wav(const char *filename, uint8_t **pcm_out, uint32_t *len_o
         } else {
             /* 跳过未知 chunk */
             hda_log("HDA: Skipping chunk '%.4s' (%u bytes)\r\n", chunk.id, chunk.size);
-            DFS_Seek(&fi, fi.pointer + chunk.size, scratch);
+            DFS_Seek(fi, fi->pointer + chunk.size, scratch);
         }
     }
 
@@ -122,14 +122,34 @@ static int hda_read_wav(const char *filename, uint8_t **pcm_out, uint32_t *len_o
         return -1;
     }
 
-    /* 4. 分配内核缓冲区并读取 PCM */
+    *data_size_out = data_size;
+    *rate_out      = fmt.sample_rate;
+    *ch_out        = fmt.num_channels;
+    *bits_out      = fmt.bits_per_sample;
+    return 0;
+}
+
+/* 从磁盘读取 WAV 文件，把 PCM 数据整块读入 kmalloc 缓冲区（适合几百 KB 的
+   采样；18MB 级大文件用 sys_audio_play_file_stream_ms 分块流式播放）。
+   成功返回 0 并填充各输出参数（*pcm_out 需调用方 kfree），失败返回负值。 */
+static int hda_read_wav(const char *filename, uint8_t **pcm_out, uint32_t *len_out,
+                        uint32_t *rate_out, uint32_t *ch_out, uint32_t *bits_out)
+{
+    FILEINFO fi;
+    uint8_t scratch[SECTOR_SIZE];
+    uint32_t data_size = 0, rate = 0, ch = 0, bits = 0;
+    uint32_t read = 0;
+
+    if (hda_wav_open(filename, &fi, scratch, &data_size, &rate, &ch, &bits) != 0)
+        return -1;
+
     uint8_t *pcm_buf = (uint8_t *)kmalloc(data_size);
     if (pcm_buf == NULL) {
         printk("HDA: Failed to alloc %u bytes for PCM\r\n", data_size);
         return -1;
     }
 
-    result = DFS_ReadFile(&fi, scratch, pcm_buf, &read, data_size);
+    uint32_t result = DFS_ReadFile(&fi, scratch, pcm_buf, &read, data_size);
     if (result != DFS_OK && result != DFS_EOF) {
         printk("HDA: Failed to read PCM data (result=%u)\r\n", result);
         kfree(pcm_buf);
@@ -139,9 +159,9 @@ static int hda_read_wav(const char *filename, uint8_t **pcm_out, uint32_t *len_o
 
     *pcm_out = pcm_buf;
     *len_out = read;
-    *rate_out = fmt.sample_rate;
-    *ch_out   = fmt.num_channels;
-    *bits_out = fmt.bits_per_sample;
+    *rate_out = rate;
+    *ch_out   = ch;
+    *bits_out = bits;
     return 0;
 }
 
@@ -320,6 +340,115 @@ int sys_audio_play_file_ms(const char *filename, uint32_t max_ms)
     int saved_quiet = g_hda_quiet;
     g_hda_quiet = 1;
     int rc = sys_audio_play_file_ms_impl(filename, max_ms);
+    g_hda_quiet = saved_quiet;
+    return rc;
+}
+
+/* ===================== 流式播放（大文件，syscall 198） =====================
+   需求：整曲 WAV（18MB 级）远超内核堆（12MiB），不能整块 kmalloc 载入。
+   做法：解析 WAV 头后循环「从 FAT 读 256KB → 追加进连续流环形缓冲」。
+   无隙原理：环形缓冲 512KB + 安全余量，追加后缓冲始终领先 DMA 读位置
+   1.4s（256KB）以上，而单块读盘耗时仅数百 ms → 读盘被完全吸收，
+   分块之间与单音符追加一样首尾相接、无缝衔接。
+   内存占用：单个 256KB 读缓冲（进出各一次 kmalloc/kfree），与文件长度无关。
+   音量：与单音符路径一致做驱动侧 Q8 增益（QEMU 下 codec amp 不生效）。
+   收尾：hda_cont_drain 等待数据末尾进入 MARGIN 后返回，由调用方
+   audio_stop() 追加尾静音并停流（保证最后一段完整播放）。
+   max_ms=0 播放全曲；非 0 只播放前 max_ms 毫秒（测试用）。 */
+#define HDA_STREAM_CHUNK  (256 * 1024)
+
+static int sys_audio_play_file_stream_ms_impl(const char *filename, uint32_t max_ms)
+{
+    FILEINFO fi;
+    uint8_t scratch[SECTOR_SIZE];
+    uint32_t data_size = 0, rate = 0, ch = 0, bits = 0;
+
+    if (hda_wav_open(filename, &fi, scratch, &data_size, &rate, &ch, &bits) != 0)
+        return -1;
+    if (bits != 16) {
+        printk("HDA: stream mode requires 16-bit PCM\r\n");
+        return -2;
+    }
+    if (ch < 1 || ch > 2) {
+        printk("HDA: stream mode requires 1 or 2 channels\r\n");
+        return -2;
+    }
+
+    uint32_t total = data_size;
+    if (max_ms != 0) {
+        uint32_t bps = (bits / 8) * ch;
+        uint32_t max_bytes = (uint32_t)(((uint64_t)rate * max_ms) / 1000) * bps;
+        if (max_bytes < total)
+            total = max_bytes;
+    }
+
+    int rc = hda_cont_start(rate, ch, bits, HDA_CONT_BUF_SIZE_STREAM);
+    if (rc != 0)
+        return rc;
+
+    uint8_t *buf = (uint8_t *)kmalloc(HDA_STREAM_CHUNK);
+    if (buf == NULL) {
+        printk("HDA: stream buf alloc failed (%u bytes)\r\n", HDA_STREAM_CHUNK);
+        return -2;
+    }
+
+    /* 时长用整数运算（内核不保存 FPU 状态，禁止 float/double） */
+    uint32_t dur_ms = (uint32_t)(((uint64_t)total * 1000) /
+                                 ((uint64_t)rate * (bits / 8) * ch));
+    printk("HDA: streaming %s: %u bytes (%u ms), %uch %uHz\r\n",
+           filename, total, dur_ms, ch, rate);
+
+    uint32_t remaining = total;
+    uint32_t chunks = 0;
+    int err = 0;
+    while (remaining > 0) {
+        uint32_t want = (remaining > HDA_STREAM_CHUNK)
+                        ? HDA_STREAM_CHUNK : remaining;
+        uint32_t got = 0;
+        uint32_t res = DFS_ReadFile(&fi, scratch, buf, &got, want);
+        if ((res != DFS_OK && res != DFS_EOF) || got == 0) {
+            printk("HDA: stream read failed at %u/%u (result=%u)\r\n",
+                   total - remaining, total, res);
+            err = -3;
+            break;
+        }
+
+        /* 驱动侧 Q8 增益（与 hda_cont_play_note 一致；就地在读缓冲上缩放） */
+        if (g_audio_gain_q8 == 0) {
+            memset(buf, 0, got);
+        } else if (g_audio_gain_q8 < 256) {
+            int16_t *s = (int16_t *)buf;
+            for (uint32_t i = 0; i < got / 2; i++)
+                s[i] = (int16_t)((s[i] * (int32_t)g_audio_gain_q8) >> 8);
+        }
+
+        rc = hda_cont_append(buf, got);
+        if (rc != 0) {
+            printk("HDA: stream append failed (%d)\r\n", rc);
+            err = rc;
+            break;
+        }
+        remaining -= got;
+        chunks++;
+    }
+
+    kfree(buf);
+
+    /* 收尾：等最后一块播完（剩余进 MARGIN）再返回，避免 stop 截断尾部 */
+    hda_cont_drain();
+
+    printk("HDA: stream %s (%u chunks, %u bytes, underruns=%u)\r\n",
+           err ? "aborted" : "done", chunks, total - remaining,
+           sys_audio_get_underruns(0));
+    return err;
+}
+
+/* 流式播放入口：播放期间抑制逐音日志（同 play_file_ms 的 save/restore） */
+int sys_audio_play_file_stream_ms(const char *filename, uint32_t max_ms)
+{
+    int saved_quiet = g_hda_quiet;
+    g_hda_quiet = 1;
+    int rc = sys_audio_play_file_stream_ms_impl(filename, max_ms);
     g_hda_quiet = saved_quiet;
     return rc;
 }

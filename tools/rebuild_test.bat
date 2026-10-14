@@ -39,9 +39,11 @@ if errorlevel 1 (
     exit /b 1
 )
 
-if not exist ".testmode_1_%SIG%" (
+REM Stamp name is .testmode_<TEST_MODE>_<TEST_SIGNAL>_<SORT_DEMO>
+REM (SORT_DEMO suffix empty in default builds), hence the wildcard.
+if not exist ".testmode_1_%SIG%*" (
     popd
-    echo [rebuild_test] CHECK FAILED: stamp .testmode_1_%SIG% missing
+    echo [rebuild_test] CHECK FAILED: stamp .testmode_1_%SIG%* missing
     exit /b 2
 )
 

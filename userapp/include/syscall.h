@@ -53,6 +53,8 @@ ssize_t recv(int sockfd, void *buf, size_t len, int flags);
 ssize_t send(int sockfd, const void *buf, size_t len, int flags);
 
 int audio_play_file_ms(const char *filename, uint32_t max_ms);
+/* 大文件流式播放（分块读盘，内存占用恒定）；max_ms=0 播放全曲 */
+int audio_play_file_stream_ms(const char *filename, uint32_t max_ms);
 int audio_play_silence_ms(uint32_t ms);
 int audio_stop(void);
 int audio_play_voices_ms(const char **files, uint32_t n, uint32_t ms);

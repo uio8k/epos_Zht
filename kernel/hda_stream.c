@@ -30,7 +30,7 @@
 
    休止符用 sys_audio_play_silence_ms 追加真实静音（有节拍语义）；
    演示结束用 sys_audio_stop 追加尾部静音并等待播完后清 RUN。 */
-#define HDA_CONT_BUF_SIZE  0x80000   /* 512KB 环形缓冲（> 最长音符 1600ms+哨兵） */
+/* 环形缓冲大小常量见 hda_internal.h（HDA_CONT_BUF_SIZE_STREAM/_NOTE）。 */
 #define HDA_CONT_FILL_MS   500       /* 预填静音前瞻：覆盖音符间读盘/排序开销 */
 
 /* 安全余量：DMA 读位置与下一次写入位置之间的最小距离，需覆盖
@@ -41,16 +41,32 @@
    实测标定：hda_cont_lpib_max_step 记录运行期 LPIB 单次最大前进量。 */
 #define HDA_CONT_MARGIN    16384
 
-/* BDL 分段大小：4KB（符合 Intel 硬件惯例）。全条目使能 IOC，BCIS 中断
-   间隔 = 4096 B ÷ 176.4 KB/s ≈ 23ms，给中断唤醒足够精度；
-   中断频率约 43 次/秒，开销可忽略。 */
-#define HDA_CONT_SEG_BYTES 0x1000
+/* BDL 分段大小（条目 ≤64KB 合规，全条目使能 IOC）：
+   - 4MB 流式缓冲用 16KB/条（= 256 条，正好 LVI 上限）；
+   - 512KB 音符缓冲用 4KB/条（= 128 条）——保持音符路径原有取数/中断粒度
+     （16KB 段会让 LPIB 观测粒度变粗、音符提交节奏偏快，实测节拍指标劣化）。 */
+#define HDA_CONT_SEG_STREAM 0x4000
+#define HDA_CONT_SEG_NOTE   0x1000
+#define hda_cont_seg_bytes() \
+    ((g_cont_size >= HDA_CONT_BUF_SIZE_STREAM) ? HDA_CONT_SEG_STREAM : HDA_CONT_SEG_NOTE)
 
 /* 中断可用性探测窗口（PIT tick 数；HZ=100 → 20 tick = 200ms） */
 #define HDA_IRQ_PROBE_TICKS 20
 
 /* 中断模式下「连续被唤醒但读位置无进展」的判定上限，超过则退回轮询 */
 #define HDA_IRQ_STALL_LIMIT 200
+
+/* 流式播放的写入安全余量（字节）：覆盖目标环形区之前，DMA 位置必须已越过
+   该区起点至少这么多。原因（QEMU 3.1 实测 + hda-codec.c/intel-hda.c 源码）：
+   模型有 8192 字节内部取数缓冲，SDnLPIB 是「取数计数器」而非播放位置，
+   取数可领先实际播放至多一个缓冲（8KB）；若在 LPIB 刚越过目标区时就写入，
+   模型可能尚未取走该区尾部，会播出属于下一圈的数据。
+   实测（未设余量）：每 256KB 块尾出现长度 ≤8KB 的伪影，伪影内容恰为一整圈
+   （512KB = 环形缓冲长度）之后的数据，与源信号相关度 corr=1.000。
+   写入安全余量 = 环缓冲 - 单块 - 在途目标 = 4MB - 256KB - 1MB = 2883584：
+   即流式播放时保持约 1MB（≈11s）未播数据在途（吸收读盘抖动与 LPIB 偏差），
+   同时被覆盖区距"LPIB + 累积偏差"仍有 ≈2.75MB（≈600s 播放量）的安全距离。 */
+#define HDA_CONT_WRITE_SAFETY 2883584
 
 /* 轮询模式的「有界自旋」次数：连续读 LPIB（MMIO）后让出一次 CPU。
    为什么不能纯 yield：实测纯 yield 轮询下 QEMU 音频后端会周期性丢帧
@@ -79,6 +95,13 @@ static uint32_t  g_cont_lpib_max_step = 0; /* LPIB 单次最大前进量（标�
 
 /* 停流前追加的尾部静音（吸收停流时 codec/后端缓冲截断） */
 #define HDA_STOP_TAIL_MS 250
+
+/* 停流前的额外等待（LPIB 推进字节数）：按 LPIB 判断"播完"会比实际消费提前
+   （LPIB 推进快于真实消费，见 HDA_CONT_BUF_SIZE_STREAM 说明），直接停流会
+   截掉尾部——实测整曲（220s）末尾约 9s 未播。多等这么多 LPIB 推进量，期间
+   DMA 读的是未写入区、由 fill_ahead 维持的预填静音，听感为静音，
+   保证尾部内容真正播完。1.5MB ≈ 17s（覆盖实测累积量 ~0.8MB 有余量）。 */
+#define HDA_STOP_DRAIN_EXTRA 0x180000
 
 /* 流错误计数器（供 sys_audio_get_errors 回读） */
 static uint32_t g_cont_fifo_errors = 0;
@@ -293,9 +316,12 @@ static int hda_cont_wait_until(uint32_t target)
       = DMA 读到了 data_end 之后，即正在读预填静音；首音符除外）；
    2) 起点取 max(data_end, rdpos + MARGIN)：正常路径 = data_end
       （严格追加、音符首尾相接），余量不足时前移重对齐；
-   3) 等待缓冲空间（真实/新数据不得越过 rdpos + size）。 */
+   3) 等待缓冲空间（真实/新数据不得越过 rdpos + size - safety）。
+   safety 为写入安全余量：目标区必须已被 DMA 位置越过至少 safety 字节
+   （流式播放传 HDA_CONT_WRITE_SAFETY，见其说明；音符路径传 0——其起点
+   本就取自 rdpos + MARGIN ≥ 8KB 之后）。 */
 static uint32_t hda_cont_reserve(uint32_t total, uint8_t note_id,
-                                 int count_underrun)
+                                 int count_underrun, uint32_t safety)
 {
     hda_cont_refresh_rd();
 
@@ -317,12 +343,11 @@ static uint32_t hda_cont_reserve(uint32_t total, uint8_t note_id,
         hda_trace_log(HTEV_REALIGN, note_id, g_cont_data_end, start);
     }
 
-    /* 空间等待：原条件 start - rdpos + total ≤ size 等价于
-       rdpos ≥ start + total - size。仅在 start + total 超出缓冲时需等待，
-       复用 wait_until 的中断睡眠/有界自旋双模式（含 fill_ahead 与 yield），
-       不再自建纯 yield 循环。 */
-    if (start + total > g_cont_size) {
-        uint32_t need = start + total - g_cont_size;
+    /* 空间等待：条件 rdpos ≥ start + total + safety - size。仅在超出缓冲时
+       需等待，复用 wait_until 的中断睡眠/有界自旋双模式（含 fill_ahead 与
+       yield），不再自建纯 yield 循环。 */
+    if (start + total + safety > g_cont_size) {
+        uint32_t need = start + total + safety - g_cont_size;
         if (!hda_cont_wait_until(need))
             hda_trace_log(HTEV_WAIT_TIMEOUT, note_id, start, start + total);
     }
@@ -341,13 +366,53 @@ static void hda_cont_finish(uint8_t note_id)
     hda_trace_log(HTEV_NOTE_DONE, note_id, goal, g_cont_data_end);
 }
 
-/* 启动连续流：分配 512KB 环形缓冲 + BDL，配置流并 RUN=1（此后不再停止） */
-static int hda_cont_start(uint32_t rate, uint32_t ch, uint32_t bits)
+/* ===================== 流式播放原语（大文件，syscall 198） =====================
+   sys_audio_play_file_stream_ms 以 256KB 分块循环调用 hda_cont_append：
+   每块读盘耗时（数百 ms）远小于块播放时长（256KB ≈ 2.9s），且 reserve
+   保证环形缓冲始终领先 DMA 读位置 → 分块之间无缝衔接、不应产生 underrun。
+   与 hda_cont_play_note 的差别：无 lead/tail 哨兵、无「播完等待」。 */
+
+/* 追加一块 PCM 到真实数据末尾（内部编号 + trace；不等待播放）。 */
+int hda_cont_append(const uint8_t *pcm, uint32_t len)
+{
+    if (!g_cont_on)
+        return -1;
+    if (len == 0)
+        return 0;
+    if (len > g_cont_size)
+        return -2;   /* 单块不得超过环形缓冲 */
+
+    uint8_t note_id = ++g_cont_note_id;
+    hda_trace_log(HTEV_NOTE_SUBMIT, note_id, g_cont_data_end,
+                  g_cont_data_end + len);
+
+    uint32_t start = hda_cont_reserve(len, note_id, 1, HDA_CONT_WRITE_SAFETY);
+    g_cont_wrpos = start;
+    hda_cont_write_at_wrpos(pcm, len);
+    g_cont_data_end = g_cont_wrpos;
+    hda_flush_cache();   /* 刷缓存使 DMA 可见 */
+    hda_trace_log(HTEV_NOTE_WRITTEN, note_id, start, g_cont_data_end);
+    return 0;
+}
+
+/* 流式播放收尾：等数据末尾剩余进入 MARGIN 以内（stop 前调用，避免截断）。 */
+void hda_cont_drain(void)
+{
+    uint32_t goal = (g_cont_data_end > HDA_CONT_MARGIN)
+                    ? g_cont_data_end - HDA_CONT_MARGIN : 0;
+    if (!hda_cont_wait_until(goal))
+        hda_trace_log(HTEV_WAIT_TIMEOUT, g_cont_note_id, goal, g_cont_data_end);
+}
+
+/* 启动连续流：分配 buf_size 环形缓冲 + BDL，配置流并 RUN=1（此后不再停止）。
+   非 static：流式播放入口（hda_audio.c）需要以文件格式启动流。
+   buf_size 取 HDA_CONT_BUF_SIZE_STREAM（流式）或 _NOTE（音符）。 */
+int hda_cont_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t buf_size)
 {
     if (g_cont_on)
         return 0;
 
-    g_cont_size = HDA_CONT_BUF_SIZE;
+    g_cont_size = buf_size;
 
     if (hda_ensure_dma_buf(g_cont_size) == NULL) {
         printk("HDA: cont DMA alloc failed (%u bytes)\r\n", g_cont_size);
@@ -363,16 +428,16 @@ static int hda_cont_start(uint32_t rate, uint32_t ch, uint32_t bits)
         return -2;
     }
 
-    /* BDL 指向环形缓冲，拆成 HDA_CONT_SEG_BYTES 段并**全条目使能 IOC**：
-       每段消费完触发一次 BCIS 中断（约 23ms），中断等待的唤醒精度由此决定；
-       段数 = 512KB / 4KB = 128 ≤ HDA_BDL_ENTRIES（LVI 8 位上限 256）。 */
+    /* BDL 指向环形缓冲，按当前缓冲大小选段长（见 hda_cont_seg_bytes）并
+       **全条目使能 IOC**：每段消费完触发一次 BCIS 中断，中断等待的唤醒
+       精度由此决定；段数 ≤ HDA_BDL_ENTRIES（LVI 8 位上限 256）。 */
+    uint32_t seg = hda_cont_seg_bytes();
     uint32_t buf_phys = vtop((uint32_t)g_hda.sample_buf);
     uint32_t remaining = g_cont_size;
     uint32_t offset = 0;
     int bdl_entries = 0;
     for (int i = 0; i < HDA_BDL_ENTRIES && remaining > 0; i++) {
-        uint32_t chunk = (remaining > HDA_CONT_SEG_BYTES)
-                       ? HDA_CONT_SEG_BYTES : remaining;
+        uint32_t chunk = (remaining > seg) ? seg : remaining;
         g_hda.bdl[i].addr_lo = buf_phys + offset;
         g_hda.bdl[i].addr_hi = 0;
         g_hda.bdl[i].length  = chunk;
@@ -465,7 +530,7 @@ int hda_cont_play_note(uint32_t rate, uint32_t ch, uint32_t bits,
                        const uint8_t *pcm, uint32_t note_bytes,
                        uint32_t lead_ms, uint32_t tail_ms)
 {
-    int rc = hda_cont_start(rate, ch, bits);
+    int rc = hda_cont_start(rate, ch, bits, HDA_CONT_BUF_SIZE_NOTE);
     if (rc != 0)
         return rc;
 
@@ -485,7 +550,7 @@ int hda_cont_play_note(uint32_t rate, uint32_t ch, uint32_t bits,
     hda_trace_log(HTEV_NOTE_SUBMIT, note_id, g_cont_data_end,
                   g_cont_data_end + total);
 
-    uint32_t start = hda_cont_reserve(total, note_id, 1);
+    uint32_t start = hda_cont_reserve(total, note_id, 1, 0);
 
     g_cont_wrpos = start;
     hda_cont_zero_at_wrpos(lead_len);            /* lead 静音 */
@@ -545,7 +610,7 @@ int sys_audio_play_silence_ms(uint32_t ms)
     hda_trace_log(HTEV_NOTE_SUBMIT, note_id, g_cont_data_end,
                   g_cont_data_end + bytes);
 
-    uint32_t start = hda_cont_reserve(bytes, note_id, 1);
+    uint32_t start = hda_cont_reserve(bytes, note_id, 1, 0);
 
     g_cont_wrpos = start;
     hda_cont_zero_at_wrpos(bytes);
@@ -573,7 +638,7 @@ int sys_audio_stop(void)
     }
     uint32_t tail_len = (uint32_t)((uint64_t)g_cont_rate * HDA_STOP_TAIL_MS / 1000) * bps;
 
-    uint32_t start = hda_cont_reserve(tail_len, 0, 0);
+    uint32_t start = hda_cont_reserve(tail_len, 0, 0, 0);
     g_cont_wrpos = start;
     hda_cont_zero_at_wrpos(tail_len);
     g_cont_data_end = g_cont_wrpos;
@@ -581,7 +646,11 @@ int sys_audio_stop(void)
 
     uint32_t goal = (g_cont_data_end > HDA_CONT_MARGIN)
                     ? g_cont_data_end - HDA_CONT_MARGIN : 0;
-    hda_cont_wait_until(goal);
+    /* 额外等待仅对流式播放生效（音符路径 4KB 段下 LPIB 与实际消费一致） */
+    if (g_cont_size >= HDA_CONT_BUF_SIZE_STREAM)
+        goal += HDA_STOP_DRAIN_EXTRA;
+    while (g_cont_rdpos < goal)
+        hda_cont_wait_until(goal);  /* 超时（约 2s）后继续等，直至目标达成 */
 
     hda_writeb(HDA_SD_CTL(HDA_OUTPUT_STREAM), 0);
     g_cont_on = 0;

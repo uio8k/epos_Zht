@@ -62,6 +62,29 @@ int hda_cont_play_note(uint32_t rate, uint32_t ch, uint32_t bits,
                        const uint8_t *pcm, uint32_t note_bytes,
                        uint32_t lead_ms, uint32_t tail_ms);
 
+/* 环形缓冲大小按用途分配（hda_cont_start 参数）：
+   - 流式播放用 4MB（= 256 条 BDL × 16KB，正好用满 LVI 8 位）：
+     本机捆绑的 QEMU 3.1.50（定制版）中 SDnLPIB 的推进速率比实际音频
+     消费快约 5%（实测：LPIB 每 262KB 块的节流间隔 2.53s，而内容 2.97s；
+     20 秒分段相关性在 100s 后开始劣化）。驱动按 LPIB 节流时该差值随时间
+     累积（约 4.8KB/s），累积量超过"环缓冲 - 单块 - 在途目标"后，写入就
+     会覆盖 DMA 尚未取走的数据（实测伪影内容恰为一整圈之后的数据，
+     corr=1.000，长度随时间线性增长）。4MB + 1MB 在途目标 ⟹ 需累积
+     >2.8MB（约 580 秒）才触发，整曲（220s）有余量（实测 0 伪影）。
+   - 音符/休止符用 512KB（> 最长音符 1600ms + 哨兵）：4MB 常驻会挤压
+     钢琴采样的 WAV 缓存（内核堆 12MB，样本约 8.5MB）。 */
+#define HDA_CONT_BUF_SIZE_STREAM 0x400000
+#define HDA_CONT_BUF_SIZE_NOTE   0x80000
+
+/* 流式播放原语（大文件不整块载入内存，见 sys_audio_play_file_stream_ms）：
+   - hda_cont_start：以指定格式启动连续流（已启动则直接返回成功）；
+   - hda_cont_append：把一块 PCM 追加到真实数据末尾（内部编号 + trace；
+     reserve 负责缓冲空间等待与 underrun 检测；不等待播放）；
+   - hda_cont_drain：收尾等待——数据末尾剩余进入 MARGIN 以内后返回。 */
+int hda_cont_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t buf_size);
+int hda_cont_append(const uint8_t *pcm, uint32_t len);
+void hda_cont_drain(void);
+
 /* 注册 BCIS 中断（hda_stream.c 定义；由 hda_init 调用）。
    仅当 IRQ 号合法且向量槽空闲时注册；返回非 0 表示退回轮询等待。 */
 int hda_cont_register_irq(void);

@@ -1,5 +1,7 @@
 # 构建产物
 *.o
+# 歌曲 WAV：由 tools/prepare_song.py 从 MP3 生成（18MB 级，随 Makefile mcopy 进 hd.img，不进 git）
+samples/song*.wav
 *.map
 *.dep
 kernel/eposkrnl.*

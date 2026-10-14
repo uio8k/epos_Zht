@@ -1,12 +1,13 @@
 /*
  * vim: filetype=c:fenc=utf-8:ts=4:et:sw=4:sts=4
  *
- * VGA 8-bit 图形模式 + 希尔排序柱状图动态演示
+ * 两种演示模式（构建时选择，见 userapp/Makefile）：
+ *   默认      -> 整曲流式播放（audio_play_file_stream_ms 分块读 song.wav）
+ *   SORT_DEMO -> VGA 8-bit 图形模式 + 希尔排序柱状图动态演示（旧演示，保留）
  *
  * 通过 serial.log 判断程序是否成功：
- *   [VGA] 行 -> 图形模式是否进入成功
- *   [SORT] 行 -> 排序过程每一步的数组状态
- *   末尾 [SORT] verify OK -> 排序正确完成
+ *   [SONG]/[AUDIO] 行 -> 歌曲播放；underruns: 0 -> 流式播放无断供
+ *   [VGA]/[SORT] 行   -> SORT_DEMO 旧演示的图形与排序判读依据
  */
 #include <inttypes.h>
 #include <stddef.h>
@@ -26,6 +27,7 @@ extern int vm86call(int fintr, uint32_t n, struct vm86_context *vm86ctx);
 extern void *tlsf_create_with_pool(void *mem, size_t bytes);
 extern void *g_heap;
 
+#ifdef SORT_DEMO
 /* ================= 排序/显示参数 ================= */
 #define N           64          /* 待排序元素个数（扩充以支撑完整旋律长度） */
 #define BAR_MIN     20          /* 数值下限 */
@@ -252,6 +254,7 @@ static void shell_sort(void)
         if (a[i] < a[i - 1]) { ok = 0; break; }
     printf("[SORT] verify: array is ascending = %s\r\n", ok ? "OK" : "FAIL");
 }
+#endif /* SORT_DEMO */
 
 /* ================= 测试信号（音频质量评估用） ================= */
 #ifdef TEST_MODE
@@ -475,6 +478,7 @@ void main(void *pv)
     while (1)
         ;
 #else
+#ifdef SORT_DEMO
     printf("========================================\r\n");
     printf("=== VGA 8-bit Shell Sort + Piano Demo =\r\n");
     printf("========================================\r\n\r\n");
@@ -526,6 +530,46 @@ void main(void *pv)
     while(1)
         ;
     task_exit(0);
+#else /* !SORT_DEMO：默认演示——整曲流式播放 */
+    printf("========================================\r\n");
+    printf("=== EPOS HDA streaming audio demo ======\r\n");
+    printf("=== Enya - We Wish You a Merry Christmas\r\n");
+    printf("=== (mono 44.1kHz 16-bit PCM, ~220s)   =\r\n");
+    printf("========================================\r\n\r\n");
+
+    /* 设置初始音量（功能完善：音量控制） */
+    audio_set_volume(80);
+    printf("[AUDIO] volume set to 80\r\n");
+
+    /* 整曲流式播放：驱动分块读盘（256KB/块）追加进连续流，
+       内存占用恒定、分块之间无缝衔接（见 sys_audio_play_file_stream_ms）。 */
+    printf("[SONG] streaming song.wav ...\r\n");
+    int rc = audio_play_file_stream_ms("song.wav", 0);
+    printf("[SONG] play returned %d\r\n", rc);
+
+    /* 播放结束：停止连续流（追加尾静音吸收截断） */
+    audio_stop();
+    printf("[AUDIO] continuous stream stopped\r\n");
+
+    /* 功能完善：流状态查询（错误计数 + 播放位置 + underrun 计数） */
+    {
+        uint32_t errs = audio_get_errors();
+        uint32_t pos  = audio_get_position_ms();
+        uint32_t ud   = audio_get_underruns(0);
+        printf("[AUDIO] errors: fifo=%u desc=%u  position: %u ms  underruns: %u\r\n",
+               errs & 0xFFFF, errs >> 16, pos, ud);
+    }
+
+    printf("========================================\r\n");
+    printf("=== Demo finished. Check serial.log =====\r\n");
+    printf("===   [SONG] streamed song.wav (audio)  =\r\n");
+    printf("===   [AUDIO] underruns: 0 (seamless)   =\r\n");
+    printf("========================================\r\n");
+
+    while(1)
+        ;
+    task_exit(0);
+#endif /* SORT_DEMO */
 #endif /* TEST_MODE */
 }
 

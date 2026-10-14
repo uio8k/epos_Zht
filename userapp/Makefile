@@ -29,7 +29,13 @@ CFLAGS+= -DTEST_MODE -DTEST_SIGNAL_$(TEST_SIGNAL)
 # 不再被引用；屏蔽相应的 unused 警告以维持零警告构建。
 CFLAGS+= -Wno-unused-function -Wno-unused-variable
 endif
-MODE_STAMP = .testmode_$(TEST_MODE)_$(TEST_SIGNAL)
+# 旧演示（VGA 希尔排序 + 钢琴）：默认演示已改为整曲流式播放，
+# 需要旧演示时用 make SORT_DEMO=1（main.c 中该段代码由 #ifdef SORT_DEMO 包裹）
+SORT_DEMO   ?=
+ifeq ($(SORT_DEMO),1)
+CFLAGS+= -DSORT_DEMO
+endif
+MODE_STAMP = .testmode_$(TEST_MODE)_$(TEST_SIGNAL)_$(SORT_DEMO)
 main.o: $(MODE_STAMP)
 # 注意：此处必须直接写 rm 而不是 $(RM)——本环境 Makefile.inc 未定义 $(RM)，
 # 展开为空命令会静默失败（- 前缀吞错），旧标记残留导致切换 TEST_SIGNAL 后

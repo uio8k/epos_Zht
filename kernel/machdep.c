@@ -908,6 +908,17 @@ void syscall(struct context *ctx)
             ctx->eax = sys_audio_play_file_ms(filename, max_ms);
         }
         break;
+    case SYSCALL_audio_play_file_stream_ms:
+        {
+            const char *filename = *(const char **)(ctx->esp + 4);
+            uint32_t max_ms      = *(uint32_t *)(ctx->esp + 8);
+            if (!IN_USER_VM(filename, 0)) {
+                ctx->eax = -1;
+                break;
+            }
+            ctx->eax = sys_audio_play_file_stream_ms(filename, max_ms);
+        }
+        break;
     case SYSCALL_audio_play_silence_ms:
         {
             uint32_t ms = *(uint32_t *)(ctx->esp + 4);
