@@ -77,7 +77,9 @@ int hda_cont_play_note(uint32_t rate, uint32_t ch, uint32_t bits,
 #define HDA_CONT_BUF_SIZE_NOTE   0x80000
 
 /* 流式播放原语（大文件不整块载入内存，见 sys_audio_play_file_stream_ms）：
-   - hda_cont_start：以指定格式启动连续流（已启动则直接返回成功）；
+   - hda_cont_start：以指定格式启动连续流。已启动时按幂等语义处理：
+     参数（rate/ch/bits/buf_size）一致 → 返回 0；不一致 → 记
+     STREAM_REJECT trace 并返回 -3，调用方须先 sys_audio_stop 再用新参数启动；
    - hda_cont_append：把一块 PCM 追加到真实数据末尾（内部编号 + trace；
      reserve 负责缓冲空间等待与 underrun 检测；不等待播放）；
    - hda_cont_drain：收尾等待——数据末尾剩余进入 MARGIN 以内后返回。 */
@@ -109,6 +111,7 @@ enum hda_trace_ev {
     HTEV_IRQ_FALLBACK,
     HTEV_WAIT_TIMEOUT,
     HTEV_STREAM_REJECT,   /* 流已 RUN 时以不同格式/缓冲尺寸重复 start，被拒绝 */
+    HTEV_STOP_STALLED,    /* sys_audio_stop 等待停流时 DMA 零进展，强制停流 */
 };
 
 struct hda_trace_rec {

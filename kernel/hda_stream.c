@@ -100,8 +100,18 @@ static uint32_t  g_cont_lpib_max_step = 0; /* LPIB 单次最大前进量（标�
    （LPIB 推进快于真实消费，见 HDA_CONT_BUF_SIZE_STREAM 说明），直接停流会
    截掉尾部——实测整曲（220s）末尾约 9s 未播。多等这么多 LPIB 推进量，期间
    DMA 读的是未写入区、由 fill_ahead 维持的预填静音，听感为静音，
-   保证尾部内容真正播完。1.5MB ≈ 17s（覆盖实测累积量 ~0.8MB 有余量）。 */
-#define HDA_STOP_DRAIN_EXTRA 0x180000
+   保证尾部内容真正播完。
+
+   偏差量随播放时长线性累积：实测约 4.2~4.8KB/s，44.1kHz 单声道字节率
+   88.2KB/s → 约占 4.8~5.4%。因此补排量**不能是常量**——原实现固定 1.5MB
+   只覆盖 ≈330s，更长的曲子尾部仍会截断（r2 评审 P2-1）。改为按已写数据量
+   推导：extra = data_end × 5.5% + 256KB。220s 曲目 ≈1.07MB+0.25MB（与原
+   常量 1.5MB 覆盖量相当）；600s 曲目 ≈2.9MB+0.25MB（原常量不足）。
+   多等期间 DMA 读的是 fill_ahead 预填静音（预填上界为 rdpos + 环大小，
+   保证整圈都是静音），无播出旧数据的风险。 */
+#define HDA_STOP_DRAIN_PCT_NUM   55        /* 5.5% = 55/1000 */
+#define HDA_STOP_DRAIN_PCT_DEN   1000
+#define HDA_STOP_DRAIN_MARGIN    0x40000   /* 256KB 固定余量 */
 
 /* sys_audio_stop 等待停流的停摆上限：连续 N 轮 wait_until 返回后读位置
    仍零进展，即判 DMA 已停止推进（模拟器异常/后端挂死），强制停流退出。
@@ -423,11 +433,19 @@ int hda_cont_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t buf_size)
            拒绝，调用方须先 sys_audio_stop 再以新参数启动。 */
         if (rate != g_cont_rate || ch != g_cont_ch || bits != g_cont_bits ||
             buf_size != g_cont_size) {
+            /* 差异位掩码（1=rate 2=ch 4=bits 8=buf_size）编码进 trace 的
+               start 字段：否则纯 rate/ch/bits 差异时 s==e（都是 buf_size /
+               环大小），事后无法从 trace 判断是哪一项不一致（r3 P3-1）。 */
+            uint32_t diff = 0;
+            if (rate != g_cont_rate)     diff |= 1;
+            if (ch != g_cont_ch)         diff |= 2;
+            if (bits != g_cont_bits)     diff |= 4;
+            if (buf_size != g_cont_size) diff |= 8;
             printk("HDA: cont start rejected: active stream is "
                    "%uHz %uch %ubit CBL=%u (requested %uHz %uch %ubit CBL=%u)\r\n",
                    g_cont_rate, g_cont_ch, g_cont_bits, g_cont_size,
                    rate, ch, bits, buf_size);
-            hda_trace_log(HTEV_STREAM_REJECT, 0, buf_size, g_cont_size);
+            hda_trace_log(HTEV_STREAM_REJECT, 0, diff, buf_size);
             return -3;
         }
         return 0;
@@ -667,19 +685,29 @@ int sys_audio_stop(void)
 
     uint32_t goal = (g_cont_data_end > HDA_CONT_MARGIN)
                     ? g_cont_data_end - HDA_CONT_MARGIN : 0;
-    /* 额外等待仅对流式播放生效（音符路径 4KB 段下 LPIB 与实际消费一致） */
-    if (g_cont_size >= HDA_CONT_BUF_SIZE_STREAM)
-        goal += HDA_STOP_DRAIN_EXTRA;
+    /* 额外等待仅对流式播放生效（音符路径 4KB 段下 LPIB 与实际消费一致）：
+       按已写数据量推导而非固定常量，使 >330s 长曲的尾部也能播完（P2-1）。
+       64 位中间值：长曲下 data_end × 百分比会溢出 uint32。 */
+    uint32_t drain_extra = 0;
+    if (g_cont_size >= HDA_CONT_BUF_SIZE_STREAM) {
+        drain_extra = (uint32_t)((uint64_t)g_cont_data_end *
+                                 HDA_STOP_DRAIN_PCT_NUM /
+                                 HDA_STOP_DRAIN_PCT_DEN)
+                      + HDA_STOP_DRAIN_MARGIN;
+        goal += drain_extra;
+    }
     /* 有界等待：wait_until 单次超时后原本无条件再等，DMA 一旦停摆即无限
        循环（r2 评审 P2-2）。这里以「连续 HDA_STOP_STALL_LIMIT 轮等待后
-       读位置零进展」为判据强制退出，留 trace 与串口线索，保证停流有界。 */
+       读位置零进展」为判据强制退出，留 trace 与串口线索，保证停流有界。
+       用独立的 HTEV_STOP_STALLED 事件，避免与 reserve/finish/drain 的
+       WAIT_TIMEOUT 在 trace 视图里混淆（r3 P3-2）。 */
     int stalled = 0;
     while (g_cont_rdpos < goal) {
         uint32_t before = g_cont_rdpos;
         hda_cont_wait_until(goal);
         if (g_cont_rdpos == before) {
             if (++stalled >= HDA_STOP_STALL_LIMIT) {
-                hda_trace_log(HTEV_WAIT_TIMEOUT, 0, g_cont_rdpos, goal);
+                hda_trace_log(HTEV_STOP_STALLED, 0, g_cont_rdpos, goal);
                 printk("HDA: stop wait stalled (rd=%u goal=%u), forcing stop\r\n",
                        g_cont_rdpos, goal);
                 break;
@@ -692,6 +720,10 @@ int sys_audio_stop(void)
     hda_writeb(HDA_SD_CTL(HDA_OUTPUT_STREAM), 0);
     g_cont_on = 0;
     hda_trace_log(HTEV_STREAM_STOP, 0, start, g_cont_data_end);
+    /* 补排量单列一行（不改动既有 stopped 行格式，避免 serial_parser.py 失配）：
+       使「按时长推导的补排」可被实测核对，而非只能读代码。 */
+    printk("HDA: stop drain_extra=%u B (data_end=%u B, pct=%u%%)\r\n",
+           drain_extra, g_cont_data_end, HDA_STOP_DRAIN_PCT_NUM / 10);
     printk("HDA: continuous stream stopped (tail=%u ms, lpib_max_step=%u, "
            "wait=%s bcis=%u, underruns=%u)\r\n",
            HDA_STOP_TAIL_MS, g_cont_lpib_max_step,
