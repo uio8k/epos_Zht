@@ -41,6 +41,7 @@ static const char *hda_trace_ev_name(uint8_t ev)
     case HTEV_BCIS_IRQ:     return "BCIS_IRQ";
     case HTEV_IRQ_FALLBACK: return "IRQ_FALLBACK";
     case HTEV_WAIT_TIMEOUT: return "WAIT_TIMEOUT";
+    case HTEV_STREAM_REJECT: return "STREAM_REJECT";
     default:                return "UNKNOWN";
     }
 }

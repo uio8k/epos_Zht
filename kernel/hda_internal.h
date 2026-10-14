@@ -108,6 +108,7 @@ enum hda_trace_ev {
     HTEV_BCIS_IRQ,
     HTEV_IRQ_FALLBACK,
     HTEV_WAIT_TIMEOUT,
+    HTEV_STREAM_REJECT,   /* 流已 RUN 时以不同格式/缓冲尺寸重复 start，被拒绝 */
 };
 
 struct hda_trace_rec {

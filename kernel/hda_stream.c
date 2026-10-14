@@ -103,6 +103,11 @@ static uint32_t  g_cont_lpib_max_step = 0; /* LPIB 单次最大前进量（标�
    保证尾部内容真正播完。1.5MB ≈ 17s（覆盖实测累积量 ~0.8MB 有余量）。 */
 #define HDA_STOP_DRAIN_EXTRA 0x180000
 
+/* sys_audio_stop 等待停流的停摆上限：连续 N 轮 wait_until 返回后读位置
+   仍零进展，即判 DMA 已停止推进（模拟器异常/后端挂死），强制停流退出。
+   防止原实现「超时后无条件再等」在 DMA 停摆时无限循环挂死内核。 */
+#define HDA_STOP_STALL_LIMIT 3
+
 /* 流错误计数器（供 sys_audio_get_errors 回读） */
 static uint32_t g_cont_fifo_errors = 0;
 static uint32_t g_cont_desc_errors = 0;
@@ -409,8 +414,24 @@ void hda_cont_drain(void)
    buf_size 取 HDA_CONT_BUF_SIZE_STREAM（流式）或 _NOTE（音符）。 */
 int hda_cont_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t buf_size)
 {
-    if (g_cont_on)
+    if (g_cont_on) {
+        /* 流已 RUN：重复启动是幂等的，但**格式与缓冲尺寸必须一致**。
+           原实现无条件返回 0，调用方（syscall 198 的 4MB 流 / 音符路径的
+           512KB 流）会以为「已按我的参数启好」继续追加：reserve 按新参数
+           算安全余量、写指针在旧尺寸的环上绕回，实测表现为长时间静音后
+           错序出声（r2 评审 P1-1）。参数一致 → 幂等成功；不一致 → 显式
+           拒绝，调用方须先 sys_audio_stop 再以新参数启动。 */
+        if (rate != g_cont_rate || ch != g_cont_ch || bits != g_cont_bits ||
+            buf_size != g_cont_size) {
+            printk("HDA: cont start rejected: active stream is "
+                   "%uHz %uch %ubit CBL=%u (requested %uHz %uch %ubit CBL=%u)\r\n",
+                   g_cont_rate, g_cont_ch, g_cont_bits, g_cont_size,
+                   rate, ch, bits, buf_size);
+            hda_trace_log(HTEV_STREAM_REJECT, 0, buf_size, g_cont_size);
+            return -3;
+        }
         return 0;
+    }
 
     g_cont_size = buf_size;
 
@@ -649,8 +670,24 @@ int sys_audio_stop(void)
     /* 额外等待仅对流式播放生效（音符路径 4KB 段下 LPIB 与实际消费一致） */
     if (g_cont_size >= HDA_CONT_BUF_SIZE_STREAM)
         goal += HDA_STOP_DRAIN_EXTRA;
-    while (g_cont_rdpos < goal)
-        hda_cont_wait_until(goal);  /* 超时（约 2s）后继续等，直至目标达成 */
+    /* 有界等待：wait_until 单次超时后原本无条件再等，DMA 一旦停摆即无限
+       循环（r2 评审 P2-2）。这里以「连续 HDA_STOP_STALL_LIMIT 轮等待后
+       读位置零进展」为判据强制退出，留 trace 与串口线索，保证停流有界。 */
+    int stalled = 0;
+    while (g_cont_rdpos < goal) {
+        uint32_t before = g_cont_rdpos;
+        hda_cont_wait_until(goal);
+        if (g_cont_rdpos == before) {
+            if (++stalled >= HDA_STOP_STALL_LIMIT) {
+                hda_trace_log(HTEV_WAIT_TIMEOUT, 0, g_cont_rdpos, goal);
+                printk("HDA: stop wait stalled (rd=%u goal=%u), forcing stop\r\n",
+                       g_cont_rdpos, goal);
+                break;
+            }
+        } else {
+            stalled = 0;
+        }
+    }
 
     hda_writeb(HDA_SD_CTL(HDA_OUTPUT_STREAM), 0);
     g_cont_on = 0;
