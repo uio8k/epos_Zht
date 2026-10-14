@@ -642,7 +642,7 @@ def run_acceptance(args, sens):
         run_headless('underrun', wav_ud, verbose=args.verbose, watch=60)
     log_ud = sp.parse_serial_log(SERIAL_LOG)
     m_ud, _ = analyze_underrun(log_ud)
-    print('  [3] underrun 注入（400ms 停顿）')
+    print('  [3] underrun 注入（800ms 停顿）')
     print(f"      detected={m_ud.get('underrun_detected')}  "
           f"trace_underrun_events={m_ud.get('trace_underrun_events')}  "
           f"trace_recs={(log_ud.get('trace') or {}).get('recs')}")

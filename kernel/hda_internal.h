@@ -70,8 +70,9 @@ int hda_cont_register_irq(void);
    内存环形缓冲记录关键事件与全部错误路径，播放期间零串口开销
    （避免 printk 刷屏拖慢播放，见 g_hda_quiet 的教训），
    播放结束后经 hda_trace_dump 批量导出，由 tools/serial_parser.py 落盘。 */
-#define HDA_TRACE_RECS   4096                    /* 64KB / 16B */
-#define HDA_TRACE_BYTES  (HDA_TRACE_RECS * 16)
+/* 只定义总字节数；条目数由 sizeof(struct hda_trace_rec) 推导
+   （历史缺陷：曾按 16B/条假设 4096 条，而实际条目 24B，容量错配）。 */
+#define HDA_TRACE_BYTES  (64 * 1024)
 
 enum hda_trace_ev {
     HTEV_STREAM_START = 1,

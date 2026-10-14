@@ -73,7 +73,8 @@ static uint32_t  g_cont_bits   = 16;
 static uint8_t   g_cont_note_id = 0;  /* 音符序号（调用链日志区间关联键） */
 static uint32_t  g_cont_lpib_max_step = 0; /* LPIB 单次最大前进量（标定 MARGIN） */
 
-/* 等待 DMA 消费 / 缓冲空间的轮询超时（迭代次数，约 5s） */
+/* 等待 DMA 消费 / 缓冲空间的轮询超时：迭代次数上限；轮询模式含 MMIO 自旋，
+   实际耗时随宿主性能变化（QEMU TCG 下可达数十秒） */
 #define HDA_CONT_WAIT_TIMEOUT 50000000
 
 /* 停流前追加的尾部静音（吸收停流时 codec/后端缓冲截断） */
@@ -227,7 +228,10 @@ static void hda_cont_fill_ahead(void)
         return;
     uint32_t fill = (uint32_t)((uint64_t)g_cont_rate * HDA_CONT_FILL_MS / 1000) * bps;
     uint32_t target = g_cont_rdpos + fill;
-    while (g_cont_wrpos < target && (g_cont_wrpos - g_cont_rdpos) < g_cont_size)
+    /* 上界用加法而非 (wrpos - rdpos) < size：underrun（rdpos > wrpos）时
+       无符号减法下溢为巨值，会导致循环永不执行、预填静音完全失效。
+       绝对坐标下 rdpos + size 溢出需连续播放约 6.6 小时（512KB@44.1kHz），安全。 */
+    while (g_cont_wrpos < target && g_cont_wrpos < g_cont_rdpos + g_cont_size)
         hda_cont_zero_at_wrpos(64);
 }
 
@@ -305,20 +309,23 @@ static uint32_t hda_cont_reserve(uint32_t total, uint8_t note_id,
     }
 
     uint32_t start = g_cont_data_end;
-    if (start < g_cont_rdpos + HDA_CONT_MARGIN)
+    if (start < g_cont_rdpos + HDA_CONT_MARGIN) {
+        /* 安全余量不足：写入起点前移到 rdpos + MARGIN（重对齐）。与
+           UNDERRUN（读位置已越过 data_end）语义分离记录，日志上可分辨
+           「余量被吃光需前移」与「已经越界读到预填静音」。 */
         start = g_cont_rdpos + HDA_CONT_MARGIN;
-
-    int timeout = HDA_CONT_WAIT_TIMEOUT;
-    while (timeout-- > 0) {
-        hda_cont_refresh_rd();
-        if (start - g_cont_rdpos + total <= g_cont_size)
-            break;
-        hda_cont_check_errors();   /* 任务上下文才允许的错误检查/打印 */
-        hda_cont_fill_ahead();
-        sys_task_yield();
+        hda_trace_log(HTEV_REALIGN, note_id, g_cont_data_end, start);
     }
-    if (timeout <= 0)
-        hda_trace_log(HTEV_WAIT_TIMEOUT, note_id, start, start + total);
+
+    /* 空间等待：原条件 start - rdpos + total ≤ size 等价于
+       rdpos ≥ start + total - size。仅在 start + total 超出缓冲时需等待，
+       复用 wait_until 的中断睡眠/有界自旋双模式（含 fill_ahead 与 yield），
+       不再自建纯 yield 循环。 */
+    if (start + total > g_cont_size) {
+        uint32_t need = start + total - g_cont_size;
+        if (!hda_cont_wait_until(need))
+            hda_trace_log(HTEV_WAIT_TIMEOUT, note_id, start, start + total);
+    }
 
     return start;
 }
@@ -420,6 +427,9 @@ static int hda_cont_start(uint32_t rate, uint32_t ch, uint32_t bits)
     g_cont_bits  = bits;
     g_cont_fifo_errors = 0;
     g_cont_desc_errors = 0;
+    /* note_id 按流会话重新计数：uint8 回绕到 0/1 后会命中「首音符」特判
+       （跳过 underrun 检测），导致该音符及后续窗口内 underrun 漏报。 */
+    g_cont_note_id = 0;
     hda_trace_log(HTEV_STREAM_START, 0, 0, g_cont_size);
 
     /* 中断可用性探测（仅首次启动）：流 RUN 后 DMA 立即开始消费，
@@ -522,8 +532,14 @@ int sys_audio_play_silence_ms(uint32_t ms)
     uint32_t bytes = (uint32_t)((uint64_t)g_cont_rate * ms / 1000) * bps;
     if (bytes == 0)
         bytes = 4;
-    if (bytes > g_cont_size)
+    if (bytes > g_cont_size) {
+        /* 静默截断会让休止符偏短、节拍漂移，必须留下线索便于归因；
+           完整分段写入方案列入后续迭代。 */
+        printk("HDA: silence %u ms truncated to %u bytes\r\n",
+               ms, g_cont_size);
+        hda_trace_log(HTEV_WAIT_TIMEOUT, g_cont_note_id, bytes, g_cont_size);
         bytes = g_cont_size;
+    }
 
     uint8_t note_id = ++g_cont_note_id;
     hda_trace_log(HTEV_NOTE_SUBMIT, note_id, g_cont_data_end,

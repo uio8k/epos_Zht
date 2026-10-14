@@ -9,9 +9,10 @@
    error 路径（underrun/重对齐/中断降级/超时），播放结束后导出为文件。
 
    设计（源自方案决策）：
-   - 固定 16 字节条目 + 64KB 环形缓冲（4096 条），追加只做字段赋值，
-     零格式化开销——播放热路径不碰串口（g_hda_quiet 的教训：
-     逐音 printk 刷串口曾拖慢播放导致丢音）。
+   - 固定大小条目（struct hda_trace_rec）+ 64KB 环形缓冲，条目数按
+     sizeof 推导（= 2730 条），追加只做字段赋值，零格式化开销——
+     播放热路径不碰串口（g_hda_quiet 的教训：逐音 printk 刷串口曾
+     拖慢播放导致丢音）。
    - 任务上下文与 ISR 双写者：追加用 save_flags_cli 关中断保护。
    - 播放结束后由 sys_audio_stop / sys_audio_get_underruns 触发 dump，
      经 COM1 输出；tools/serial_parser.py 识别 [TRACE] 段落落盘
@@ -58,14 +59,14 @@ int hda_trace_init(void)
     }
 
     memset(g_trace_buf, 0, HDA_TRACE_BYTES);
-    g_trace_cap     = HDA_TRACE_RECS;
+    g_trace_cap     = HDA_TRACE_BYTES / sizeof(struct hda_trace_rec);
     g_trace_head    = 0;
     g_trace_total   = 0;
     g_trace_dropped = 0;
     g_trace_on      = 1;
 
     printk("HDA: trace log enabled (%u bytes, %u recs)\r\n",
-           HDA_TRACE_BYTES, HDA_TRACE_RECS);
+           HDA_TRACE_BYTES, g_trace_cap);
     return 0;
 }
 
@@ -124,10 +125,17 @@ void hda_trace_dump(void)
     printk("[TRACE] begin recs=%u lost=%u first=%u\r\n", count, dropped, first);
 
     for (uint32_t i = 0; i < count; i++) {
-        struct hda_trace_rec *r = &g_trace_buf[(first + i) % cap];
+        /* 逐条关中断拷贝到栈上再打印：dump 可能在播放中被调用
+           （sys_audio_get_underruns(dump=1)），与 ISR 的追加并发；
+           直接读共享槽位可能读到被覆盖一半的条目（撕裂）。 */
+        struct hda_trace_rec rec;
+        save_flags_cli(flags);
+        rec = g_trace_buf[(first + i) % cap];
+        restore_flags(flags);
+
         printk("[TRACE] t=%u ev=%s id=%u s=%u e=%u rd=%u wr=%u\r\n",
-               r->tick, hda_trace_ev_name(r->ev), r->note_id,
-               r->start, r->end, r->rdpos, r->wrpos);
+               rec.tick, hda_trace_ev_name(rec.ev), rec.note_id,
+               rec.start, rec.end, rec.rdpos, rec.wrpos);
     }
 
     printk("[TRACE] end\r\n");

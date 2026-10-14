@@ -262,6 +262,31 @@ static void shell_sort(void)
      step     : 中段 DC 阶跃，检测增益变化处的瞬态
      sequence : 8 段 200ms 短音（独立调用），暴露音符边界 click
    满音量(100 = Q8 1.0)播放，避免软件增益缩放引入测量误差。 */
+
+/* 生成 440Hz 带淡入淡出的立体声短音（tempo/underrun/sequence 共用）：
+   返回 malloc 的 PCM（bn*2*2 字节），失败返回 NULL。 */
+static int16_t *make_tone(int rate, int note_ms, int fade_ms)
+{
+    const int bn = rate * note_ms / 1000;
+    const int fade = rate * fade_ms / 1000;
+    int16_t *pcm = (int16_t *)malloc(bn * 2 * sizeof(int16_t));
+
+    if (pcm == NULL)
+        return NULL;
+
+    for (int i = 0; i < bn; i++) {
+        double env = 1.0;
+        if (i < fade)
+            env = (double)i / fade;
+        else if (i >= bn - fade)
+            env = (double)(bn - 1 - i) / fade;
+        double s = sin(2.0 * M_PI * 440.0 * (double)i / rate) * 30000.0 * env;
+        pcm[i * 2]     = (int16_t)s;
+        pcm[i * 2 + 1] = (int16_t)s;
+    }
+    return pcm;
+}
+
 static void run_test_signal(void)
 {
     const int rate = 44100, dur_ms = 2000;
@@ -275,22 +300,11 @@ static void run_test_signal(void)
         const int note_ms = 200;
         const int bn = rate * note_ms / 1000;
         const int reps = 40;
-        const int fade = rate * 5 / 1000;
-        int16_t *pcm = (int16_t *)malloc(bn * 2 * sizeof(int16_t));
+        int16_t *pcm = make_tone(rate, note_ms, 5);
 
         if (pcm == NULL) {
             printf("[TEMPO] pcm alloc failed\r\n");
             return;
-        }
-        for (int i = 0; i < bn; i++) {
-            double env = 1.0;
-            if (i < fade)
-                env = (double)i / fade;
-            else if (i >= bn - fade)
-                env = (double)(bn - 1 - i) / fade;
-            double s = sin(2.0 * M_PI * 440.0 * (double)i / rate) * 30000.0 * env;
-            pcm[i * 2]     = (int16_t)s;
-            pcm[i * 2 + 1] = (int16_t)s;
         }
 
         audio_set_volume(100);
@@ -331,22 +345,11 @@ static void run_test_signal(void)
         const int note_ms = 200;
         const int bn = rate * note_ms / 1000;
         const int reps = 6;
-        const int fade = rate * 5 / 1000;
-        int16_t *pcm = (int16_t *)malloc(bn * 2 * sizeof(int16_t));
+        int16_t *pcm = make_tone(rate, note_ms, 5);
 
         if (pcm == NULL) {
             printf("[UNDERRUN] pcm alloc failed\r\n");
             return;
-        }
-        for (int i = 0; i < bn; i++) {
-            double env = 1.0;
-            if (i < fade)
-                env = (double)i / fade;
-            else if (i >= bn - fade)
-                env = (double)(bn - 1 - i) / fade;
-            double s = sin(2.0 * M_PI * 440.0 * (double)i / rate) * 30000.0 * env;
-            pcm[i * 2]     = (int16_t)s;
-            pcm[i * 2 + 1] = (int16_t)s;
         }
 
         audio_set_volume(100);
@@ -355,14 +358,15 @@ static void run_test_signal(void)
         for (int b = 0; b < reps; b++) {
             audio_play_pcm_ms(pcm, bn * 4, rate, 2, 16, note_ms);
             if (b == 1) {
-                /* 停顿 400ms（> 安全余量），制造 underrun 条件 */
+                /* 停顿 800ms：超过安全余量（约 93ms）且超过预填前瞻（500ms），
+                   覆盖 fill_ahead 在 underrun 后必须持续预填静音的路径 */
                 struct timeval t0, tv;
-                printf("[UNDERRUN] injecting 400 ms stall\r\n");
+                printf("[UNDERRUN] injecting 800 ms stall\r\n");
                 gettimeofday(&t0, NULL);
                 do {
                     gettimeofday(&tv, NULL);
                 } while ((tv.tv_sec - t0.tv_sec) * 1000 +
-                         (tv.tv_usec - t0.tv_usec) / 1000 < 400);
+                         (tv.tv_usec - t0.tv_usec) / 1000 < 800);
             }
         }
 
@@ -390,25 +394,19 @@ static void run_test_signal(void)
     printf("[TEST] volume set to 100\r\n");
 
 #ifdef TEST_SIGNAL_sequence
-    /* 音符序列：8 次独立调用播放 200ms 短音。与音符播放共用同一连续流路径，
-       每次调用都重新对齐写位置(wrpos=rdpos)，用于暴露音符边界 click。
-       每段自带 5ms 淡入淡出，故参考信号本身不含阶跃。 */
+    /* 音符序列：8 次独立调用播放 200ms 短音。与音符播放共用同一连续流追加
+       路径，用于暴露音符边界 click。每段自带 5ms 淡入淡出，故参考信号
+       本身不含阶跃。 */
     {
         const int bn = rate * 200 / 1000;
-        const int fade = rate * 5 / 1000;
         printf("[TEST] sequence 8x200ms bursts\r\n");
-        for (int b = 0; b < 8; b++) {
-            for (int i = 0; i < bn; i++) {
-                double env = 1.0;
-                if (i < fade)
-                    env = (double)i / fade;
-                else if (i >= bn - fade)
-                    env = (double)(bn - 1 - i) / fade;
-                double s = sin(2.0 * M_PI * 440.0 * (double)i / rate) * 30000.0 * env;
-                pcm[i * 2]     = (int16_t)s;
-                pcm[i * 2 + 1] = (int16_t)s;
-            }
-            audio_play_pcm_ms(pcm, bn * 4, rate, 2, 16, 200);
+        int16_t *tone = make_tone(rate, 200, 5);
+        if (tone == NULL) {
+            printf("[TEST] tone alloc failed\r\n");
+        } else {
+            for (int b = 0; b < 8; b++)
+                audio_play_pcm_ms(tone, bn * 4, rate, 2, 16, 200);
+            free(tone);
         }
     }
 #else
