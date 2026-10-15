@@ -32,13 +32,13 @@ RE_GETCONV = re.compile(r'HDA: GET_CONV resp=0x([0-9a-fA-F]+)')
 RE_IC_TIMEOUT = re.compile(r'HDA: IC timeout')
 RE_SCAN = re.compile(r'HDA: scan NID=0x([0-9a-fA-F]+) GET_CONV=0x([0-9a-fA-F]+)')
 RE_STREAM_START = re.compile(r'continuous stream started \(CBL=(\d+), (\d+)Hz (\d+)ch (\d+)bit\)')
-# 停流行自 r3 起尾段扩展为 ", lpib_max_step=…"；尾段做可选组以兼容旧格式 "ms)"，
-# 口径与 hda_tests/lib/analysis.py:213 一致。
+# 停流行自 r3 起尾段扩展为 ", lpib_max_step=…"；尾段做可选组以兼容旧格式 "ms)"
+# （hda_tests/lib/analysis.py:213 只认强制新格式，本处是其兼容超集）。
 RE_STREAM_STOP = re.compile(
     r'continuous stream stopped \(tail=(\d+) ms'
     r'(?:, lpib_max_step=(\d+), wait=(\w+) bcis=(\d+), underruns=(\d+))?')
 # 启动被拒（参数与现行流不一致，返回 -3）与停流停摆强制退出：结构化识别但不算错误
-# ——跨模式 -3 属设计行为，有界停流是 r3 P2-2 的正确设计（hda_stream.c:444/711）。
+# ——跨模式 -3 属设计行为，有界停流是 r3 P2-2 的正确设计（hda_stream.c:465/732）。
 RE_STREAM_REJECT = re.compile(
     r'HDA: cont start rejected: active stream is (\d+)Hz (\d+)ch (\d+)bit CBL=(\d+) '
     r'\(requested (\d+)Hz (\d+)ch (\d+)bit CBL=(\d+)\)')
