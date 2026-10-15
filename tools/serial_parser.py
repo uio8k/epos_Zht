@@ -32,7 +32,17 @@ RE_GETCONV = re.compile(r'HDA: GET_CONV resp=0x([0-9a-fA-F]+)')
 RE_IC_TIMEOUT = re.compile(r'HDA: IC timeout')
 RE_SCAN = re.compile(r'HDA: scan NID=0x([0-9a-fA-F]+) GET_CONV=0x([0-9a-fA-F]+)')
 RE_STREAM_START = re.compile(r'continuous stream started \(CBL=(\d+), (\d+)Hz (\d+)ch (\d+)bit\)')
-RE_STREAM_STOP = re.compile(r'continuous stream stopped \(tail=(\d+) ms\)')
+# 停流行自 r3 起尾段扩展为 ", lpib_max_step=…"；尾段做可选组以兼容旧格式 "ms)"，
+# 口径与 hda_tests/lib/analysis.py:213 一致。
+RE_STREAM_STOP = re.compile(
+    r'continuous stream stopped \(tail=(\d+) ms'
+    r'(?:, lpib_max_step=(\d+), wait=(\w+) bcis=(\d+), underruns=(\d+))?')
+# 启动被拒（参数与现行流不一致，返回 -3）与停流停摆强制退出：结构化识别但不算错误
+# ——跨模式 -3 属设计行为，有界停流是 r3 P2-2 的正确设计（hda_stream.c:444/711）。
+RE_STREAM_REJECT = re.compile(
+    r'HDA: cont start rejected: active stream is (\d+)Hz (\d+)ch (\d+)bit CBL=(\d+) '
+    r'\(requested (\d+)Hz (\d+)ch (\d+)bit CBL=(\d+)\)')
+RE_STOP_STALLED = re.compile(r'HDA: stop wait stalled \(rd=(\d+) goal=(\d+)\), forcing stop')
 RE_ERRORS = re.compile(r'\[AUDIO\] errors: fifo=(\d+) desc=(\d+)\s+position: (\d+) ms')
 RE_FIFO_ERR = re.compile(r'HDA: FIFO error')
 RE_DESC_ERR = re.compile(r'HDA: Desc error')
@@ -79,7 +89,8 @@ def parse_serial_log(path):
         'init': {'device_found': False, 'codec_present': False},
         'verbs': {'total_count': 0, 'timeout_count': 0, 'all_responded': True,
                   'set_converter_ok': False, 'nids_scanned': 0},
-        'stream': {'started': False, 'stopped': False},
+        'stream': {'started': False, 'stopped': False,
+                   'reject_count': 0, 'stop_stalled_count': 0},
         'errors': {'fifo_errors': 0, 'desc_errors': 0, 'position_ms': 0, 'has_xrun': False},
         'sort': {'verify_ok': False, 'total_steps': 0},
         'melody': {'notes_played': 0, 'note_list': [], 'note_durations_ms': []},
@@ -165,6 +176,21 @@ def parse_serial_log(path):
         if m:
             out['stream']['stopped'] = True
             out['stream']['tail_ms'] = int(m.group(1))
+            if m.group(2) is not None:
+                out['stream'].update(lpib_max_step=int(m.group(2)),
+                                     wait_mode=m.group(3), bcis=int(m.group(4)),
+                                     stop_underruns=int(m.group(5)))
+        m = RE_STREAM_REJECT.search(ln)
+        if m:
+            out['stream']['reject_count'] += 1
+            out['stream']['last_reject'] = {
+                'active': [int(m.group(i)) for i in (1, 2, 3, 4)],
+                'requested': [int(m.group(i)) for i in (5, 6, 7, 8)],
+            }
+        m = RE_STOP_STALLED.search(ln)
+        if m:
+            out['stream']['stop_stalled_count'] += 1
+            out['stream']['last_stall'] = {'rd': int(m.group(1)), 'goal': int(m.group(2))}
         m = RE_FIFO_ERR.search(ln)
         if m:
             out['errors']['fifo_errors'] += 1
@@ -293,7 +319,8 @@ def write_trace_log(parsed, path, source='serial.log'):
                      % (nid, n['start'], n['end'], n['submit'], n['written'], n['done']))
 
     errors = [e for e in events
-              if e['ev'] in ('UNDERRUN', 'REALIGN', 'WAIT_TIMEOUT', 'IRQ_FALLBACK')]
+              if e['ev'] in ('UNDERRUN', 'REALIGN', 'WAIT_TIMEOUT', 'IRQ_FALLBACK',
+                             'STREAM_REJECT', 'STOP_STALLED')]
     lines.append('')
     lines.append('# ---- error paths ----')
     if errors:
