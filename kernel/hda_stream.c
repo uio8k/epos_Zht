@@ -118,6 +118,11 @@ static uint32_t  g_cont_lpib_max_step = 0; /* LPIB 单次最大前进量（标�
    防止原实现「超时后无条件再等」在 DMA 停摆时无限循环挂死内核。 */
 #define HDA_STOP_STALL_LIMIT 3
 
+/* reserve 空间等待的停摆上限（判据同 HDA_STOP_STALL_LIMIT）：连续 N 轮
+   wait_until 超时且读位置零进展，即判 DMA 已停止推进，记 WAIT_TIMEOUT 并
+   维持「继续写」的原有界侵入兜底。 */
+#define HDA_RESERVE_STALL_LIMIT 3
+
 /* 流错误计数器（供 sys_audio_get_errors 回读） */
 static uint32_t g_cont_fifo_errors = 0;
 static uint32_t g_cont_desc_errors = 0;
@@ -360,10 +365,26 @@ static uint32_t hda_cont_reserve(uint32_t total, uint8_t note_id,
 
     /* 空间等待：条件 rdpos ≥ start + total + safety - size。仅在超出缓冲时
        需等待，复用 wait_until 的中断睡眠/有界自旋双模式（含 fill_ahead 与
-       yield），不再自建纯 yield 循环。 */
+       yield），不再自建纯 yield 循环。
+
+       wait_until 的预算按迭代数计，墙钟随宿主性能漂移（TCG 实测 ≈2.75s/轮），
+       而流式每块需等 ≈2.9s 音频量的空间 → 单次调用必然超时并继续写，侵入
+       safety 余量（实测 220s 曲末态在途 2.43MB vs 设计 1.25MB，赤字 ≈6.5KB/s
+       线性累积，外推 ~410s 触 ring−chunk 结构界）。故改为有界重试：只要 DMA
+       仍在推进就继续等，写只在 rdpos ≥ need 时发生（在途恒 ≤ size − safety）；
+       连续 HDA_RESERVE_STALL_LIMIT 轮零进展才判真停摆、记 WAIT_TIMEOUT 并维持
+       原有界侵入写兜底。 */
     if (start + total + safety > g_cont_size) {
         uint32_t need = start + total + safety - g_cont_size;
-        if (!hda_cont_wait_until(need))
+        int stalled = 0;
+        while (g_cont_rdpos < need && stalled < HDA_RESERVE_STALL_LIMIT) {
+            uint32_t before = g_cont_rdpos;
+            hda_cont_wait_until(need);
+            if (g_cont_rdpos >= need)
+                break;
+            stalled = (g_cont_rdpos == before) ? stalled + 1 : 0;
+        }
+        if (g_cont_rdpos < need)
             hda_trace_log(HTEV_WAIT_TIMEOUT, note_id, start, start + total);
     }
 
