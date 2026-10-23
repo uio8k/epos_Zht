@@ -22,6 +22,7 @@
 #include <ioctl.h>
 #include <sys/mman.h>
 #include <string.h>
+#include <audio_capture.h>
 
 #include "kernel.h"
 #include "multiboot.h"
@@ -972,6 +973,39 @@ void syscall(struct context *ctx)
             }
             ctx->eax = sys_audio_play_pcm_ms(pcm, len, rate, ch, bits, ms);
         }
+        break;
+    case SYSCALL_audio_capture_start:
+        {
+            uint32_t rate = *(uint32_t *)(ctx->esp + 4);
+            uint32_t ch   = *(uint32_t *)(ctx->esp + 8);
+            uint32_t bits = *(uint32_t *)(ctx->esp + 12);
+            uint32_t ms   = *(uint32_t *)(ctx->esp + 16);
+            if (ch == 0 || ch > 2 || bits < 8 || bits > 32) {
+                ctx->eax = -1;
+                break;
+            }
+            ctx->eax = sys_audio_capture_start(rate, ch, bits, ms);
+        }
+        break;
+    case SYSCALL_audio_capture_read:
+        {
+            void *buf          = *(void **)(ctx->esp + 4);
+            uint32_t len       = *(uint32_t *)(ctx->esp + 8);
+            struct audio_capture_stats *st =
+                *(struct audio_capture_stats **)(ctx->esp + 12);
+            if (len > 0 && !IN_USER_VM(buf, len)) {
+                ctx->eax = -1;
+                break;
+            }
+            if (st != NULL && !IN_USER_VM(st, sizeof(*st))) {
+                ctx->eax = -1;
+                break;
+            }
+            ctx->eax = sys_audio_capture_read(buf, len, st);
+        }
+        break;
+    case SYSCALL_audio_capture_stop:
+        ctx->eax = sys_audio_capture_stop();
         break;
     default:
         printk("syscall #%d not implemented.\r\n", ctx->eax);

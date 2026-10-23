@@ -236,6 +236,10 @@ int hda_init(void)
     /* 注册 BCIS 中断（IRQ 不可用/已被占用时自动退回轮询等待） */
     hda_cont_register_irq();
 
+    /* 输入侧拓扑探测：失败只告警，绝不影响播放路径 */
+    if (hda_capture_probe(g_hda.codec_cad) != 0)
+        printk("HDA: capture unavailable (playback unaffected)\r\n");
+
     return 0;
 }
 

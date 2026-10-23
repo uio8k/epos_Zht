@@ -66,4 +66,11 @@ uint32_t audio_get_underruns(uint32_t dump);
 int audio_play_pcm_ms(const void *pcm, uint32_t len, uint32_t rate,
                       uint32_t ch, uint32_t bits, uint32_t ms);
 
+/* 麦克风采集（输入流）。read 非阻塞：无数据返回 0，调用方 sleep 后重试。
+   stats 由内核回填（见 <audio_capture.h>），可为 NULL。 */
+struct audio_capture_stats;
+int audio_capture_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t ms);
+int audio_capture_read(void *buf, uint32_t len, struct audio_capture_stats *stats);
+int audio_capture_stop(void);
+
 #endif /*_SYSCALL_H*/

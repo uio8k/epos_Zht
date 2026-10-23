@@ -65,6 +65,12 @@
    - stream tag 必须非零（Intel HDA 规范要求 1-15，tag 0 无效） */
 #define HDA_OUTPUT_STREAM   4
 
+/* 输入流：同一模型里 SD0~SD3 是输入方向，采集取 SD0。
+   stream tag 必须非零，且不能与播放的 tag（= HDA_OUTPUT_STREAM = 4）冲突，
+   否则 codec 侧转换器会串流。 */
+#define HDA_INPUT_STREAM    0
+#define HDA_INPUT_TAG       1
+
 /* ========== Codec 拓扑（QEMU hda-duplex 硬编码，见 hda_init） ========== */
 #define HDA_MIXER_NID       0x05    /* Mixer widget NID（DAC/Pin 存于 g_hda） */
 
@@ -152,6 +158,10 @@ struct hda_dev {
     uint8_t  codec_cad;     /* Codec 地址 (0-14) */
     uint32_t output_dac;    /* DAC NID */
     uint32_t output_pin;    /* Pin Complex NID */
+
+    /* 输入侧（verb 探测得到，hda_capture.c 填写；0 表示未找到） */
+    uint8_t  adc_nid;       /* Audio Input（ADC）widget NID */
+    uint8_t  input_pin;     /* 具备 input-capable 的 Mic Pin NID */
 };
 
 /* ========== 函数声明 ========== */
@@ -167,6 +177,11 @@ int  sys_audio_set_volume(uint32_t volume);
 uint32_t sys_audio_get_errors(void);
 uint32_t sys_audio_get_underruns(uint32_t dump);
 uint32_t sys_audio_get_position_ms(void);
+
+/* ========== 采集（麦克风输入，hda_capture.c） ========== */
+int sys_audio_capture_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t ms);
+int sys_audio_capture_read(void *buf, uint32_t len, void *ustats);
+int sys_audio_capture_stop(void);
 
 /* ========== HDA Verb 定义 ========== */
 #define HDA_VERB_GET_PARAMETER      0xF0000
@@ -184,11 +199,32 @@ uint32_t sys_audio_get_position_ms(void);
 #define HDA_PARAM_NODE_COUNT         0x04
 #define HDA_PARAM_FUNC_GRP_TYPE      0x05
 #define HDA_PARAM_AUDIO_WIDGET_CAP   0x09
+#define HDA_PARAM_PIN_CAP            0x0C  /* Pin Capabilities */
 #define HDA_PARAM_CONNLIST_LEN       0x0E
+#define HDA_PARAM_CONFIG_DEFAULT     0x1C  /* Config Default（bits 23:20 = 默认设备） */
 
-/* Widget 类型 (AUDIO_WIDGET_CAP 的高 4 位) */
+/* Widget 类型 (AUDIO_WIDGET_CAP 的 bits 23:20) */
 #define WIDGET_TYPE_AUDIO_OUTPUT  0x0  /* DAC */
+#define WIDGET_TYPE_AUDIO_INPUT   0x1  /* ADC */
 #define WIDGET_TYPE_AUDIO_MIXER   0x2
 #define WIDGET_TYPE_PIN_COMPLEX   0x4
+
+/* Pin Capabilities 位（GET_PARAMETER 0x0C） */
+#define HDA_PINCAP_OUTPUT         (1 << 4)  /* 可作输出 */
+#define HDA_PINCAP_INPUT          (1 << 5)  /* 可作输入 */
+
+/* Config Default 的默认设备值（bits 23:20） */
+#define HDA_CFG_DEVICE_MIC_IN     0xA       /* Mic In */
+
+/* PIN_WIDGET_CTRL 位：输出使能是 bit6（见 hda.c 播放路径用 0x40），
+   输入使能是 bit5；bits 4:2 是 VREF，本轮置 0（Hi-Z）。 */
+#define HDA_PIN_CTRL_IN_EN        (1 << 5)
+
+/* SET_AMP_GAIN_MUTE 的输入方向位（bits 15:0 载荷内）：
+   播放路径用 HDA_AMP_UNMUTE_0DB(0xB000) 已实测有效，这里只额外置输入位。 */
+#define HDA_AMP_SET_INPUT         (1 << 14)
+
+/* 读 codec 连接表条目（payload = 起始索引，响应含最多 4 个 NID） */
+#define HDA_VERB_GET_CONNECTION_LIST_ENTRY 0xF0200
 
 #endif /* _HDA_H */

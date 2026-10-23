@@ -48,6 +48,11 @@
 #define SYSCALL_audio_play_pcm_ms 196
 #define SYSCALL_audio_get_underruns 197
 #define SYSCALL_audio_play_file_stream_ms 198
+/* 麦克风采集（输入流）：start 分配并启动，read 非阻塞取数，
+   stop 停流并打印统计。stats 结构见 include/audio_capture.h */
+#define SYSCALL_audio_capture_start 199
+#define SYSCALL_audio_capture_read  200
+#define SYSCALL_audio_capture_stop  201
 
 #define SYSCALL_putchar       1000
 #define SYSCALL_getchar       1001

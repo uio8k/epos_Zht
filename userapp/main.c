@@ -19,6 +19,9 @@
 #include <syscall.h>
 #include <stdlib.h>
 #include <time.h>
+#ifdef TEST_CAPTURE
+#include <audio_capture.h>
+#endif
 #include "graphics.h"
 #include "melody_player.h"
 
@@ -461,6 +464,96 @@ static void run_test_signal(void)
 }
 #endif /* TEST_MODE */
 
+#ifdef TEST_CAPTURE
+/* ================= 麦克风采集自测 =================
+   三个场景一次跑完，覆盖计划里要求的验收面：
+     A 1s 采集   —— 通路是否在搬数据：字节数、LPIB 是否推进
+     B 3s 采集   —— 数据量 529KB > 256KB 基准环，触发 512KB 缓冲与 LPIB 绕回
+     C 重复 start —— 同参数幂等返回 0，异参数被拒绝返回 -2
+   峰值与非零样本数只作信号存在性的附带信息：宿主无采集设备时就是底噪。 */
+#define CAP_RATE    44100
+#define CAP_CH      2
+#define CAP_BITS    16
+#define CAP_CHUNK   8192
+#define CAP_POLL_MS 20
+
+/* 从已启动的采集里取满 expect 字节；返回实际字节数，统计由内核回填到 st。
+   每 20ms 读一次，轮次上限按「每次最多拿到的量」留一倍余量，避免录不到时死等。 */
+static uint32_t cap_drain(uint32_t expect, struct audio_capture_stats *st)
+{
+    struct timespec ts;
+    uint8_t *buf = (uint8_t *)malloc(CAP_CHUNK);
+    uint32_t total = 0;
+
+    if (buf == NULL)
+        return 0;
+
+    int rounds = (int)(expect / (CAP_CHUNK / 2)) + 100;
+    for (int i = 0; i < rounds; i++) {
+        int n = audio_capture_read(buf, CAP_CHUNK, st);
+        if (n > 0)
+            total += (uint32_t)n;
+        if (total >= expect)
+            break;
+        ts.tv_sec  = 0;
+        ts.tv_nsec = CAP_POLL_MS * 1000 * 1000;
+        nanosleep(&ts, NULL);
+    }
+    free(buf);
+    return total;
+}
+
+static void cap_report(const char *tag, uint32_t total, uint32_t expect,
+                       const struct audio_capture_stats *st)
+{
+    printf("[CAP-%s] bytes=%u expect=%u diff=%d lpib=%u wraps=%u overruns=%u peak=%u nonzero=%u\r\n",
+           tag, total, expect, (int)total - (int)expect,
+           st->lpib, st->wraps, st->overruns, st->peak, st->nonzero);
+    printf("[CAP-%s] VERDICT: len=%s path=%s signal=%s\r\n", tag,
+           (total > 0 && (int)total >= (int)(expect - expect / 20)) ? "OK" : "FAIL",
+           (st->lpib > 0 && st->overruns == 0) ? "OK" : "FAIL",
+           (st->peak > 0 && st->nonzero > 0) ? "PRESENT" : "SILENT");
+}
+
+static void run_capture_test(void)
+{
+    struct audio_capture_stats st;
+    uint32_t rc, total;
+    uint32_t bps = CAP_RATE * CAP_CH * (CAP_BITS / 8);
+
+    printf("=== Capture self-test: %uHz %uch %ubit, bps=%u ===\r\n",
+           CAP_RATE, CAP_CH, CAP_BITS, bps);
+
+    /* A：1 秒，基准环 256KB */
+    memset(&st, 0, sizeof(st));
+    rc = audio_capture_start(CAP_RATE, CAP_CH, CAP_BITS, 1000);
+    printf("[CAP-A] start rc=%d\r\n", (int)rc);
+    if (rc == 0) {
+        total = cap_drain(bps, &st);
+        printf("[CAP-A] stop rc=%d\r\n", audio_capture_stop());
+        cap_report("A", total, bps, &st);
+    }
+
+    /* B：3 秒，529200 字节 > 256KB → 缓冲升到 512KB，LPIB 应绕回 1 次 */
+    memset(&st, 0, sizeof(st));
+    rc = audio_capture_start(CAP_RATE, CAP_CH, CAP_BITS, 3000);
+    printf("[CAP-B] start rc=%d\r\n", (int)rc);
+    if (rc == 0) {
+        total = cap_drain(bps * 3, &st);
+        printf("[CAP-B] stop rc=%d\r\n", audio_capture_stop());
+        cap_report("B", total, bps * 3, &st);
+    }
+
+    /* C：幂等与参数冲突（期望 0 / 0 / -2 / 0） */
+    int rc_first = audio_capture_start(CAP_RATE, CAP_CH, CAP_BITS, 1000);
+    int rc_same  = audio_capture_start(CAP_RATE, CAP_CH, CAP_BITS, 1000);
+    int rc_diff  = audio_capture_start(48000, CAP_CH, CAP_BITS, 1000);
+    int rc_stop  = audio_capture_stop();
+    printf("[CAP-C] first=%d same=%d diff=%d stop=%d (expect 0/0/-2/0)\r\n",
+           rc_first, rc_same, rc_diff, rc_stop);
+}
+#endif /* TEST_CAPTURE */
+
 /* ================= 主函数 ================= */
 void __main()
 {
@@ -472,7 +565,12 @@ void __main()
 
 void main(void *pv)
 {
-#ifdef TEST_MODE
+#ifdef TEST_CAPTURE
+    /* 麦克风采集自测：录固定时长、打印统计后停在此处等 watcher 退出 */
+    run_capture_test();
+    while (1)
+        ;
+#elif defined(TEST_MODE)
     /* 音频质量评估：播放单一测试信号后停在此处，等待 watcher 优雅退出 */
     run_test_signal();
     while (1)

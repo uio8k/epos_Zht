@@ -3,6 +3,7 @@
 
 #include "hda.h"
 #include "kernel.h"
+#include <audio_capture.h>
 
 /* ========== 共享全局状态 ========== */
 extern struct hda_dev g_hda;
@@ -91,6 +92,16 @@ void hda_cont_drain(void);
    仅当 IRQ 号合法且向量槽空闲时注册；返回非 0 表示退回轮询等待。 */
 int hda_cont_register_irq(void);
 
+/* ========== 采集层（hda_capture.c 定义） ==========
+   与 hda_stream.c 对称的独立路径：输入流 SD0 / tag 1，自己的 BDL 与环形
+   缓冲，不与播放共享任何指针。读指针由 SDnLPIB 推导，落后 DMA 写指针
+   一个 HDA_CAP_GAP 安全余量。 */
+int hda_capture_probe(uint8_t cad);
+int hda_capture_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t ms);
+int hda_capture_read(void *ubuf, uint32_t len, struct audio_capture_stats *ust);
+int hda_capture_stop(void);
+int hda_capture_is_on(void);
+
 /* ========== 调用链日志（hda_trace.c 定义） ==========
    内存环形缓冲记录关键事件与全部错误路径，播放期间零串口开销
    （避免 printk 刷屏拖慢播放，见 g_hda_quiet 的教训），
@@ -112,6 +123,9 @@ enum hda_trace_ev {
     HTEV_WAIT_TIMEOUT,
     HTEV_STREAM_REJECT,   /* 流已 RUN 时以不同格式/缓冲尺寸重复 start，被拒绝 */
     HTEV_STOP_STALLED,    /* sys_audio_stop 等待停流时 DMA 零进展，强制停流 */
+    HTEV_CAP_START,       /* 采集流启动（start 字段 = 环形缓冲字节数） */
+    HTEV_CAP_OVERFLOW,    /* 用户读太慢，读指针被强制追到 wp-gap */
+    HTEV_CAP_STOP,        /* 采集流停止（end 字段 = 累计交付字节数） */
 };
 
 struct hda_trace_rec {

@@ -16,7 +16,7 @@ SUBDIRS = kernel userapp
 .PHONY: subdirs $(SUBDIRS)
 subdirs: $(SUBDIRS)
 $(SUBDIRS):
-	$(MAKE) -C $@ $(MODE)
+	$(MAKE) -C $@ $(MODE) CAPTURE_TEST=$(CAPTURE_TEST)
 
 hd.img: subdirs
 	if [ ! -s $@ ]; then cat $@.bz2.txt | base64 -d | bunzip2 >$@ ; fi
