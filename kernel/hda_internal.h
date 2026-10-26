@@ -102,6 +102,11 @@ int hda_capture_read(void *ubuf, uint32_t len, struct audio_capture_stats *ust);
 int hda_capture_stop(void);
 int hda_capture_is_on(void);
 
+/* 配置快照：打印 codec 侧输入路径的回读现状（单行 key=value）。
+   返回 0 全部读取成功，否则返回首个失败项的错误码（见 hda.h 的
+   HDA_CAP_ERR_*）。只读，可在采集未启动时调用。 */
+int hda_capture_dump_state(void);
+
 /* ========== 调用链日志（hda_trace.c 定义） ==========
    内存环形缓冲记录关键事件与全部错误路径，播放期间零串口开销
    （避免 printk 刷屏拖慢播放，见 g_hda_quiet 的教训），

@@ -236,9 +236,16 @@ int hda_init(void)
     /* 注册 BCIS 中断（IRQ 不可用/已被占用时自动退回轮询等待） */
     hda_cont_register_irq();
 
-    /* 输入侧拓扑探测：失败只告警，绝不影响播放路径 */
-    if (hda_capture_probe(g_hda.codec_cad) != 0)
-        printk("HDA: capture unavailable (playback unaffected)\r\n");
+    /* 输入侧拓扑探测：失败只告警，绝不影响播放路径。
+       错误码语义见 hda.h 的 HDA_CAP_ERR_*（-4 无 ADC / -5 无输入 Pin /
+       -6 连接列表未命中 / -7 Pin 控制回读不符 / -8 连接选择回读不符）。 */
+    {
+        int crc = hda_capture_probe(g_hda.codec_cad);
+        if (crc != 0)
+            printk("HDA-CAP: capture unavailable rc=%d (playback unaffected)\r\n", crc);
+        else
+            hda_capture_dump_state();
+    }
 
     return 0;
 }

@@ -227,4 +227,37 @@ int sys_audio_capture_stop(void);
 /* 读 codec 连接表条目（payload = 起始索引，响应含最多 4 个 NID） */
 #define HDA_VERB_GET_CONNECTION_LIST_ENTRY 0xF0200
 
+/* ========== 输入侧（ADC）回读 verb：写后校验用（hda_capture.c） ==========
+   SET 类 verb 的响应恒为 0，无法证明配置真的落到 widget 上；采集侧
+   每条关键写入都配一次 GET 回读，避免「配错只表现为静音、无从定位」。 */
+#define HDA_VERB_GET_CONVERTER_FMT     0x00A00   /* 读回 converter format（16bit） */
+#define HDA_VERB_GET_PIN_WIDGET_CTRL   0x00F0700 /* 读回 pin ctrl（低 8 位有效） */
+#define HDA_VERB_GET_CONNECTION_SELECT 0x00F0100 /* 读回 connection select（低 7 位） */
+#define HDA_VERB_GET_AMP_GAIN_MUTE     0x000B00  /* 读回 amp：bit15=out / bit14=in /
+                                                    bit13=L / bit12=R / bit7=mute */
+
+/* AMP 载荷的方向与声道位（bits 15:12）：
+   bit15 与 bit14 互斥——两者同时置位时按「输出」处理，因此输入方向
+   必须是 0x7xxx，而不能写成 0xB000 | (1<<14) = 0xF000。 */
+#define HDA_AMP_DIR_OUTPUT    (1 << 15)
+#define HDA_AMP_DIR_INPUT     (1 << 14)
+#define HDA_AMP_CH_LEFT       (1 << 13)
+#define HDA_AMP_CH_RIGHT      (1 << 12)
+/* 输入方向 + 双声道 + 0dB + 取消静音 = 0x7000 */
+#define HDA_AMP_IN_UNMUTE_0DB (HDA_AMP_DIR_INPUT | HDA_AMP_CH_LEFT | HDA_AMP_CH_RIGHT)
+/* GET 时同样用方向位 + 声道位选择读哪一路 */
+#define HDA_AMP_GET_IN_BOTH   HDA_AMP_IN_UNMUTE_0DB
+#define HDA_AMP_MUTE_BIT      0x80  /* 每个声道字节的 bit7 = mute */
+#define HDA_AMP_MUTE_BOTH     0x8080/* 立体声响应里两个声道的 mute 位 */
+
+/* ========== 采集侧错误码（hda_capture_probe / start 返回） ==========
+   -1..-3 沿用 9ccf800 既有语义：未探测 / 参数冲突 / DMA 分配失败。 */
+#define HDA_CAP_ERR_NO_ADC   (-4)   /* 扫完 NID 未找到 ADC widget */
+#define HDA_CAP_ERR_NO_PIN   (-5)   /* 无可输入 Pin Complex */
+#define HDA_CAP_ERR_CONN     (-6)   /* 连接列表无法定位该 Pin（短/长格式均未命中） */
+#define HDA_CAP_ERR_PINCTL   (-7)   /* Pin 控制回读与期望不符 */
+#define HDA_CAP_ERR_CONVSEL  (-8)   /* 连接选择回读与期望不符 */
+#define HDA_CAP_ERR_FMT      (-9)   /* converter format 回读与 SDnFMT 不一致 */
+#define HDA_CAP_ERR_TAG      (-10)  /* converter stream/channel 回读不符 */
+
 #endif /* _HDA_H */

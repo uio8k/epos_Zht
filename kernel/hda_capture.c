@@ -59,6 +59,18 @@ static uint16_t cap_stream_fmt(uint32_t rate, uint32_t ch, uint32_t bits)
     return fmt;
 }
 
+/* SDnFMT / converter format 的 bit6:4 → 位宽（回读仲裁用） */
+static uint32_t cap_fmt_bits(uint16_t fmt)
+{
+    switch (fmt & 0x70) {
+    case HDA_FMT_BITS_8:  return 8;
+    case HDA_FMT_BITS_20: return 20;
+    case HDA_FMT_BITS_24: return 24;
+    case HDA_FMT_BITS_32: return 32;
+    default:              return 16;
+    }
+}
+
 /* 该 Pin 是否被配置为 Mic In（Config Default bits23:20 == 0xA） */
 static int cap_is_mic_pin(uint8_t cad, uint8_t nid)
 {
@@ -78,10 +90,85 @@ static int cap_pin_input_capable(uint8_t cad, uint8_t nid)
     return ((uint32_t)pc & HDA_PINCAP_INPUT) != 0;
 }
 
+/* ===================== verb 读写校验辅助 ===================== */
+
+/* IC 立即命令偶发超时（QEMU 在复位/高负载下会出现），一次重发即可；
+   两次都失败才认定为通路故障，避免把瞬时超时误判成配置失败。 */
+static uint64_t cap_verb(uint8_t cad, uint8_t nid, uint32_t verb)
+{
+    for (int i = 0; i < 2; i++) {
+        uint64_t r = hda_send_verb(cad, nid, verb);
+        if (r != ~0ULL)
+            return r;
+    }
+    return ~0ULL;
+}
+
+/* 写入后回读比对：mask 之外的位忽略。
+   fatal=1 → 不符返回 err（停用采集）；fatal=0 → 仅告警（规范允许 widget 无 amp）。 */
+static int cap_verify(uint8_t cad, uint8_t nid, uint32_t read_verb,
+                      uint32_t expect, uint32_t mask, int fatal, int err,
+                      const char *what)
+{
+    uint64_t r = cap_verb(cad, nid, read_verb);
+
+    if (r == ~0ULL) {
+        printk("HDA-CAP: %s readback timeout (nid=0x%02x)\r\n", what, nid);
+        return fatal ? err : 0;
+    }
+    if (((uint32_t)r & mask) != (expect & mask)) {
+        printk("HDA-CAP: %s mismatch nid=0x%02x got=0x%x want=0x%x (%s)\r\n",
+               what, nid, (uint32_t)r & mask, expect & mask,
+               fatal ? "fatal" : "warn");
+        return fatal ? err : 0;
+    }
+    return 0;
+}
+
+/* 求 pin 在 adc 连接列表中的索引：>=0 命中，-1 未命中，-2 verb 读取失败。
+   短格式每条响应 4 个 8bit NID（QEMU hda-duplex 用这个）；长格式 2 个
+   16bit NID，按规范实现但未在真机上验证。
+   旧实现（9ccf800）的两个缺陷在这里修掉：长格式一律取索引 0；
+   命中判断 `if (sel != 0 || (v & 0xFF) == pin)` 在「索引 0 命中」与
+   「完全未命中」两种情形下混淆。 */
+static int cap_conn_index(uint8_t cad, uint8_t adc, uint8_t pin)
+{
+    uint64_t clen = cap_verb(cad, adc,
+                             HDA_VERB_GET_PARAMETER | HDA_PARAM_CONNLIST_LEN);
+    if (clen == ~0ULL)
+        return -2;
+
+    uint32_t n        = (uint32_t)clen & 0x7F;
+    uint32_t longform = ((uint32_t)clen >> 7) & 1;
+    uint32_t step     = longform ? 2 : 4;
+
+    for (uint32_t off = 0; off < n; off += step) {
+        uint64_t r = cap_verb(cad, adc, HDA_VERB_GET_CONNECTION_LIST_ENTRY | off);
+        if (r == ~0ULL)
+            return -2;
+
+        uint32_t v = (uint32_t)r;
+        if (longform) {
+            for (uint32_t k = 0; k < 2 && off + k < n; k++)
+                if (((v >> (16 * k)) & 0xFFFF) == pin)
+                    return (int)(off + k);
+        } else {
+            for (uint32_t k = 0; k < 4 && off + k < n; k++)
+                if (((v >> (8 * k)) & 0xFF) == pin)
+                    return (int)(off + k);
+        }
+    }
+    return -1;
+}
+
 /* 探测输入侧拓扑：遍历 0x01..0x20
-     widget type == 1 → ADC（取第一个）
-     widget type == 4 且 Pin Capabilities 的 INPUT_CAPABLE 置位 → 候选 Mic Pin
-       优先选 Config Default 标记为 Mic In 的那个，否则取第一个可输入的 */
+    widget type == 1 → ADC（取第一个）
+    widget type == 4 且 Pin Capabilities 的 INPUT_CAPABLE 置位 → 候选 Mic Pin
+      优先选 Config Default 标记为 Mic In 的那个，否则取第一个可输入的
+
+   探测完成后立即把「Pin 输入使能 → ADC 连接选择 → 输入 amp 取消静音」配好，
+   每一步都回读校验：PINCTL/CONVSEL 不符则判定通路不可用（返回负码），
+   amp 只告警（HDA 规范允许 widget 不带 amp）。 */
 int hda_capture_probe(uint8_t cad)
 {
     uint8_t adc = 0, mic = 0, any_in = 0;
@@ -108,52 +195,53 @@ int hda_capture_probe(uint8_t cad)
 
     uint8_t pin = (mic != 0) ? mic : any_in;
     if (adc == 0) {
-        printk("HDA: capture probe: no ADC widget on codec %u\r\n", cad);
-        return -1;
+        printk("HDA-CAP: no ADC widget on codec %u\r\n", cad);
+        return HDA_CAP_ERR_NO_ADC;
     }
     if (pin == 0) {
-        printk("HDA: capture probe: no input-capable pin\r\n");
-        return -1;
+        printk("HDA-CAP: no input-capable pin on codec %u\r\n", cad);
+        return HDA_CAP_ERR_NO_PIN;
     }
 
     g_hda.adc_nid   = adc;
     g_hda.input_pin = pin;
-    printk("HDA: capture topology ADC=0x%02x MicPin=0x%02x (probed)\r\n", adc, pin);
+    printk("HDA-CAP: topology ADC=0x%02x MicPin=0x%02x (probed)\r\n", adc, pin);
 
-    /* 输入路径：Pin 打开输入使能；ADC 选到该 Pin 的输入索引并 0dB 取消静音 */
-    hda_send_verb(cad, pin, HDA_VERB_SET_PIN_WIDGET_CTRL | HDA_PIN_CTRL_IN_EN);
-
-    uint32_t sel = 0;
-    uint64_t clen = hda_send_verb(cad, adc,
-                                  HDA_VERB_GET_PARAMETER | HDA_PARAM_CONNLIST_LEN);
-    if (clen != ~0ULL) {
-        uint32_t n = (uint32_t)clen & 0x7F;
-        uint32_t longform = ((uint32_t)clen >> 7) & 1;
-        /* 短格式每条响应 4 个 8bit NID；长格式（16bit）本轮不处理，
-           取默认索引 0（QEMU 的 hda-duplex 是短格式）。 */
-        if (!longform && n > 0) {
-            for (uint32_t i = 0; i < n; i += 4) {
-                uint64_t r = hda_send_verb(cad, adc,
-                                           HDA_VERB_GET_CONNECTION_LIST_ENTRY | i);
-                if (r == ~0ULL)
-                    break;
-                uint32_t v = (uint32_t)r;
-                for (uint32_t k = 0; k < 4 && i + k < n; k++) {
-                    if (((v >> (8 * k)) & 0xFF) == pin) {
-                        sel = i + k;
-                        break;
-                    }
-                }
-                if (sel != 0 || ((v & 0xFF) == pin))
-                    break;
-            }
-        }
+    /* 1. 连接列表定位：定位不到就说明 ADC 收的不是这个 Pin 的信号 */
+    int idx = cap_conn_index(cad, adc, pin);
+    if (idx < 0) {
+        printk("HDA-CAP: conn list lookup failed rc=%d (ADC=0x%02x Pin=0x%02x)\r\n",
+               idx, adc, pin);
+        return HDA_CAP_ERR_CONN;
     }
-    hda_send_verb(cad, adc, HDA_VERB_SET_CONNECTION_SELECT | (sel & 0x7F));
-    hda_send_verb(cad, adc, HDA_VERB_SET_AMP_GAIN_MUTE |
-                            HDA_AMP_SET_INPUT | HDA_AMP_UNMUTE_0DB);
-    printk("HDA: capture path Pin=0x%02x -> ADC=0x%02x (conn idx %u)\r\n",
-           pin, adc, sel);
+
+    /* 2. Pin 输入使能 + 回读 */
+    cap_verb(cad, pin, HDA_VERB_SET_PIN_WIDGET_CTRL | HDA_PIN_CTRL_IN_EN);
+    int rc = cap_verify(cad, pin, HDA_VERB_GET_PIN_WIDGET_CTRL,
+                        HDA_PIN_CTRL_IN_EN, HDA_PIN_CTRL_IN_EN,
+                        1, HDA_CAP_ERR_PINCTL, "pin ctrl IN_EN");
+    if (rc != 0)
+        return rc;
+
+    /* 3. ADC 连接选择 + 回读 */
+    cap_verb(cad, adc, HDA_VERB_SET_CONNECTION_SELECT | ((uint32_t)idx & 0x7F));
+    rc = cap_verify(cad, adc, HDA_VERB_GET_CONNECTION_SELECT,
+                    (uint32_t)idx, 0x7F, 1, HDA_CAP_ERR_CONVSEL, "conn select");
+    if (rc != 0)
+        return rc;
+
+    /* 4. 输入方向取消静音：必须用 0x7xxx（bit15/bit14 互斥，
+       旧代码 0xB000|(1<<14)=0xF000 会被 codec 当成「输出」方向，等于没配）。
+       ADC 与 Mic Pin 各配一次，amp 缺失只告警。 */
+    cap_verb(cad, adc, HDA_VERB_SET_AMP_GAIN_MUTE | HDA_AMP_IN_UNMUTE_0DB);
+    cap_verify(cad, adc, HDA_VERB_GET_AMP_GAIN_MUTE | HDA_AMP_GET_IN_BOTH,
+               0, HDA_AMP_MUTE_BOTH, 0, 0, "adc input amp");
+    cap_verb(cad, pin, HDA_VERB_SET_AMP_GAIN_MUTE | HDA_AMP_IN_UNMUTE_0DB);
+    cap_verify(cad, pin, HDA_VERB_GET_AMP_GAIN_MUTE | HDA_AMP_GET_IN_BOTH,
+               0, HDA_AMP_MUTE_BOTH, 0, 0, "pin input amp");
+
+    printk("HDA-CAP: path ok Pin=0x%02x -> ADC=0x%02x (conn idx %d), input amp unmuted\r\n",
+           pin, adc, idx);
     return 0;
 }
 
@@ -225,11 +313,69 @@ int hda_capture_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t ms)
     hda_writel(HDA_SD_CBL(HDA_INPUT_STREAM), g_cap_size);
     hda_writew(HDA_SD_LVI(HDA_INPUT_STREAM), (uint16_t)(entries - 1));
 
-    uint16_t fmt = cap_stream_fmt(rate, ch, bits);
+    /* ---- ADC 绑定：converter format + stream tag，逐条回读校验 ----
+       放在任何一方 RUN 之前，失败可以干净回滚（SRST 复位输入流）。
+       回读策略：
+         - IC 超时（~0ULL）      → 致命，codec 无响应
+         - 回读值 0              → 该 widget 不支持回读（QEMU 常见），
+                                   只告警并沿用请求值，绝不因此判死
+         - 回读值与请求值不一致  → 以回读值为生效值（绝静默沿用请求值），
+                                   并把生效值写进 SDnFMT，保证两侧一致 */
+    uint16_t fmt      = cap_stream_fmt(rate, ch, bits);
+    uint32_t eff_rate = rate, eff_ch = ch, eff_bits = bits;
+
+    cap_verb(g_hda.codec_cad, g_hda.adc_nid, HDA_VERB_SET_CONVERTER_FMT | fmt);
+    {
+        uint64_t rb = cap_verb(g_hda.codec_cad, g_hda.adc_nid,
+                               HDA_VERB_GET_CONVERTER_FMT);
+        if (rb == ~0ULL) {
+            printk("HDA-CAP: converter format readback timeout (ADC=0x%02x)\r\n",
+                   g_hda.adc_nid);
+            cap_stream_reset();
+            return HDA_CAP_ERR_FMT;
+        }
+        uint16_t got = (uint16_t)rb;
+        if (got == 0) {
+            printk("HDA-CAP: converter format readback unsupported, use requested 0x%04x\r\n",
+                   fmt);
+        } else if ((got & 0x407F) != (fmt & 0x407F)) {
+            eff_rate = (got & HDA_FMT_BASE_44) ? 44100 : 48000;
+            eff_ch   = (uint32_t)(got & 0x0F) + 1;
+            eff_bits = cap_fmt_bits(got);
+            printk("HDA-CAP: converter format adopted 0x%04x (want 0x%04x): %uHz %uch %ubit\r\n",
+                   got, fmt, eff_rate, eff_ch, eff_bits);
+            fmt = got;
+        }
+    }
+    /* 控制器侧用生效格式，避免 codec 与流描述符各说一套（重采样时采样率会错） */
     hda_writew(HDA_SD_FMT(HDA_INPUT_STREAM), fmt);
-    hda_send_verb(g_hda.codec_cad, g_hda.adc_nid, HDA_VERB_SET_CONVERTER_FMT | fmt);
-    hda_send_verb(g_hda.codec_cad, g_hda.adc_nid,
-                  HDA_VERB_SET_CONVERTER_STREAM_CHANNEL | (HDA_INPUT_TAG << 4));
+
+#ifdef CAP_REVERSE_SKIP_ADC_BIND
+    /* 反向门（验收专用，-DCAP_REVERSE_SKIP_ADC_BIND）：故意不把 ADC 绑到输入流，
+       预期采集静音——用来证明这一步是数据通路的前提而不是摆设。 */
+    printk("HDA-CAP: [reverse-gate] skip ADC stream tag bind\r\n");
+#else
+    cap_verb(g_hda.codec_cad, g_hda.adc_nid,
+             HDA_VERB_SET_CONVERTER_STREAM_CHANNEL | (HDA_INPUT_TAG << 4));
+#endif
+    {
+        uint64_t rb = cap_verb(g_hda.codec_cad, g_hda.adc_nid, HDA_VERB_GET_CONV);
+        if (rb == ~0ULL) {
+            printk("HDA-CAP: converter stream/channel readback timeout\r\n");
+            cap_stream_reset();
+            return HDA_CAP_ERR_TAG;
+        }
+        uint32_t got = (uint32_t)rb & 0xFF;
+        if (got == 0) {
+            printk("HDA-CAP: converter stream/channel readback unsupported, keep tag=%d\r\n",
+                   HDA_INPUT_TAG);
+        } else if (got != (uint32_t)(HDA_INPUT_TAG << 4)) {
+            printk("HDA-CAP: stream tag mismatch got=0x%02x want=0x%02x (ADC 不会取到本流数据)\r\n",
+                   got, (uint32_t)(HDA_INPUT_TAG << 4));
+            cap_stream_reset();
+            return HDA_CAP_ERR_TAG;
+        }
+    }
 
     /* 启动：先写 tag（CTL+2），再置 RUN；与播放路径同一时序 */
     hda_flush_cache();
@@ -247,12 +393,12 @@ int hda_capture_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t ms)
     g_cap_nonzero = 0;
     g_cap_peak    = 0;
     g_cap_overruns = 0;
-    g_cap_rate    = rate;
-    g_cap_ch      = ch;
-    g_cap_bits    = bits;
+    g_cap_rate    = eff_rate;
+    g_cap_ch      = eff_ch;
+    g_cap_bits    = eff_bits;
 
-    printk("HDA: capture started (SD%d tag=%d CBL=%u, %uHz %uch %ubit)\r\n",
-           HDA_INPUT_STREAM, HDA_INPUT_TAG, g_cap_size, rate, ch, bits);
+    printk("HDA-CAP: stream started (SD%d tag=%d CBL=%u, %uHz %uch %ubit fmt=0x%04x)\r\n",
+           HDA_INPUT_STREAM, HDA_INPUT_TAG, g_cap_size, eff_rate, eff_ch, eff_bits, fmt);
     hda_trace_log(HTEV_CAP_START, 0, g_cap_size, 0);
     return 0;
 }
@@ -336,6 +482,48 @@ int hda_capture_stop(void)
 int hda_capture_is_on(void)
 {
     return g_cap_on;
+}
+
+/* ===================== 配置快照（串口证据） =====================
+   单行 key=value 输出 codec 侧输入路径的**回读现状**（不是我们写下去的值），
+   供串口解析与人工复核；采集未启动时也能调用。
+   返回 0 表示全部关键项读取成功，否则返回首个失败项对应的负码。 */
+#define CAP_RB(v) (((v) == ~0ULL) ? 0xFFFFFFFFu : (uint32_t)(v))
+
+int hda_capture_dump_state(void)
+{
+    uint8_t cad = g_hda.codec_cad;
+    uint8_t adc = g_hda.adc_nid;
+    uint8_t pin = g_hda.input_pin;
+
+    if (adc == 0 || pin == 0) {
+        printk("HDA-CAP: state adc=none pin=none\r\n");
+        return HDA_CAP_ERR_NO_ADC;
+    }
+
+    uint32_t pctl = CAP_RB(cap_verb(cad, pin, HDA_VERB_GET_PIN_WIDGET_CTRL));
+    uint32_t sel  = CAP_RB(cap_verb(cad, adc, HDA_VERB_GET_CONNECTION_SELECT));
+    uint32_t fmt  = CAP_RB(cap_verb(cad, adc, HDA_VERB_GET_CONVERTER_FMT));
+    uint32_t conv = CAP_RB(cap_verb(cad, adc, HDA_VERB_GET_CONV));
+    uint32_t aamp = CAP_RB(cap_verb(cad, adc,
+                          HDA_VERB_GET_AMP_GAIN_MUTE | HDA_AMP_GET_IN_BOTH));
+    uint32_t pamp = CAP_RB(cap_verb(cad, pin,
+                          HDA_VERB_GET_AMP_GAIN_MUTE | HDA_AMP_GET_IN_BOTH));
+    uint32_t sdc  = (uint32_t)hda_readb(HDA_SD_CTL(HDA_INPUT_STREAM))
+                    | ((uint32_t)hda_readb(HDA_SD_CTL(HDA_INPUT_STREAM) + 1) << 8)
+                    | ((uint32_t)hda_readb(HDA_SD_CTL(HDA_INPUT_STREAM) + 2) << 16);
+
+    /* 0xFFFFFFFF = 回读超时；未实现回读的 widget 返回 0（QEMU 常见） */
+    printk("HDA-CAP: state adc=0x%02x pin=0x%02x pinctrl=0x%02x conn=%u fmt=0x%04x "
+           "conv=0x%02x amp_adc=0x%04x amp_pin=0x%04x sd%u_ctl=0x%06x\r\n",
+           adc, pin, pctl & 0xFF, sel & 0x7F, fmt & 0xFFFF, conv & 0xFF,
+           aamp & 0xFFFF, pamp & 0xFFFF, HDA_INPUT_STREAM, sdc);
+
+    if (pctl == 0xFFFFFFFFu) return HDA_CAP_ERR_PINCTL;
+    if (sel  == 0xFFFFFFFFu) return HDA_CAP_ERR_CONVSEL;
+    if (fmt  == 0xFFFFFFFFu) return HDA_CAP_ERR_FMT;
+    if (conv == 0xFFFFFFFFu) return HDA_CAP_ERR_TAG;
+    return 0;
 }
 
 /* ===================== syscall 层 ===================== */

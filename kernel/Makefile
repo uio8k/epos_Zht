@@ -12,6 +12,13 @@ CFLAGS=	-m32 -march=i386 -Wall -pipe -Wno-address-of-packed-member \
 	-fomit-frame-pointer \
 	-ffreestanding -fleading-underscore -mno-ms-bitfields \
 	-fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector
+
+# 采集侧反向门（验收专用，默认关闭）：CAP_REVERSE=1 时跳过 ADC 的 stream tag
+# 绑定，用于证明「Pin -> ADC -> 输入流 SDI」这段绑定确实是数据通路的前提。
+ifdef CAP_REVERSE
+CFLAGS+=-DCAP_REVERSE_SKIP_ADC_BIND
+endif
+
 LDFLAGS=-m32 -Tkernel.ld -nostdlib -nostartfiles -nodefaultlibs \
 		-Wl,-Map,$(PROG).map -static
 ifneq ($(OS),Windows_NT)

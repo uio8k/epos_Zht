@@ -467,19 +467,132 @@ static void run_test_signal(void)
 #ifdef TEST_CAPTURE
 /* ================= 麦克风采集自测 =================
    三个场景一次跑完，覆盖计划里要求的验收面：
-     A 1s 采集   —— 通路是否在搬数据：字节数、LPIB 是否推进
+     A 1s 采集   —— 通路是否在搬数据，且期间由客户机自己播 400ms 1kHz 正弦，
+                    用 Goertzel 判 1kHz 能量比确认「采到的就是自己放的那段声音」
      B 3s 采集   —— 数据量 529KB > 256KB 基准环，触发 512KB 缓冲与 LPIB 绕回
      C 重复 start —— 同参数幂等返回 0，异参数被拒绝返回 -2
-   峰值与非零样本数只作信号存在性的附带信息：宿主无采集设备时就是底噪。 */
+   激励从客户机侧发出（DAC -> 板载声卡 -> 立体声混音 -> ADC），整条回环在
+   QEMU 内部闭环，不依赖宿主播放器（winsound 那一路实测不稳定）；宿主只需把
+   默认输出/输入分别指向板载声卡与立体声混音。 */
 #define CAP_RATE    44100
 #define CAP_CH      2
 #define CAP_BITS    16
 #define CAP_CHUNK   8192
 #define CAP_POLL_MS 20
 
+/* 包络分块与有声判定：50ms 一块（44100Hz → 2205 帧）。
+   peak >= CAP_ACTIVE_PEAK（约 -44dBFS）算「有声块」，用于区分
+   宿主喂了声音 / 只有底噪两种情形。
+   频率判据两条并用：
+     - 过零率估频（廉价、对噪声敏感，仅作参考）：freq = zc×10；
+     - Goertzel 单频能量比（主判据）：tone = 块内 1kHz 分量能量 / 总能量，
+       纯 1kHz 正弦 ≈ 100%，底噪或其它声音显著偏低。与增益无关，
+       不受宿主音量、Stereo Mix 电平影响。 */
+#define CAP_BLOCK_MS    50
+#define CAP_BLOCK_FRM   (CAP_RATE / 1000 * CAP_BLOCK_MS)
+/* 有声门限：实测「板载渲染 -> 立体声混音 -> dsound 采集」这条回环链路衰减
+   约 50dB（满刻度激励只落到 ±100~200 LSB），所以门限取 20 而不是常规的 -44dBFS。
+   真正的判据是与增益无关的 Goertzel 能量比，这个门限只用来排除纯零块。 */
+#define CAP_ACTIVE_PEAK 20
+#define CAP_TONE_HZ     1000
+/* 2·cos(2π·1000/44100) = 1.9797526，Goertzel 系数 */
+#define CAP_TONE_COEF   1.9797526
+
+struct cap_meter {
+    uint32_t frames;        /* 累计帧数（一帧 = 左右各一个 16bit 样本） */
+    uint32_t zc;            /* 累计过零次数（只取左声道） */
+    int32_t  prev;          /* 上一个左声道样本 */
+    uint32_t blk_frames;    /* 当前块帧数 */
+    uint32_t blk_peak;      /* 当前块峰值 */
+    uint32_t blk_zc;        /* 当前块过零次数 */
+    uint32_t blocks;        /* 已输出块数 */
+    uint32_t active_blocks; /* 有声块数 */
+    uint32_t tone_blocks;   /* 1kHz 成分达标的块数 */
+    double   s1, s2;        /* Goertzel 状态 */
+    double   energy;        /* 块内 Σx² */
+    int16_t  snap[32];      /* 最近 32 个左声道样本（诊断波形用） */
+    uint32_t snap_pos;
+};
+
+static void cap_meter_flush(const char *tag, struct cap_meter *m)
+{
+    /* freq = (zc / 2) / (CAP_BLOCK_MS/1000) = zc × 1000 / (2×CAP_BLOCK_MS) */
+    uint32_t freq = m->blk_zc * 1000 / (2 * CAP_BLOCK_MS);
+    /* Goertzel 功率：P = s1² + s2² − c·s1·s2；纯正弦 A·sin 时
+       P ≈ (A·N/2)²，而 Σx² = A²N/2，故比值 P /(Σx²·N/2) ≈ 1。 */
+    double p  = m->s1 * m->s1 + m->s2 * m->s2 - CAP_TONE_COEF * m->s1 * m->s2;
+    double en = m->energy;
+    uint32_t tone = 0;
+
+    if (en > 0.0 && m->blk_frames > 0) {
+        double r = p / (en * (m->blk_frames / 2.0));
+        if (r < 0.0)
+            r = 0.0;
+        if (r > 2.0)
+            r = 2.0;
+        tone = (uint32_t)(r * 100.0);
+    }
+
+    printf("[CAP-ENV-%s] blk=%u frames=%u peak=%u freq=%u tone=%u\r\n",
+           tag, m->blocks, m->blk_frames, m->blk_peak, freq, tone);
+
+    /* 波形快照：只打 1 个块，用于肉眼判断采到的到底是不是正弦 */
+    if (m->blocks == 13) {
+        printf("[CAP-SNAP-%s] blk=%u samples=", tag, m->blocks);
+        for (uint32_t i = 0; i < 32; i++)
+            printf("%d,", (int)m->snap[(m->snap_pos + i) & 31]);
+        printf("\r\n");
+    }
+
+    if (m->blk_peak >= CAP_ACTIVE_PEAK)
+        m->active_blocks++;
+    if (tone >= 50 && m->blk_peak >= CAP_ACTIVE_PEAK)
+        m->tone_blocks++;
+    m->blocks++;
+    m->blk_frames = 0;
+    m->blk_peak   = 0;
+    m->blk_zc     = 0;
+    m->s1 = m->s2 = 0.0;
+    m->energy = 0.0;
+}
+
+/* 统计只看左声道（立体声两遍会重复计数），浮点只做 1kHz 能量比；
+   采集自测是用户态程序，FPU 可用（TEST_MODE 的信号生成同样用它）。 */
+static void cap_meter_feed(const char *tag, struct cap_meter *m,
+                           const uint8_t *buf, uint32_t n)
+{
+    uint32_t step = 2 * CAP_CH;
+
+    for (uint32_t off = 0; off + step <= n; off += step) {
+        int32_t s = (int32_t)(int16_t)(buf[off] | (buf[off + 1] << 8));
+        uint32_t a = (s < 0) ? (uint32_t)(-s) : (uint32_t)s;
+        double   s0;
+
+        if (a > m->blk_peak)
+            m->blk_peak = a;
+        if ((m->prev < 0 && s >= 0) || (m->prev >= 0 && s < 0)) {
+            m->blk_zc++;   /* 块内计数（flush 时清零） */
+            m->zc++;       /* 全局计数（不被 flush 影响） */
+        }
+        m->prev = s;
+        m->frames++;
+
+        s0 = (double)s + CAP_TONE_COEF * m->s1 - m->s2;
+        m->s2 = m->s1;
+        m->s1 = s0;
+        m->energy += (double)s * (double)s;
+        m->snap[m->snap_pos & 31] = (int16_t)s;
+        m->snap_pos++;
+
+        if (++m->blk_frames >= CAP_BLOCK_FRM)
+            cap_meter_flush(tag, m);
+    }
+}
+
 /* 从已启动的采集里取满 expect 字节；返回实际字节数，统计由内核回填到 st。
    每 20ms 读一次，轮次上限按「每次最多拿到的量」留一倍余量，避免录不到时死等。 */
-static uint32_t cap_drain(uint32_t expect, struct audio_capture_stats *st)
+static uint32_t cap_drain(const char *tag, uint32_t expect,
+                          struct audio_capture_stats *st, struct cap_meter *m)
 {
     struct timespec ts;
     uint8_t *buf = (uint8_t *)malloc(CAP_CHUNK);
@@ -491,8 +604,10 @@ static uint32_t cap_drain(uint32_t expect, struct audio_capture_stats *st)
     int rounds = (int)(expect / (CAP_CHUNK / 2)) + 100;
     for (int i = 0; i < rounds; i++) {
         int n = audio_capture_read(buf, CAP_CHUNK, st);
-        if (n > 0)
+        if (n > 0) {
             total += (uint32_t)n;
+            cap_meter_feed(tag, m, buf, (uint32_t)n);
+        }
         if (total >= expect)
             break;
         ts.tv_sec  = 0;
@@ -504,7 +619,8 @@ static uint32_t cap_drain(uint32_t expect, struct audio_capture_stats *st)
 }
 
 static void cap_report(const char *tag, uint32_t total, uint32_t expect,
-                       const struct audio_capture_stats *st)
+                       const struct audio_capture_stats *st,
+                       const struct cap_meter *m)
 {
     printf("[CAP-%s] bytes=%u expect=%u diff=%d lpib=%u wraps=%u overruns=%u peak=%u nonzero=%u\r\n",
            tag, total, expect, (int)total - (int)expect,
@@ -513,35 +629,84 @@ static void cap_report(const char *tag, uint32_t total, uint32_t expect,
            (total > 0 && (int)total >= (int)(expect - expect / 20)) ? "OK" : "FAIL",
            (st->lpib > 0 && st->overruns == 0) ? "OK" : "FAIL",
            (st->peak > 0 && st->nonzero > 0) ? "PRESENT" : "SILENT");
+    /* 全局口径：总过零率 ÷ 2 ÷ 采集时长（秒）= 等效频率 */
+    uint32_t freq = (m->frames > 0)
+                    ? (uint32_t)((uint64_t)m->zc * CAP_RATE / (2 * (uint64_t)m->frames))
+                    : 0;
+    printf("[CAP-%s] METER: frames=%u blocks=%u active=%u freq=%u duty=%u%% toneblocks=%u toneduty=%u%%\r\n",
+           tag, m->frames, m->blocks, m->active_blocks, freq,
+           (m->blocks > 0) ? m->active_blocks * 100 / m->blocks : 0,
+           m->tone_blocks,
+           (m->blocks > 0) ? m->tone_blocks * 100 / m->blocks : 0);
+}
+
+/* 客户机侧激励：播一段 1kHz 正弦（阻塞到播完，走既有播放 API，不改驱动）。
+   幅度取接近满刻度：实测「板载渲染 -> 立体声混音 -> dsound 采集」这条链路
+   衰减约 50dB（12000 幅度只落到 ±50 LSB），幅度太小会被底噪吃掉。 */
+#define CAP_TONE_MS 700
+#define CAP_TONE_AMP 30000.0
+
+static void cap_sleep_ms(uint32_t ms)
+{
+    struct timespec ts;
+
+    ts.tv_sec  = ms / 1000;
+    ts.tv_nsec = (long)(ms % 1000) * 1000 * 1000;
+    nanosleep(&ts, NULL);
+}
+
+static void cap_play_tone(uint32_t ms)
+{
+    uint32_t n = CAP_RATE * ms / 1000;
+    int16_t *pcm = (int16_t *)malloc(n * 2 * sizeof(int16_t));
+
+    if (pcm == NULL) {
+        printf("[CAP] tone alloc failed\r\n");
+        return;
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        int16_t v = (int16_t)(sin(2.0 * M_PI * CAP_TONE_HZ * (double)i / CAP_RATE) * CAP_TONE_AMP);
+        pcm[i * 2]     = v;
+        pcm[i * 2 + 1] = v;
+    }
+    audio_set_volume(100);
+    audio_play_pcm_ms(pcm, n * 4, CAP_RATE, CAP_CH, CAP_BITS, ms);
+    free(pcm);
 }
 
 static void run_capture_test(void)
 {
     struct audio_capture_stats st;
+    struct cap_meter m;
     uint32_t rc, total;
     uint32_t bps = CAP_RATE * CAP_CH * (CAP_BITS / 8);
 
     printf("=== Capture self-test: %uHz %uch %ubit, bps=%u ===\r\n",
            CAP_RATE, CAP_CH, CAP_BITS, bps);
 
-    /* A：1 秒，基准环 256KB */
+    /* A：1 秒，基准环 256KB；采集开始 300ms 后自己播 400ms 1kHz 正弦。
+       播放是阻塞调用，期间不取数——256KB 环可存 1.48s，不会覆盖。 */
     memset(&st, 0, sizeof(st));
+    memset(&m, 0, sizeof(m));
     rc = audio_capture_start(CAP_RATE, CAP_CH, CAP_BITS, 1000);
     printf("[CAP-A] start rc=%d\r\n", (int)rc);
     if (rc == 0) {
-        total = cap_drain(bps, &st);
+        cap_sleep_ms(200);
+        cap_play_tone(CAP_TONE_MS);
+        total = cap_drain("A", bps, &st, &m);
         printf("[CAP-A] stop rc=%d\r\n", audio_capture_stop());
-        cap_report("A", total, bps, &st);
+        cap_report("A", total, bps, &st, &m);
     }
 
     /* B：3 秒，529200 字节 > 256KB → 缓冲升到 512KB，LPIB 应绕回 1 次 */
     memset(&st, 0, sizeof(st));
+    memset(&m, 0, sizeof(m));
     rc = audio_capture_start(CAP_RATE, CAP_CH, CAP_BITS, 3000);
     printf("[CAP-B] start rc=%d\r\n", (int)rc);
     if (rc == 0) {
-        total = cap_drain(bps * 3, &st);
+        total = cap_drain("B", bps * 3, &st, &m);
         printf("[CAP-B] stop rc=%d\r\n", audio_capture_stop());
-        cap_report("B", total, bps * 3, &st);
+        cap_report("B", total, bps * 3, &st, &m);
     }
 
     /* C：幂等与参数冲突（期望 0 / 0 / -2 / 0） */
