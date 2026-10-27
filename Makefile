@@ -24,6 +24,10 @@ hd.img: subdirs
 	mtools -c mcopy -i $@@@1M -D oO userapp/a.out ::
 	mtools -c mcopy -i $@@@1M -D oO samples/*.wav ::
 
+.PHONY: test
+test:
+	$(MAKE) -C tests test
+
 .PHONY: qemu
 qemu: hd.img
 	-qemu-system-i386$(W) -m 48 -boot order=c -vga std -drive format=raw,file=$^,index=0,media=disk -device intel-hda -device hda-duplex -serial file:userapp/serial.log

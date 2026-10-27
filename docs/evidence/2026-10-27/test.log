@@ -1,0 +1,39 @@
+make -C tests test
+make[1]: Entering directory '/e/ComputerScience/epos_Zht/epos_Zht/tests'
+cmd //c run_tests.bat
+In file included from build/hda_capture_under_test.c:6,
+                 from test_capture_probe.c:19:
+build/hda_internal.h: In function 'hda_readl':
+build/hda_internal.h:21:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   21 |     return *(volatile uint32_t *)(g_hda.mmio_base + reg);
+      |             ^
+build/hda_internal.h: In function 'hda_readw':
+build/hda_internal.h:26:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   26 |     return *(volatile uint16_t *)(g_hda.mmio_base + reg);
+      |             ^
+build/hda_internal.h: In function 'hda_readb':
+build/hda_internal.h:31:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   31 |     return *(volatile uint8_t *)(g_hda.mmio_base + reg);
+      |             ^
+build/hda_internal.h: In function 'hda_writel':
+build/hda_internal.h:36:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   36 |     *(volatile uint32_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+build/hda_internal.h: In function 'hda_writew':
+build/hda_internal.h:41:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   41 |     *(volatile uint16_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+build/hda_internal.h: In function 'hda_writeb':
+build/hda_internal.h:46:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   46 |     *(volatile uint8_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+test_capture_probe.c:260:test_probe_qemu_profile:PASS
+test_capture_probe.c:261:test_amp_input_direction:PASS
+test_capture_probe.c:262:test_conn_index_long_form:PASS
+test_capture_probe.c:263:test_readback_mismatch_fails:PASS
+test_capture_probe.c:264:test_no_adc_fails:PASS
+
+-----------------------
+5 Tests 0 Failures 0 Ignored 
+OK
+make[1]: Leaving directory '/e/ComputerScience/epos_Zht/epos_Zht/tests'

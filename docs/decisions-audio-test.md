@@ -90,3 +90,24 @@
 阶段 0 的第一刀：`kernel/hda.c` 播放侧由硬编码拓扑改为按 `AUDIO_WIDGET_CAP` / `CONNLIST_LEN` / `GET_CONNECTION_LIST_ENTRY` 遍历发现 DAC 与输出 Pin（采集侧的 `cap_conn_index` 已有可复用的短/长格式定位逻辑）。
 
 交接：下一步可以跑 **prove-it**，验收标准 ——(a) 播放侧拓扑发现对 QEMU 与 Realtek 两套 profile 都得出正确 DAC/Pin；(b) 三个已知 bug 各有一条会红的断言；(c) `make test` 在 2 秒内跑完，(d) 真机串口能打出一行 `CAPTEST PASS ...`。
+
+## 8. 定点分析（DSP）选型与自检层（2026-10-27 定稿）
+
+**选定：用户态分析，内核只供样本（原方案 B）。** 被否：A（内核 Q15 定点 FFT）—— 内核堆只有 `12 × PAGE_SIZE = 48KB`，1024 点复 FFT 的缓冲+表占 12KB，且内核无图形驱动（画点能力在 `userapp/graphics.c`）；C（内核 Goertzel + 用户态 FFT）—— 两处口径易漂。
+
+三条子结论：
+- **指标口径**：时域 3 参数最小二乘拟合基频 + 逐次谐波剥离，与 `tools/audio_metrics.py` 完全一致。不用 FFT 取峰算 THD+N（Hann 窗积分旁瓣泄漏会给纯数字正弦约 1.8% 的假 THD）。
+- **频谱**：10 fps，N=1024（44.1kHz 下 43Hz/bin），Hann 窗。
+- **“定点”不作硬要求**：分析在用户态，FPU 可用（`TEST_TONE` 已用 `sin/cos`）；真机跑通后再评估是否值得为“纯整数链路”付出精度代价。
+
+**层数 4 → 5**：新增**目标机启动自检**（依据 OSDev `Unit_Testing` 的 Run-Time Self-Tests：分配器往返、信号量握手、tick 前进、先打印测试名）。它不依赖 GUI 与人工，是治具机上唯一能每天自动跑的回归。
+
+**外部资料核对（OSDev wiki）对代码的四条要求**：
+1. 播放侧拓扑发现按 `Intel_High_Definition_Audio` 的算法：从接了输出设备的 pin 出发，沿该 widget 的 association/connection list 走，命中 DAC（或输入 pin）即存路径；`AUDIO_WIDGET_CAP` 返回 0 时退化为连接列表 DFS。
+2. **ICS（immediate command）与 CORB/RIRB 不可混用**，前者只作探索期手段；真机批量遍历 codec 时应评估换 CORB/RIRB。
+3. 初始化缺项：**EAPD 开外部功放**（步骤 11）、mic 的 **VrefEn**、jack 的 **Unsol**（步骤 9）。
+4. 流数量必须读 **GCAP 的 ISS/OSS**，不能假设 4 进 1 出。
+
+真机无声时的检查顺序：EAPD → VrefEn → Unsol/jack → GCAP 流数 → codec dump 对照。
+
+详细测试方法（分层、断言、黄金向量、反向门、证据规范）见 `docs/test-plan-audio.md`。

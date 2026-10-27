@@ -19,3 +19,6 @@ userapp/serial.log
 out_*.wav
 tools/audio_trace.log
 __pycache__/
+
+# 宿主侧单测产物（tests/build 由 run_tests.bat 生成）
+tests/build/
