@@ -1,0 +1,9 @@
+﻿FILE	image\adc-input-path.svg
+FILE	image\audio-analyzer-overview.png
+FILE	image\hda-input-path.svg
+FILE	image\jsonrpc-probe-flow.svg
+FILE	.archify\explainer-fixture-plan-20261027-114854\fixture-plan.html
+EMPTYDIR	.archify\architecture-adc-capture-20261027-105713
+EMPTYDIR	.archify\workflow-audio-eol-20261027-113829
+EMPTYDIR	.archify\workflow-audio-eol-20261027-113829\review-1
+ROOT	audio_analyzer_overview.svg,CODEBUDDY.md,setvars.bat

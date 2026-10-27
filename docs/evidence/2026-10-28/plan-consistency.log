@@ -1,0 +1,26 @@
+﻿=== 正向：docs/test-plan-audio.md 七项一致性校验 ===
+（行为/层/用例/门/场景/预算/状态词）
+file=test-plan-audio.md lines=181 bytes=12484
+behaviors=6 layers=5 cases=16 gates=13
+budget L1+L2+L3=40s  (L1=2 L2=8 L3=30)
+NOTE 'D4' 出现 2 次（§0.1 偏差声明 + 层边界引用）
+
+RESULT PASS: 行为/层/用例/门/场景/预算/状态词 七项一致
+
+=== 反向门：删掉 G6、G12 后必须 FAIL ===
+file=bad-plan.md lines=179 bytes=12369
+behaviors=6 layers=5 cases=16 gates=11
+budget L1+L2+L3=40s  (L1=2 L2=8 L3=30)
+NOTE 'D4' 出现 2 次（§0.1 偏差声明 + 层边界引用）
+
+RESULT FAIL (2)
+ - U-L1-06 没有对应的反向门
+ - U-L1-10 没有对应的反向门
+
+=== 回归：代码未改，make test 结果见 test.log ===
+make -C tests test
+make[1]: Entering directory '/e/ComputerScience/epos_Zht/epos_Zht/tests'
+cmd //c run_tests.bat
+5 Tests 0 Failures 0 Ignored 
+OK
+make[1]: Leaving directory '/e/ComputerScience/epos_Zht/epos_Zht/tests'

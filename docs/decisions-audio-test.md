@@ -41,15 +41,11 @@
 
 ## 4. 待定问题
 
-1. ~~测试框架选型~~ → 已定：Unity（见 §6）。备选退化路径：50 行手写断言宏。
-2. ~~假 codec 状态机形态~~ → 已定：dump 文本为唯一事实源，脚本生成 C 常量表（见 §6）。
-3. **60s 预算内整机冒烟能跑几次**：`none` 后端单次约 10s，是否允许占 3–5 次。
-4. **qtest 层如何制造中断/定时**：沿用轮询 BCIS，还是显式注入；这决定"中断语义"是否真的被覆盖。
-5. **与现有 `hda_tests/` 六维套件的重叠部分**是否合并、还是保留双轨一段时间。
+**已迁移：见 `../progress.html`。** 未完成项与状态统一记在那份文档，本文件只保留结论与理由。
 
 ## 5. 目标平台事实（2026-10-27 补充）
 
-最终目标是**把 epos 跑在真机上验证实践效果**，设备与接法见工作区 `fixture-plan.html`：
+最终目标是**把 epos 跑在真机上验证实践效果**，设备与接法见 `../progress.html` 的「① 治具四件」与本节：
 
 - 治具机：二手 Dell **OptiPlex 7020 / 9020 SFF**，BIOS 需 `SATA Operation = ATA`、`Serial Port = COM1`、关 Secure Boot、开 Legacy/Legacy OPROM。
 - 启动盘：闲置 2.5" SATA 硬盘/SSD，整盘写入 `hd.img`（Win32DiskImager / Rufus dd 模式，不能只拷文件）。
@@ -110,4 +106,4 @@
 
 真机无声时的检查顺序：EAPD → VrefEn → Unsol/jack → GCAP 流数 → codec dump 对照。
 
-详细测试方法（分层、断言、黄金向量、反向门、证据规范）见 `docs/test-plan-audio.md`。
+测试方法原定于 `docs/test-plan-audio.md`，该文件已于 2026-10-28 删除；现存用例、已实现与受阻清单见 `../progress.html`。

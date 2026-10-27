@@ -1,2 +1,0 @@
-C:/msys64/mingw64/bin/gcc.exe    -std=gnu11 -Wall -Wextra -g -O1 -I. -Iunity -Ibuild -I../kernel -o build/test_capture_probe_fresh test_capture_probe.c unity/unity.c
-make: *** [Makefile:33: build/test_capture_probe_fresh] Error 1

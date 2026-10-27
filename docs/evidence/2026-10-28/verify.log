@@ -1,0 +1,32 @@
+﻿== 残留进度章节检查（应为「无命中」）==
+验证基线                         -> README.md
+已知限制与待办                      -> 无命中
+自测结果                         -> README.md
+## 4. 待定问题                   -> decisions-audio-test.md
+CAP_ACTIVE_PEAK=20 是经验门限     -> 无命中
+
+== 指针行（progress.html 出现位置）==
+README.md              -> L96
+README.md              -> L29
+decisions-adc.md       -> L63
+decisions-audio-test.md -> L44 L48
+
+== fixture-plan 引用（应为「无」）==
+无
+
+== progress.html 状态核对 ==
+items(data-id) = 12
+data-done=1    = 3
+外部请求(<script src/link href http) = 0
+
+== git status（epos_Zht）==
+M README.md
+ M docs/decisions-adc.md
+ M docs/decisions-audio-test.md
+?? docs/evidence/2026-10-28/
+?? progress.html
+
+== 工作区剩余图片/文档 ==
+adc-input-path.svg, audio-analyzer-overview.png, hda-input-path.svg, jsonrpc-probe-flow.svg
+root files: ', audio_analyzer_overview.svg, CODEBUDDY.md, setvars.bat
+.archify exists = True

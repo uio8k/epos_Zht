@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="900" viewBox="0 0 1120 900" font-family="Microsoft YaHei UI, PingFang SC, Segoe UI, sans-serif">
+  <rect width="1120" height="900" fill="#F4F1EA"/>
+
+  <!-- header -->
+  <text x="40" y="58" font-family="Georgia, Songti SC, serif" font-size="26" font-weight="600" fill="#181611">测试计划 vs 进度文档：4 处冲突</text>
+  <text x="40" y="84" font-size="12" fill="#6B6355" font-family="Consolas, monospace">docs/test-plan-audio.md &#215; progress.html &#183; 2026-10-28</text>
+  <text x="1080" y="84" font-size="11" fill="#8A8272" text-anchor="end">严重 2 &#183; 口径 1 &#183; 边界 1</text>
+  <line x1="40" y1="100" x2="1080" y2="100" stroke="#181611" stroke-width="1"/>
+
+  <!-- ============ C1 ============ -->
+  <g>
+    <rect x="40" y="140" width="1040" height="150" fill="#FBF8F1" stroke="#C9BFA8"/>
+    <rect x="56" y="154" width="26" height="26" fill="none" stroke="#181611"/>
+    <text x="69" y="173" font-size="13" fill="#181611" text-anchor="middle" font-family="Georgia, serif">1</text>
+    <text x="94" y="173" font-family="Georgia, Songti SC, serif" font-size="15.5" font-weight="600" fill="#181611">L1「完成」的定义不一致</text>
+    <rect x="1000" y="156" width="64" height="22" fill="none" stroke="#B23A2B"/>
+    <text x="1032" y="171" font-size="11" fill="#B23A2B" text-anchor="middle">严重</text>
+
+    <rect x="56" y="188" width="470" height="74" fill="rgba(24,22,17,0.03)" stroke="#DFD7C8"/>
+    <text x="66" y="203" font-size="10" fill="#8A8272" letter-spacing="0.06em">计划 &#167;2 &#183; &#167;9</text>
+    <text x="66" y="221" font-size="12.5" fill="#3A352C">L1 覆盖 B2 拓扑发现、B3 指标纯函数、B4 频谱</text>
+    <text x="66" y="238" font-size="12.5" fill="#3A352C">换算；示例用例 test_topology_qemu 与</text>
+    <text x="66" y="255" font-size="12.5" fill="#3A352C">test_thdn_3rd_harmonic 尚未写</text>
+
+    <rect x="546" y="188" width="464" height="74" fill="rgba(178,58,43,0.05)" stroke="#DFD7C8"/>
+    <text x="556" y="203" font-size="10" fill="#8A8272" letter-spacing="0.06em">页面 &#183; P08</text>
+    <text x="556" y="221" font-size="12.5" fill="#3A352C">「L1 单测 5 条 + 3 条反向门」已勾选，</text>
+    <text x="556" y="238" font-size="12.5" fill="#3A352C">已计入 3/12 完成</text>
+
+    <text x="56" y="281" font-size="11.5" fill="#B23A2B">后果：页面里 L1 已结案，计划里还差两条用例，谁也不再去补</text>
+  </g>
+
+  <!-- ============ C2 ============ -->
+  <g>
+    <rect x="40" y="306" width="1040" height="150" fill="#FBF8F1" stroke="#C9BFA8"/>
+    <rect x="56" y="320" width="26" height="26" fill="none" stroke="#181611"/>
+    <text x="69" y="339" font-size="13" fill="#181611" text-anchor="middle" font-family="Georgia, serif">2</text>
+    <text x="94" y="339" font-family="Georgia, Songti SC, serif" font-size="15.5" font-weight="600" fill="#181611">L5 同名不同物</text>
+    <rect x="1000" y="322" width="64" height="22" fill="none" stroke="#B23A2B"/>
+    <text x="1032" y="337" font-size="11" fill="#B23A2B" text-anchor="middle">严重</text>
+
+    <rect x="56" y="354" width="470" height="74" fill="rgba(24,22,17,0.03)" stroke="#DFD7C8"/>
+    <text x="66" y="369" font-size="10" fill="#8A8272" letter-spacing="0.06em">计划 &#167;2 &#183; &#167;8</text>
+    <text x="66" y="387" font-size="12.5" fill="#3A352C">L5 = 治具机 3.5mm 真实回环：峰值非零、</text>
+    <text x="66" y="404" font-size="12.5" fill="#3A352C">overruns=0、THD 与离线一致；声学件阶段 2</text>
+    <text x="66" y="421" font-size="12.5" fill="#3A352C">才有，此前不该算完成</text>
+
+    <rect x="546" y="354" width="464" height="74" fill="rgba(178,58,43,0.05)" stroke="#DFD7C8"/>
+    <text x="556" y="369" font-size="10" fill="#8A8272" letter-spacing="0.06em">页面 &#183; P12</text>
+    <text x="556" y="387" font-size="12.5" fill="#3A352C">已勾选：宿主声卡回环两轮 4/4 PASS，</text>
+    <text x="556" y="404" font-size="12.5" fill="#3A352C">并写明「宿主端点已还原」</text>
+
+    <text x="56" y="447" font-size="11.5" fill="#B23A2B">后果：治具上的一次真实回环都没跑，进度却显示「L5 已跑通」</text>
+  </g>
+
+  <!-- ============ C3 ============ -->
+  <g>
+    <rect x="40" y="472" width="1040" height="150" fill="#FBF8F1" stroke="#C9BFA8"/>
+    <rect x="56" y="486" width="26" height="26" fill="none" stroke="#181611"/>
+    <text x="69" y="505" font-size="13" fill="#181611" text-anchor="middle" font-family="Georgia, serif">3</text>
+    <text x="94" y="505" font-family="Georgia, Songti SC, serif" font-size="15.5" font-weight="600" fill="#181611">指标工作被记在两套坐标里</text>
+    <rect x="1000" y="488" width="64" height="22" fill="none" stroke="#6B6355"/>
+    <text x="1032" y="503" font-size="11" fill="#6B6355" text-anchor="middle">口径</text>
+
+    <rect x="56" y="520" width="470" height="74" fill="rgba(24,22,17,0.03)" stroke="#DFD7C8"/>
+    <text x="66" y="535" font-size="10" fill="#8A8272" letter-spacing="0.06em">计划 &#167;9 第 4 条</text>
+    <text x="66" y="553" font-size="12.5" fill="#3A352C">test_thdn_3rd_harmonic 跑在 L1 纯函数上，</text>
+    <text x="66" y="570" font-size="12.5" fill="#3A352C">喂 vectors.c 里的样本数组</text>
+
+    <rect x="546" y="520" width="464" height="74" fill="rgba(178,58,43,0.05)" stroke="#DFD7C8"/>
+    <text x="556" y="535" font-size="10" fill="#8A8272" letter-spacing="0.06em">页面 &#183; P04</text>
+    <text x="556" y="553" font-size="12.5" fill="#3A352C">「指标分析」归 ②链路层，未勾，依据写</text>
+    <text x="556" y="570" font-size="12.5" fill="#3A352C">「尚未开始，口径已定」</text>
+
+    <text x="56" y="613" font-size="11.5" fill="#B23A2B">后果：同一件事一边算「测试没写」、一边算「链路没做」，两边都不会先动</text>
+  </g>
+
+  <!-- ============ C4 ============ -->
+  <g>
+    <rect x="40" y="638" width="1040" height="150" fill="#FBF8F1" stroke="#C9BFA8"/>
+    <rect x="56" y="652" width="26" height="26" fill="none" stroke="#181611"/>
+    <text x="69" y="671" font-size="13" fill="#181611" text-anchor="middle" font-family="Georgia, serif">4</text>
+    <text x="94" y="671" font-family="Georgia, Songti SC, serif" font-size="15.5" font-weight="600" fill="#181611">BDL 断言的责任悬空</text>
+    <rect x="1000" y="654" width="64" height="22" fill="none" stroke="#6B6355"/>
+    <text x="1032" y="669" font-size="11" fill="#6B6355" text-anchor="middle">边界</text>
+
+    <rect x="56" y="686" width="470" height="74" fill="rgba(24,22,17,0.03)" stroke="#DFD7C8"/>
+    <text x="66" y="701" font-size="10" fill="#8A8272" letter-spacing="0.06em">计划 &#167;2</text>
+    <text x="66" y="719" font-size="12.5" fill="#3A352C">BDL 1KB 对齐、CBL/LVI、RUN 位属 L2 流侧，</text>
+    <text x="66" y="736" font-size="12.5" fill="#3A352C">由 qtest 承担，不进 L1</text>
+
+    <rect x="546" y="686" width="464" height="74" fill="rgba(178,58,43,0.05)" stroke="#DFD7C8"/>
+    <text x="556" y="701" font-size="10" fill="#8A8272" letter-spacing="0.06em">页面 &#183; P06</text>
+    <text x="556" y="719" font-size="12.5" fill="#3A352C">「核对 BDL 对齐与条目格式（靠 L2 qtest</text>
+    <text x="556" y="736" font-size="12.5" fill="#3A352C">覆盖）」，但 P09 未勾、条目没标依赖</text>
+
+    <text x="56" y="779" font-size="11.5" fill="#B23A2B">后果：P06 既不是自己能做的事，也没写等谁，永久停在「待做」</text>
+  </g>
+
+  <!-- ============ 结论 ============ -->
+  <line x1="40" y1="806" x2="1080" y2="806" stroke="#181611" stroke-width="1"/>
+  <text x="40" y="832" font-size="12.5" font-weight="600" fill="#181611">共因：计划的「层」（L1–L5）与页面的「项」（P01–P12）不是同一套坐标</text>
+  <text x="40" y="855" font-size="12" fill="#3A352C">修法二选一：① 以页面为准改计划 &#167;2 —— L1 只到 codec 配置层，DFS 与指标另列；② 以计划为准拆条目 —— P08 拆成「已落地 5 条 / 拓扑发现 / 指标对拍」。</text>
+  <text x="40" y="878" font-size="12" fill="#8A8272">不算冲突：反向门 6 条、证据 7 个文件是「计划超前于实现」，属于实现缺口，不是两处说法打架。</text>
+</svg>
