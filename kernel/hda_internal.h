@@ -92,6 +92,19 @@ void hda_cont_drain(void);
    仅当 IRQ 号合法且向量槽空闲时注册；返回非 0 表示退回轮询等待。 */
 int hda_cont_register_irq(void);
 
+/* ========== 播放侧拓扑发现（hda_topo.c / hda_profile.c） ==========
+   hda_topo_resolve 按「caps+连接列表 DFS → profile 表 → 保底常量」三级
+   顺序解析播放拓扑，返回值是 HDA_TOPO_SRC_*（失败为 HDA_TOPO_ERR_*）。
+   只看 caps 与连接列表，不发任何 SET 类 verb。 */
+int hda_topo_resolve(uint8_t cad, struct hda_topo_path *out);
+const char *hda_topo_source_name(int src);
+
+/* profile 表：按控制器 PCI ID 精确匹配，命中返回 1 并填 out。 */
+int hda_profile_lookup(uint16_t vendor, uint16_t device, struct hda_topo_path *out);
+
+/* 保底常量：QEMU 时代硬编码、实测可在 hda-duplex 上出声的形状。 */
+void hda_profile_fallback(struct hda_topo_path *out);
+
 /* ========== 采集层（hda_capture.c 定义） ==========
    与 hda_stream.c 对称的独立路径：输入流 SD0 / tag 1，自己的 BDL 与环形
    缓冲，不与播放共享任何指针。读指针由 SDnLPIB 推导，落后 DMA 写指针

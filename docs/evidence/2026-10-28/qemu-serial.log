@@ -1,0 +1,110 @@
+Welcome to EPOS
+Copyright (C) 2005-2015 MingJian Hong<hongmingjian@gmail.com>
+All rights reserved.
+
+RAM: 0x00002000 - 0x0009f000 (157 frames)
+RAM: 0x00130000 - 0x02fe0000 (11952 frames)
+Calibrating delay... 1717043200 loops per second (3434.08 BogoMIPS)
+task #0: Initializing IDE controller...Done
+task #0: Initializing PCI controller...Done
+E1000: On-board memory 0xfebc0000 mapped to 0xc311c000 (32 pages)
+E1000: IRQ=0x0b
+E1000: MAC address: 52:54:00:12:34:56
+HDA: Found device! BAR0 = 0xfebf0000
+HDA: PCI CMD before = 0x0103 (BME=0 MSE=1 IO=1)
+HDA: PCI CMD after  = 0x0107 (BME=1 MSE=1 IO=1)
+HDA: GCAP=0x4401 v1.0 (OSS=1 ISS=0 BSS=4)
+HDA: GCTL=0x00000101 (CRST=1)
+HDA: INTCTL set to 0x80000000
+HDA: STATESTS = 0x0001
+HDA: Codec 0 present.
+HDA: profile hit 8086:2668 -> qemu hda-duplex (ICH6)
+HDA: topology source=profile dac=0x02 pin=0x07 mixer=0x05 idx=0 hops=3
+HDA: Configuring path: DAC=0x02 Pin=0x07
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: SET_CONVERTER_STREAM_CHANNEL verb=0x70640 (stream=4)
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000040 cad=0
+HDA: GET_CONV resp=0x00000040 (期望 0x00 = stream<<4|ch)
+HDA: trace log enabled (65536 bytes, 2730 recs)
+HDA: IRQ 11 already owned, polling mode
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x0000001d cad=0
+HDA: verb resp data=0x00400101 cad=0
+HDA: verb resp data=0x00000010 cad=0
+HDA: verb resp data=0x0010011b cad=0
+HDA: verb resp data=0x00400001 cad=0
+HDA: verb resp data=0x00000020 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA-CAP: topology ADC=0x04 MicPin=0x05 (probed)
+HDA: verb resp data=0x00000001 cad=0
+HDA: verb resp data=0x00000005 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000020 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA-CAP: path ok Pin=0x05 -> ADC=0x04 (conn idx 0), input amp unmuted
+HDA: verb resp data=0x00000020 cad=0
+HDA: verb resp data=0x00000020 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA-CAP: state adc=0x04 pin=0x05 pinctrl=0x20 conn=0 fmt=0x0000 conv=0x00 amp_adc=0x0000 amp_pin=0x0000 sd0_ctl=0x000000
+task #0: Initializing FAT file system...Done
+task #0: Loading a.out...Done
+task #0: Creating first user task...========================================
+=== EPOS HDA streaming audio demo ======
+=== Enya - We Wish You a Merry Christmas
+=== (mono 44.1kHz 16-bit PCM, ~220s)   =
+========================================
+
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: volume=80 gain=25
+[AUDIO] volume set to 80
+[SONG] streaming song.wav ...
+HDA: continuous stream started (CBL=4194304, 44100Hz 1ch 16bit)
+HDA: streaming song.wav: 19403978 bytes (219999 ms), 1ch 44100Hz

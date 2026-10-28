@@ -1,0 +1,12 @@
+gcc -m32 -march=i386 -Wall -pipe -Wno-address-of-packed-member -std=gnu11 -fomit-frame-pointer -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -DVERBOSE=0 -nostdinc -I../include  -c -o ../lib/softfloat.o ../lib/softfloat.c
+gcc -m32 -march=i386 -Wall -pipe -Wno-address-of-packed-member -std=gnu11 -fomit-frame-pointer -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -DVERBOSE=0 -nostdinc -I../include  -c -o ../lib/string.o ../lib/string.c
+gcc -m32 -march=i386 -Wall -pipe -Wno-address-of-packed-member -std=gnu11 -fomit-frame-pointer -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -DVERBOSE=0 -nostdinc -I../include  -c -o ../lib/memcpy.o ../lib/memcpy.c
+../lib/memcpy.c: In function 'memcpy':
+../lib/memcpy.c:345:1: warning: control reaches end of non-void function [-Wreturn-type]
+  345 | }
+      | ^
+gcc -m32 -march=i386 -Wall -pipe -Wno-address-of-packed-member -std=gnu11 -fomit-frame-pointer -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -DVERBOSE=0 -nostdinc -I../include  -c -o ../lib/memset.o ../lib/memset.c
+gcc -m32 -march=i386 -Wall -pipe -Wno-address-of-packed-member -std=gnu11 -fomit-frame-pointer -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -DVERBOSE=0 -nostdinc -I../include  -c -o ../lib/snprintf.o ../lib/snprintf.c
+gcc -m32 -march=i386 -Wall -pipe -Wno-address-of-packed-member -std=gnu11 -fomit-frame-pointer -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -DVERBOSE=0 -nostdinc -I../include  -c -o ../lib/tlsf/tlsf.o ../lib/tlsf/tlsf.c
+gcc -m32 -Tkernel.ld -nostdlib -nostartfiles -nodefaultlibs -Wl,-Map,eposkrnl.map -static -Wl,--build-id=none -o eposkrnl.elf entry.o ide.o floppy.o e1000.o hda.o hda_stream.o hda_audio.o hda_capture.o hda_trace.o hda_topo.o hda_profile.o pci.o vm86.o kbd.o timer.o machdep.o task.o mktime.o sem.o page.o startup.o frame.o kmalloc.o dosfs.o pe.o elf.o printk.o bitmap.o ../lib/softfloat.o ../lib/string.o ../lib/memcpy.o ../lib/memset.o ../lib/snprintf.o ../lib/tlsf/tlsf.o 
+objcopy -S -O binary -R .note.* -R .comment eposkrnl.elf eposkrnl.bin

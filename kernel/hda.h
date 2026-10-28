@@ -71,8 +71,11 @@
 #define HDA_INPUT_STREAM    0
 #define HDA_INPUT_TAG       1
 
-/* ========== Codec 拓扑（QEMU hda-duplex 硬编码，见 hda_init） ========== */
-#define HDA_MIXER_NID       0x05    /* Mixer widget NID（DAC/Pin 存于 g_hda） */
+/* ========== Codec 拓扑兜底值 ==========
+   运行时拓扑由 hda_topo_resolve 发现，结果存在 g_hda.output_dac /
+   output_pin / mixer_nid。这个常量只被 hda_profile.c 的兜底条目使用，
+   业务代码不许再直接引用它。 */
+#define HDA_MIXER_NID       0x05
 
 #define HDA_SD_CTL(n)       (HDA_SD_BASE(n) + 0x00)  /* 3 bytes: Control */
 #define HDA_SD_STS(n)       (HDA_SD_BASE(n) + 0x03)  /* 1 byte:  Status */
@@ -158,6 +161,11 @@ struct hda_dev {
     uint8_t  codec_cad;     /* Codec 地址 (0-14) */
     uint32_t output_dac;    /* DAC NID */
     uint32_t output_pin;    /* Pin Complex NID */
+    uint32_t mixer_nid;     /* 路径上的 mixer/selector NID，0 = 直连（hda_topo.c 填写） */
+    uint32_t mixer_idx;     /* mixer 连接列表里指向 DAC 的索引（写入 CONNECTION_SELECT） */
+    uint8_t  topo_source;   /* HDA_TOPO_SRC_*，实际生效的拓扑来源 */
+    uint16_t pci_vendor;    /* 控制器 PCI ID，profile 表按它查条目 */
+    uint16_t pci_device;
 
     /* 输入侧（verb 探测得到，hda_capture.c 填写；0 表示未找到） */
     uint8_t  adc_nid;       /* Audio Input（ADC）widget NID */
@@ -207,6 +215,7 @@ int sys_audio_capture_stop(void);
 #define WIDGET_TYPE_AUDIO_OUTPUT  0x0  /* DAC */
 #define WIDGET_TYPE_AUDIO_INPUT   0x1  /* ADC */
 #define WIDGET_TYPE_AUDIO_MIXER   0x2
+#define WIDGET_TYPE_AUDIO_SELECTOR 0x3
 #define WIDGET_TYPE_PIN_COMPLEX   0x4
 
 /* Pin Capabilities 位（GET_PARAMETER 0x0C） */
@@ -214,6 +223,10 @@ int sys_audio_capture_stop(void);
 #define HDA_PINCAP_INPUT          (1 << 5)  /* 可作输入 */
 
 /* Config Default 的默认设备值（bits 23:20） */
+#define HDA_CFG_DEVICE_LINE_OUT   0x0       /* Line Out */
+#define HDA_CFG_DEVICE_SPEAKER    0x1       /* Speaker */
+#define HDA_CFG_DEVICE_HP_OUT     0x2       /* Headphone Out */
+#define HDA_CFG_DEVICE_SPDIF_OUT  0x4       /* SPDIF Out */
 #define HDA_CFG_DEVICE_MIC_IN     0xA       /* Mic In */
 
 /* PIN_WIDGET_CTRL 位：输出使能是 bit6（见 hda.c 播放路径用 0x40），
@@ -259,5 +272,34 @@ int sys_audio_capture_stop(void);
 #define HDA_CAP_ERR_CONVSEL  (-8)   /* 连接选择回读与期望不符 */
 #define HDA_CAP_ERR_FMT      (-9)   /* converter format 回读与 SDnFMT 不一致 */
 #define HDA_CAP_ERR_TAG      (-10)  /* converter stream/channel 回读不符 */
+
+/* ========== 播放侧拓扑发现（hda_topo.c / hda_profile.c） ==========
+   算法来源：OSDev wiki「Intel High Definition Audio」§8.2 Finding all useful
+   paths through the codec —— 从接了输出设备的 Pin 出发，沿 connection list
+   下探到 DAC，命中即记路径并回溯；单条路径超过 10 跳视为异常（wiki 原文
+   "a ten link limit would be safe"，用于防 codec 把遍历带进环）。
+   QEMU 3.1 hda-duplex 的 AUDIO_WIDGET_CAP 全部返回 0，DFS 无从起步，因此
+   还有 profile 表与保底常量两级回退（顺序见 hda_topo_resolve）。 */
+#define HDA_TOPO_MAX_PATH   10      /* 单条路径最多经过的 widget 数 */
+#define HDA_TOPO_MAX_PINS   8       /* 候选输出 Pin 上限 */
+#define HDA_TOPO_NID_MAX    0x21    /* 扫描 NID 1..0x20 */
+
+struct hda_topo_path {
+    uint8_t pin;                          /* 起始 Pin Complex NID */
+    uint8_t dac;                          /* 命中的 DAC NID */
+    uint8_t mixer;                        /* 路径上的 mixer/selector，0 = 直连 */
+    uint8_t mixer_idx;                    /* mixer 连接列表里指向 DAC 的索引 */
+    uint8_t hops;                         /* 路径长度（含两端） */
+    uint8_t chain[HDA_TOPO_MAX_PATH];     /* pin -> ... -> dac，调试与日志用 */
+};
+
+/* 拓扑来源：0 表示未解析 */
+#define HDA_TOPO_SRC_NONE      0
+#define HDA_TOPO_SRC_CAPS_DFS  1   /* AUDIO_WIDGET_CAP + 连接列表实探 */
+#define HDA_TOPO_SRC_PROFILE   2   /* caps 不可用/探测失败，命中 profile 表 */
+#define HDA_TOPO_SRC_FALLBACK  3   /* 连 profile 都没有，用保底常量（未验证） */
+
+#define HDA_TOPO_ERR_NO_PIN     (-11)  /* 没有可输出的 Pin Complex */
+#define HDA_TOPO_ERR_NO_RESULT  (-12)  /* 三级来源都没给出可用拓扑 */
 
 #endif /* _HDA_H */

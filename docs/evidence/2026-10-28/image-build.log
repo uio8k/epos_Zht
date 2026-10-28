@@ -1,0 +1,35 @@
+make -C kernel run CAPTURE_TEST= CAP_REVERSE=
+make[1]: Entering directory '/e/ComputerScience/epos_Zht/epos_Zht/kernel'
+gcc -DVERBOSE=0 -nostdinc -I../include -M ide.c floppy.c e1000.c hda.c hda_stream.c hda_audio.c hda_capture.c hda_trace.c hda_topo.c hda_profile.c pci.c vm86.c kbd.c timer.c machdep.c task.c mktime.c sem.c page.c startup.c frame.c kmalloc.c dosfs.c pe.c elf.c printk.c bitmap.c ../lib/softfloat.c ../lib/string.c ../lib/memcpy.c ../lib/memset.c ../lib/snprintf.c ../lib/tlsf/tlsf.c >make.dep
+gcc -m32 -march=i386 -Wall -pipe -Wno-address-of-packed-member -std=gnu11 -fomit-frame-pointer -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -DVERBOSE=0 -nostdinc -I../include  -c -o hda_topo.o hda_topo.c
+gcc -m32 -march=i386 -Wall -pipe -Wno-address-of-packed-member -std=gnu11 -fomit-frame-pointer -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -DVERBOSE=0 -nostdinc -I../include  -c -o ../lib/softfloat.o ../lib/softfloat.c
+gcc -m32 -march=i386 -Wall -pipe -Wno-address-of-packed-member -std=gnu11 -fomit-frame-pointer -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -DVERBOSE=0 -nostdinc -I../include  -c -o ../lib/string.o ../lib/string.c
+gcc -m32 -march=i386 -Wall -pipe -Wno-address-of-packed-member -std=gnu11 -fomit-frame-pointer -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -DVERBOSE=0 -nostdinc -I../include  -c -o ../lib/memcpy.o ../lib/memcpy.c
+../lib/memcpy.c: In function 'memcpy':
+../lib/memcpy.c:345:1: warning: control reaches end of non-void function [-Wreturn-type]
+  345 | }
+      | ^
+gcc -m32 -march=i386 -Wall -pipe -Wno-address-of-packed-member -std=gnu11 -fomit-frame-pointer -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -DVERBOSE=0 -nostdinc -I../include  -c -o ../lib/memset.o ../lib/memset.c
+gcc -m32 -march=i386 -Wall -pipe -Wno-address-of-packed-member -std=gnu11 -fomit-frame-pointer -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -DVERBOSE=0 -nostdinc -I../include  -c -o ../lib/snprintf.o ../lib/snprintf.c
+gcc -m32 -march=i386 -Wall -pipe -Wno-address-of-packed-member -std=gnu11 -fomit-frame-pointer -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -DVERBOSE=0 -nostdinc -I../include  -c -o ../lib/tlsf/tlsf.o ../lib/tlsf/tlsf.c
+gcc -m32 -Tkernel.ld -nostdlib -nostartfiles -nodefaultlibs -Wl,-Map,eposkrnl.map -static -Wl,--build-id=none -o eposkrnl.elf entry.o ide.o floppy.o e1000.o hda.o hda_stream.o hda_audio.o hda_capture.o hda_trace.o hda_topo.o hda_profile.o pci.o vm86.o kbd.o timer.o machdep.o task.o mktime.o sem.o page.o startup.o frame.o kmalloc.o dosfs.o pe.o elf.o printk.o bitmap.o ../lib/softfloat.o ../lib/string.o ../lib/memcpy.o ../lib/memset.o ../lib/snprintf.o ../lib/tlsf/tlsf.o 
+objcopy -S -O binary -R .note.* -R .comment eposkrnl.elf eposkrnl.bin
+make[1]: Leaving directory '/e/ComputerScience/epos_Zht/epos_Zht/kernel'
+make -C userapp run CAPTURE_TEST= CAP_REVERSE=
+make[1]: Entering directory '/e/ComputerScience/epos_Zht/epos_Zht/userapp'
+gcc -m32 -march=i386 -Wall -pipe -DSNPRINTF_FLOATPOINT -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -nostdinc -I../include -Iinclude  -c -o ../lib/softfloat.o ../lib/softfloat.c
+gcc -m32 -march=i386 -Wall -pipe -DSNPRINTF_FLOATPOINT -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -nostdinc -I../include -Iinclude  -c -o ../lib/string.o ../lib/string.c
+gcc -m32 -march=i386 -Wall -pipe -DSNPRINTF_FLOATPOINT -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -nostdinc -I../include -Iinclude  -c -o ../lib/memcpy.o ../lib/memcpy.c
+../lib/memcpy.c: In function 'memcpy':
+../lib/memcpy.c:345:1: warning: control reaches end of non-void function [-Wreturn-type]
+  345 | }
+      | ^
+gcc -m32 -march=i386 -Wall -pipe -DSNPRINTF_FLOATPOINT -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -nostdinc -I../include -Iinclude  -c -o ../lib/memset.o ../lib/memset.c
+gcc -m32 -march=i386 -Wall -pipe -DSNPRINTF_FLOATPOINT -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -nostdinc -I../include -Iinclude  -c -o ../lib/snprintf.o ../lib/snprintf.c
+gcc -m32 -march=i386 -Wall -pipe -DSNPRINTF_FLOATPOINT -ffreestanding -fleading-underscore -mno-ms-bitfields -fno-pie -fno-stack-check -mno-stack-arg-probe -fno-stack-protector -O2 -ggdb -nostdinc -I../include -Iinclude  -c -o ../lib/tlsf/tlsf.o ../lib/tlsf/tlsf.c
+gcc -m32 -nostdlib -nostartfiles -nodefaultlibs -Wl,-Map,a.map -static -o a.out lib/crt0.o lib/setjmp.o lib/syscall-wrapper.o vm86call.o graphics.o main.o melody_player.o NoteSequence.o lib/sysconf.o lib/math.o lib/stdio.o lib/stdlib.o lib/qsort.o ../lib/softfloat.o ../lib/string.o ../lib/memcpy.o ../lib/memset.o ../lib/snprintf.o lib/malloc.o ../lib/tlsf/tlsf.o 
+make[1]: Leaving directory '/e/ComputerScience/epos_Zht/epos_Zht/userapp'
+if [ ! -s hd.img ]; then cat hd.img.bz2.txt | base64 -d | bunzip2 >hd.img ; fi
+mtools -c mcopy -i hd.img@@1M -D oO kernel/eposkrnl.bin ::eposkrnl
+mtools -c mcopy -i hd.img@@1M -D oO userapp/a.out ::
+mtools -c mcopy -i hd.img@@1M -D oO samples/*.wav ::

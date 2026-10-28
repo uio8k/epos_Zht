@@ -291,12 +291,12 @@ footer p{max-width:none}
       </label>
       <span class="state">已完成</span>
     </li>
-    <li class="item" data-id="P03" data-stage="0" data-done="0">
-      <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-P03"></span>
+    <li class="item" data-id="P03" data-stage="0" data-done="1">
+      <span class="check" role="checkbox" aria-checked="true" tabindex="0" aria-labelledby="l-P03"></span>
       <label class="label" id="l-P03">播放侧拓扑发现：硬编码 DAC/Pin/Mixer 改为连接列表 DFS
-        <span class="ev">依据：无 —— kernel/hda.c 仍是硬编码 0x02/0x07/0x05</span>
+        <span class="ev">依据：<code>kernel/hda_topo.c</code> + <code>hda_profile.c</code>；QEMU 串口 <code>topology source=profile dac=0x02 pin=0x07 mixer=0x05</code>；8 条拓扑用例全绿</span>
       </label>
-      <span class="state">待做</span>
+      <span class="state">已完成</span>
     </li>
     <li class="item" data-id="P04" data-stage="0" data-done="1">
       <span class="check" role="checkbox" aria-checked="true" tabindex="0" aria-labelledby="l-P04"></span>
@@ -353,7 +353,7 @@ footer p{max-width:none}
     <table>
       <thead><tr><th>层</th><th>入口</th><th>覆盖</th><th>预算</th><th>状态</th></tr></thead>
       <tbody>
-        <tr><td>L1</td><td><code>make test</code></td><td>codec 配置层（verb 构造、分级回读、连接列表长短格式、amp 方向位）+ 指标纯函数（f0/RMS/THD/SNR、频谱 bin）</td><td>&lt;2s</td><td><span class="badge">部分 · 8/10 条</span></td></tr>
+        <tr><td>L1</td><td><code>make test</code></td><td>codec 配置层（verb 构造、分级回读、连接列表长短格式、amp 方向位）+ 指标纯函数（f0/RMS/THD/SNR、频谱 bin）+ 播放拓扑发现（profile 命中、DFS 路径、长链与成环）</td><td>&lt;2s</td><td><span class="badge">部分 · 9/10 条</span></td></tr>
         <tr><td>L2</td><td><code>make qtest</code></td><td>流与缓冲：BDL/CBL/LVI、RUN、LPIB 推进与环绕回、BCIS</td><td>数秒</td><td><span class="badge">未开始</span></td></tr>
         <tr><td>L3</td><td><code>make full</code></td><td>整机 <code>none</code> 后端：syscall 往返、WAV 读取、重复 start 幂等</td><td>&lt;60s</td><td><span class="badge">未开始</span></td></tr>
         <tr><td>L4</td><td>COM1 自检</td><td>目标机启动自检：分配器、信号量、tick、HDA 探测</td><td>&lt;2s</td><td><span class="badge">未开始</span></td></tr>
@@ -365,8 +365,8 @@ footer p{max-width:none}
   <ul class="items" style="margin-top:12px">
     <li class="item" data-id="P08" data-stage="0" data-done="1">
       <span class="check" role="checkbox" aria-checked="true" tabindex="0" aria-labelledby="l-P08"></span>
-      <label class="label" id="l-P08">L1 宿主单测：10 个测试 · 对应 8 条用例（U-L1-01…03 + 06…10）+ 6 扇反向门
-        <span class="ev">依据：docs/evidence/2026-10-28/test.log → 两组各 5 Tests 0 Failures；red-G5/G6/G12 三扇门本轮实测变红</span>
+      <label class="label" id="l-P08">L1 宿主单测：18 个测试 · 对应 9 条用例（U-L1-01…04 + 06…10）+ 8 扇反向门
+        <span class="ev">依据：docs/evidence/2026-10-28/test.log → 三段各 5/5/8 Tests 0 Failures，make test 1.6s；red-G5/G6/G12、red-topo-* 五扇门实测变红</span>
       </label>
       <span class="state">已完成</span>
     </li>
@@ -410,7 +410,8 @@ footer p{max-width:none}
       <tbody>
         <tr><td>U-L1-01…03</td><td>L1</td><td><span class="badge ok">已实现</span></td><td>codec 配置层，5 条用例在同一文件（含 amp 方向位、长格式连接列表、回读校验等）</td></tr>
         <tr><td>U-L1-06…10</td><td>L1</td><td><span class="badge ok">已实现</span></td><td>指标纯函数，对 Python 参照全绿；未接入采集流程</td></tr>
-        <tr><td>U-L1-04 / 05</td><td>L1</td><td><span class="badge">空着</span></td><td>要等播放侧 DFS 发现（P03）实现；05 还需真机 profile dump 才能启用</td></tr>
+        <tr><td>U-L1-04</td><td>L1</td><td><span class="badge ok">已实现</span></td><td>QEMU profile 命中 + 未知机型走 DFS，8 条用例覆盖（含长链与成环防御）</td></tr>
+        <tr><td>U-L1-05</td><td>L1</td><td><span class="badge">空着</span></td><td>等真机 codec dump；未命中 profile 时打 <code>SKIP</code>，不假装发现</td></tr>
         <tr><td>U-L2-01 / 02</td><td>L2</td><td><span class="badge">空着</span></td><td>qtest 骨架未建；「不启 OS 操作 BDL」这个前提本身还没验证</td></tr>
         <tr><td>U-L3-01 / 02</td><td>L3</td><td><span class="badge">空着</span></td><td>make full 目标未建，需 QEMU none 后端整机跑通</td></tr>
         <tr><td>U-L4-01</td><td>L4</td><td><span class="badge">受真机阻塞</span></td><td>需 OptiPlex + COM1 自检，治具未到位</td></tr>
@@ -420,7 +421,7 @@ footer p{max-width:none}
     </table>
     </div>
   </div>
-  <p class="small" style="margin-top:10px">已实现 9/17 条；其余 8 条按上表原因留空，<b>不写占位测试</b>——空着的用例不会假装通过。</p>
+  <p class="small" style="margin-top:10px">已实现 10/17 条；其余 7 条按上表原因留空，<b>不写占位测试</b>——空着的用例不会假装通过。</p>
 </section>
 
 <footer>
@@ -430,6 +431,7 @@ footer p{max-width:none}
   <p>另一台设备 <code>git pull</code> 后直接打开即看到同一状态。约定：勾选集中在主力机，另一台只读；若两边都改，冲突时按条目并集手工保留。</p>
   <h2 style="font-size:13px;margin-top:20px">变更记录</h2>
   <ul class="list">
+    <li><b>2026-10-28</b> P03 播放拓扑发现落地：<code>hda_topo.c</code> 连接列表 DFS（10 跳上限、visited 防环）+ <code>hda_profile.c</code> profile 表；已验证 profile 优先于实探，QEMU 通路与历史一致；8 条 L1 用例 + 2 扇反向门。</li>
     <li><b>2026-10-28</b> 修 4 处自相矛盾：L5 拆成宿主/治具两态、L1 改「部分 8/10」、用例计数统一为 17 条、链路节点状态跟随 P04。</li>
     <li><b>2026-10-28</b> 删除 <code>docs/test-plan-audio.md</code>；用例清单与受阻原因只保留在本页「未实现与受阻」；<code>check_plan.py</code> 停止接入 <code>make test</code>。</li>
     <li><b>2026-10-28</b> 指标纯函数落地（<code>userapp/metrics.c</code>）并接 5 条指标用例；黄金向量由 <code>gen_vectors.py</code> 生成；测试计划自洽校验接进 <code>make test</code>；新增「未实现与受阻」一节。</li>

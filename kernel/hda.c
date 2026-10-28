@@ -127,6 +127,10 @@ int hda_init(void)
 
     printk("HDA: Found device! BAR0 = 0x%08x\r\n", baddr);
 
+    /* profile 表按控制器 PCI ID 查拓扑（真机条目等 dump 到位后补） */
+    g_hda.pci_vendor = (uint16_t)vendor;
+    g_hda.pci_device = (uint16_t)device;
+
     /* === 排查 #1：PCI Bus Master Enable ===
        QEMU 的 pci_dma_read() 内部检查 PCI Command Register bit 2 (Bus Master)。
        如果未设置，所有 DMA 静默返回 0。SeaBIOS 不会为我们设置。 */
@@ -181,8 +185,9 @@ int hda_init(void)
     hda_writel(HDA_INTCTL, 0x80000000);   /* GIE=1 (bit 31) */
     printk("HDA: INTCTL set to 0x%08x\r\n", hda_readl(HDA_INTCTL));
 
-    /* === Codec 探测：QEMU 3.1 hda-duplex 的 AUDIO_WIDGET_CAP 全部返回 0，
-       无法通过 verb 发现 widget。直接硬编码已知拓扑: DAC=0x02 Pin=0x07 === */
+    /* === Codec 探测：播放拓扑交给 hda_topo_resolve 解析（连接列表 DFS →
+       profile 表 → 保底常量）。QEMU 3.1 hda-duplex 的 AUDIO_WIDGET_CAP 全部
+       返回 0，DFS 起不来，会落到 profile 里那条实测可用的形状上。 === */
     uint16_t statests = hda_readw(HDA_STATESTS);
     printk("HDA: STATESTS = 0x%04x\r\n", statests);
     for (int cad = 0; cad < 15; cad++) {
@@ -193,10 +198,24 @@ int hda_init(void)
         g_hda.codec_cad = cad;
         hda_writew(HDA_STATESTS, statests);
 
-        /* hda-duplex 硬编码 widget 拓扑 */
-        g_hda.output_dac = 0x02;
-        g_hda.output_pin = 0x07;
-        printk("HDA: Using hardcoded hda-duplex topology: DAC=0x02 Pin=0x07\r\n");
+        /* 播放拓扑：优先实探，失败回落 profile / 保底常量 */
+        struct hda_topo_path topo;
+        int src = hda_topo_resolve(cad, &topo);
+
+        g_hda.topo_source = (uint8_t)src;
+        g_hda.output_dac  = topo.dac;
+        g_hda.output_pin  = topo.pin;
+        g_hda.mixer_nid   = topo.mixer;
+        g_hda.mixer_idx   = topo.mixer_idx;
+        printk("HDA: topology source=%s dac=0x%02x pin=0x%02x mixer=0x%02x "
+               "idx=%u hops=%u\r\n",
+               hda_topo_source_name(src), topo.dac, topo.pin, topo.mixer,
+               topo.mixer_idx, topo.hops);
+
+        if (src < 0) {
+            printk("HDA: topology resolve failed rc=%d\r\n", src);
+            break;      /* 交给下面统一的 DAC/Pin 校验报错 */
+        }
 
         /* 配置音频路径 */
         printk("HDA: Configuring path: DAC=0x%02x Pin=0x%02x\r\n",
@@ -204,9 +223,14 @@ int hda_init(void)
         hda_send_verb(cad, g_hda.output_pin,  HDA_VERB_SET_PIN_WIDGET_CTRL | 0x40);
         hda_send_verb(cad, g_hda.output_dac,  HDA_VERB_SET_AMP_GAIN_MUTE | HDA_AMP_UNMUTE_0DB);
         hda_send_verb(cad, g_hda.output_pin,  HDA_VERB_SET_AMP_GAIN_MUTE | HDA_AMP_UNMUTE_0DB);
-        /* 配置 Mixer (NID 0x05): 选择 DAC 输入，取消静音 */
-        hda_send_verb(cad, HDA_MIXER_NID, HDA_VERB_SET_CONNECTION_SELECT | 0);
-        hda_send_verb(cad, HDA_MIXER_NID, HDA_VERB_SET_AMP_GAIN_MUTE | HDA_AMP_UNMUTE_0DB);
+        /* 路径上若有 Mixer/Selector：选中通往 DAC 的那一路并取消静音。
+           索引取自发现结果（mixer 连接列表里 DAC 的位置），不再写死 0。 */
+        if (g_hda.mixer_nid) {
+            hda_send_verb(cad, g_hda.mixer_nid,
+                          HDA_VERB_SET_CONNECTION_SELECT | (g_hda.mixer_idx & 0x7F));
+            hda_send_verb(cad, g_hda.mixer_nid,
+                          HDA_VERB_SET_AMP_GAIN_MUTE | HDA_AMP_UNMUTE_0DB);
+        }
         /* 关联 DAC 到 Stream（关键！否则 Codec 不知道从哪个流读取 PCM 数据）
            必须使用与 SDCTL 中 stream tag 相同的非零流号 */
         uint32_t conv_verb = HDA_VERB_SET_CONVERTER_STREAM_CHANNEL |
@@ -266,10 +290,12 @@ int sys_audio_set_volume(uint32_t volume)
     uint32_t gain = (volume == 0) ? 0 : (100 - volume) * 127 / 100;
     uint32_t payload = (volume == 0) ? HDA_AMP_MUTE : HDA_AMP_GAIN(gain);
 
-    /* 与 init 相同的三个 widget：DAC + Pin + Mixer */
+    /* 与 init 同一组 widget：DAC + Pin + （发现到的）Mixer。
+       mixer_nid 为 0 表示该路径直连，不能盲发 verb 到 0x05。 */
     hda_send_verb(g_hda.codec_cad, g_hda.output_dac, HDA_VERB_SET_AMP_GAIN_MUTE | payload);
     hda_send_verb(g_hda.codec_cad, g_hda.output_pin, HDA_VERB_SET_AMP_GAIN_MUTE | payload);
-    hda_send_verb(g_hda.codec_cad, HDA_MIXER_NID,    HDA_VERB_SET_AMP_GAIN_MUTE | payload);
+    if (g_hda.mixer_nid)
+        hda_send_verb(g_hda.codec_cad, g_hda.mixer_nid, HDA_VERB_SET_AMP_GAIN_MUTE | payload);
 
     printk("HDA: volume=%u gain=%u\r\n", volume, gain);
     return 0;

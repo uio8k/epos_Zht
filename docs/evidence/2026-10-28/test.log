@@ -45,5 +45,43 @@ test_metrics.c:128:test_bin_index_1k:PASS
 -----------------------
 5 Tests 0 Failures 0 Ignored 
 OK
+In file included from build/hda_topo_under_test.c:23,
+                 from test_topo.c:20:
+build/hda_internal.h: In function 'hda_readl':
+build/hda_internal.h:21:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   21 |     return *(volatile uint32_t *)(g_hda.mmio_base + reg);
+      |             ^
+build/hda_internal.h: In function 'hda_readw':
+build/hda_internal.h:26:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   26 |     return *(volatile uint16_t *)(g_hda.mmio_base + reg);
+      |             ^
+build/hda_internal.h: In function 'hda_readb':
+build/hda_internal.h:31:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   31 |     return *(volatile uint8_t *)(g_hda.mmio_base + reg);
+      |             ^
+build/hda_internal.h: In function 'hda_writel':
+build/hda_internal.h:36:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   36 |     *(volatile uint32_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+build/hda_internal.h: In function 'hda_writew':
+build/hda_internal.h:41:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   41 |     *(volatile uint16_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+build/hda_internal.h: In function 'hda_writeb':
+build/hda_internal.h:46:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   46 |     *(volatile uint8_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+test_topo.c:341:test_topo_profile_qemu:PASS
+test_topo.c:342:test_topo_profile_beats_dfs:PASS
+test_topo.c:343:test_topo_dfs_mixer_path:PASS
+test_topo.c:344:test_topo_dfs_mixer_index_not_zero:PASS
+test_topo.c:345:test_topo_dfs_direct_path:PASS
+test_topo.c:346:test_topo_unknown_codec_skips_profile:PASS
+test_topo.c:347:test_topo_depth_limit:PASS
+test_topo.c:348:test_topo_cycle_terminates:PASS
+
+-----------------------
+8 Tests 0 Failures 0 Ignored 
+OK
 [tests] ALL PASS
 make[1]: Leaving directory '/e/ComputerScience/epos_Zht/epos_Zht/tests'
