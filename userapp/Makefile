@@ -52,7 +52,7 @@ $(MODE_STAMP):
 	-rm -f .testmode_*
 	touch $@
 
-COBJS=	vm86call.o graphics.o main.o melody_player.o NoteSequence.o
+COBJS=	vm86call.o graphics.o main.o melody_player.o NoteSequence.o metrics.o segment.o vga8.o
 COBJS+=	lib/sysconf.o lib/math.o lib/stdio.o lib/stdlib.o \
 		lib/qsort.o
 COBJS+=	../lib/softfloat.o ../lib/string.o ../lib/memcpy.o \

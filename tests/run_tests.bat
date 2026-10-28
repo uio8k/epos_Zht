@@ -49,7 +49,15 @@ if errorlevel 1 (echo [tests] BUILD FAILED: test_topo & exit /b 1)
 build\test_topo_fresh.exe
 if errorlevel 1 set "RC=1"
 
-rem ---------- 4) 测试计划自洽性 ----------
+rem ---------- 4) 有效段裁剪（P05：双端静音裁除与返回码） ----------
+"%CC%" -std=gnu11 -Wall -Wextra -O0 -pipe -I. -Iunity -I"%REPO%\userapp" ^
+       -o build\test_segment_fresh.exe test_segment.c "%REPO%\userapp\segment.c" unity\unity.c
+if errorlevel 1 (echo [tests] BUILD FAILED: test_segment & exit /b 1)
+
+build\test_segment_fresh.exe
+if errorlevel 1 set "RC=1"
+
+rem ---------- 5) 测试计划自洽性（已停用） ----------
 rem docs/test-plan-audio.md 已于 2026-10-28 删除，校验脚本随之停用；
 rem 脚本本体留在 tests\tools\check_plan.py，计划若恢复（同名同结构）即可接回。
 

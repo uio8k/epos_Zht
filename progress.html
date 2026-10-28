@@ -281,7 +281,7 @@ footer p{max-width:none}
     <div class="node fade"><h4>信号源 / 被测件</h4><div class="meta">Line Out · 正弦/扫频/音乐</div><span class="tag">外部硬件</span></div>
     <div class="node done fade"><h4>HDA 采集</h4><div class="meta">Pin → ADC → SD0 环</div><span class="tag">已有 · 宿主回环 4/4 PASS</span></div>
     <div class="node fade"><h4>指标分析</h4><div class="meta">用户态 float · 拟合与频谱</div><span class="tag">已有 · 纯函数未接入</span></div>
-    <div class="node fade"><h4>判定输出</h4><div class="meta">串口 KEY=VALUE + VGA 大字</div><span class="tag">待做</span></div>
+    <div class="node done fade"><h4>判定输出</h4><div class="meta">串口 KEY=VALUE + VGA 大字</div><span class="tag">已有 · 阈值待真机</span></div>
   </div>
   <ul class="items" style="margin-top:12px">
     <li class="item" data-id="P02" data-stage="0" data-done="1">
@@ -305,12 +305,20 @@ footer p{max-width:none}
       </label>
       <span class="state">已完成</span>
     </li>
-    <li class="item" data-id="P05" data-stage="0" data-done="0">
-      <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-P05"></span>
-      <label class="label" id="l-P05">判定输出：串口 <code>KEY=VALUE</code> 单行 + VGA 大字，继电器推迟
-        <span class="ev">依据：无 —— 目前只有 [CAP-*] 诊断行，没有统一判定行</span>
+    <li class="item" data-id="P05" data-stage="0" data-done="1">
+      <span class="check" role="checkbox" aria-checked="true" tabindex="0" aria-labelledby="l-P05"></span>
+      <label class="label" id="l-P05">判定输出：串口 <code>AUDIO_VERDICT</code> 单行 + VGA 大字，继电器推迟
+        <span class="ev">依据：串口 <code>AUDIO_VERDICT v=1 result=… f0= rms= thd_n= snr= peak= silent=</code>（main.c 的 cap_verdict_line）；字库取自 BIOS <code>int 10h 1130h</code>，大字截图 docs/evidence/2026-10-29/verdict-big.png；<code>[CAP-*]</code> 行一字未改</span>
       </label>
-      <span class="state">待做</span>
+      <span class="state">已完成</span>
+    </li>
+    <li class="item" data-id="P05b" data-stage="1" data-done="0">
+      <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-P05b"></span>
+      <label class="label" id="l-P05b">判定阈值定稿：THD+N &lt; 1%、SNR &gt; 60dB 目前是宿主临时值
+        <span class="badge">真机到后继续</span>
+        <span class="ev">受真机阻塞：需 P01 的 3.5mm 电气回环与「已知坏」失真样本才能定档；常量集中在 <code>userapp/metrics.h</code> 的 <code>MET_THD_N_MAX_PCT</code> / <code>MET_SNR_MIN_DB</code></span>
+      </label>
+      <span class="state">受真机阻塞</span>
     </li>
   </ul>
 </section>
@@ -321,10 +329,10 @@ footer p{max-width:none}
     <table>
       <thead><tr><th>规范</th><th>要求</th><th>现状</th><th>结论</th></tr></thead>
       <tbody>
-        <tr><td>BDL</td><td>1KB 对齐、至少 2 条、每条 16B（8B 地址 + 4B 长度 + bit0=IOC）</td><td>驱动已建 BDL 与 IOC 字段，对齐未逐条核对</td><td><span class="badge">待核</span></td></tr>
+        <tr><td>BDL</td><td>1KB 对齐、至少 2 条、每条 16B（8B 地址 + 4B 长度 + bit0=IOC）</td><td>事实合规但零断言：页分配保证 4KB 对齐、LVI=n-1、CBL=分段和，16B 布局只靠注释</td><td><span class="badge">方案已定</span></td></tr>
         <tr><td>启动流</td><td>停 RUN → SRST 脉冲 → BDL 地址 → 总长 → 条目数 → 格式 → 流号 → 置 RUN</td><td>hda_stream.c 与 hda_capture.c 均按此序实现</td><td><span class="badge ok">已核</span></td></tr>
         <tr><td>wbinvd</td><td>写完 BDL 必须写回内存，codec 直读 RAM</td><td>hda_flush_cache() 在启动流前调用</td><td><span class="badge ok">已核</span></td></tr>
-        <tr><td>控制器</td><td>ICS 与 CORB/RIRB 不可混用；流数读 GCAP 的 ISS/OSS；初始化补 EAPD / VrefEn / Unsol</td><td>全程用 ICS；流数假设 4 进 1 出；三项初始化未实现</td><td><span class="badge">待补</span></td></tr>
+        <tr><td>控制器</td><td>ICS 与 CORB/RIRB 不可混用；流数读 GCAP 的 ISS/OSS；初始化补 EAPD / VrefEn / Unsol</td><td>全程用 ICS；GCAP 解码位段错（串口 <code>OSS=1 ISS=0</code>，实为 4/4）；INTCTL 只写 GIE；EAPD/VrefEn 未实现；Unsol 已置 GCTL bit8 但无 RIRB 收不到</td><td><span class="badge">方案已定</span></td></tr>
       </tbody>
     </table>
   </div>
@@ -332,14 +340,14 @@ footer p{max-width:none}
     <li class="item" data-id="P06" data-stage="0" data-done="0">
       <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-P06"></span>
       <label class="label" id="l-P06">核对 BDL 对齐与条目格式（当前未断言，靠 L2 qtest 覆盖）
-        <span class="ev">依据：无 —— 尚无断言证明对齐与条目布局正确</span>
+        <span class="ev">方案：<code>docs/tech-plan-hda.md</code> §5，<code>hda_bdl_validate</code> 六类负码 + 10 条 L1 向量；代码待排期</span>
       </label>
       <span class="state">待做</span>
     </li>
     <li class="item" data-id="P07" data-stage="1" data-done="0">
       <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-P07"></span>
       <label class="label" id="l-P07">补真机初始化三项：EAPD 外部功放、mic 的 VrefEn、jack 的 Unsol；流数改读 GCAP
-        <span class="ev">依据：无 —— 真机无声时按 EAPD → VrefEn → Unsol → GCAP 顺序排查</span>
+        <span class="ev">方案：<code>docs/tech-plan-hda.md</code> §4/6/7/8（GCAP 解码与流索引、EAPD、VrefEn 门控+回读；Unsol 定为不做，改轮询 <code>0xF09</code>）</span>
       </label>
       <span class="state">待做</span>
     </li>
@@ -353,7 +361,7 @@ footer p{max-width:none}
     <table>
       <thead><tr><th>层</th><th>入口</th><th>覆盖</th><th>预算</th><th>状态</th></tr></thead>
       <tbody>
-        <tr><td>L1</td><td><code>make test</code></td><td>codec 配置层（verb 构造、分级回读、连接列表长短格式、amp 方向位）+ 指标纯函数（f0/RMS/THD/SNR、频谱 bin）+ 播放拓扑发现（profile 命中、DFS 路径、长链与成环）</td><td>&lt;2s</td><td><span class="badge">部分 · 9/10 条</span></td></tr>
+        <tr><td>L1</td><td><code>make test</code></td><td>codec 配置层（verb 构造、分级回读、连接列表长短格式、amp 方向位）+ 指标纯函数（f0/RMS/THD/SNR、频谱 bin）+ 播放拓扑发现（profile 命中、DFS 路径、长链与成环）+ 有效段裁剪与分析窗（8 条）</td><td>&lt;2s</td><td><span class="badge">部分 · 26 测试 / 4 段</span></td></tr>
         <tr><td>L2</td><td><code>make qtest</code></td><td>流与缓冲：BDL/CBL/LVI、RUN、LPIB 推进与环绕回、BCIS</td><td>数秒</td><td><span class="badge">未开始</span></td></tr>
         <tr><td>L3</td><td><code>make full</code></td><td>整机 <code>none</code> 后端：syscall 往返、WAV 读取、重复 start 幂等</td><td>&lt;60s</td><td><span class="badge">未开始</span></td></tr>
         <tr><td>L4</td><td>COM1 自检</td><td>目标机启动自检：分配器、信号量、tick、HDA 探测</td><td>&lt;2s</td><td><span class="badge">未开始</span></td></tr>
@@ -431,6 +439,8 @@ footer p{max-width:none}
   <p>另一台设备 <code>git pull</code> 后直接打开即看到同一状态。约定：勾选集中在主力机，另一台只读；若两边都改，冲突时按条目并集手工保留。</p>
   <h2 style="font-size:13px;margin-top:20px">变更记录</h2>
   <ul class="list">
+    <li><b>2026-10-29</b> P05 判定输出落地：<code>metrics.o/segment.o/vga8.o</code> 进 a.out；采集 A 段保留单声道 PCM → 裁段 → 取能量最高分析窗（8192 样本）→ <code>met_analyze</code> → 单行 <code>AUDIO_VERDICT</code>；大字用 BIOS <code>int 10h 1130h</code> 字库放大 6 倍。L1 26 测试（新增 8 条裁段/分析窗），三种构建零新增告警。两个坑：VBE 下 <code>AX=1002h</code> 设调色板被忽略（改 <code>1012h</code>，回读 <code>dac[1]=3f3f3f</code> 才作数）；字库位序是 MSB 在左，按 LSB 画会镜像。采集回环本轮 G3 时红时绿（宿主端点回环不稳），判定行如实输出 FAIL，未改判据。</li>
+    <li><b>2026-10-28</b> P06/P07 技术方案落地：<code>docs/tech-plan-hda.md</code>（wiki oldid=30627 取证、现状核对表、实施顺序、验收判据、不确定项）；③ 的 BDL 与控制器两行改「方案已定」；wiki 原文摘录存 <code>docs/evidence/2026-10-28/wiki-hda-excerpt.txt</code>。核对出两处代码错：GCAP 解码位段错、<code>HDA_OUTPUT_STREAM</code> 写死 4。</li>
     <li><b>2026-10-28</b> P03 播放拓扑发现落地：<code>hda_topo.c</code> 连接列表 DFS（10 跳上限、visited 防环）+ <code>hda_profile.c</code> profile 表；已验证 profile 优先于实探，QEMU 通路与历史一致；8 条 L1 用例 + 2 扇反向门。</li>
     <li><b>2026-10-28</b> 修 4 处自相矛盾：L5 拆成宿主/治具两态、L1 改「部分 8/10」、用例计数统一为 17 条、链路节点状态跟随 P04。</li>
     <li><b>2026-10-28</b> 删除 <code>docs/test-plan-audio.md</code>；用例清单与受阻原因只保留在本页「未实现与受阻」；<code>check_plan.py</code> 停止接入 <code>make test</code>。</li>

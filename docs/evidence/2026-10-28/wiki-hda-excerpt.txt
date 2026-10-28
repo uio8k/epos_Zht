@@ -1,0 +1,159 @@
+OSDev wiki 摘录：Intel High Definition Audio
+================================================
+
+来源 URL : https://wiki.osdev.org/Intel_High_Definition_Audio
+页面版本 : oldid=30627
+页面自述 : "This page or section is a work in progress and may thus be incomplete."
+最后编辑 : 2026-05-26 15:09
+抓取时间 : 2026-10-28（Edge 通道，playwright-edge，DOM innerText 逐字摘录）
+抓取说明 : 首次访问返回 Cloudflare 403（Just a moment...），等待约 6 秒后自动放行。
+           本文件只抄录原文，不改写；方括号内为摘录者标注。
+
+摘录用途 : docs/tech-plan-hda.md 的依据链；凡本文未覆盖的条目，方案中标注「依据 Intel HDA 规范 1.0a，非 wiki」。
+
+
+一、GCAP（0x00, 4 bytes）Global Capabilities
+--------------------------------------------
+Bits   Description
+15:12  Number of Output streams
+11:8   Number of Input streams
+7:3    Number of Bidirectional streams
+0      1 = 64 bit addressing is supported
+
+[摘录者注：wiki 未列 NSDO（bits 2:1）与其余保留位；BSS 宽度按此表为 5 位（7:3），
+ 与规范常见的 3 位（5:3）表述不同。本文只采信 ISS/OSS 两段，BSS 仅用于算双向流基址且需复核。]
+
+
+二、GCTL（0x08, 2 bytes）Global Control
+----------------------------------------
+Bits   Description
+8      1 = Unsolicited responses from Codec are allowed
+0      0 = Controller is in reset state 1 = Controller is in operational state
+
+
+三、INTCTL（0x20, 4 bytes）Interrupt Control
+---------------------------------------------
+Bits   Description
+31     0 = All interrupts are disabled 1 = Interrupts are enabled
+30     1 = Controller will generate interrupt due to Response interrupt, Response Buffer overrun and wake events
+29:0   If is particular bit set, it mean that corresponding stream will be able to generate interrupts.
+       Bits for streams are sorted in order: Input Streams, Output Streams, Bidirectional streams.
+       So for example if there is one stream from each category, bit 0 will control Input Stream,
+       bit 1 Output Stream, bit 2 Bidirectional Stream. Unused bits are reserved.
+
+
+四、流描述符（0x80+）
+---------------------
+Sound card has as many Stream Descriptors as many streams it have. Registers of every Stream Control
+occupies 0x20 bytes. As first there are Stream Descriptors for Input Streams, then for Output Streams
+and then for Bidirectional Streams. Number of streams can be readed from 0x00 Global Capabilities register.
+
+For example, if there are 4 Input Streams, 3 Output Streams and 1 Bidirectional Stream, base address for
+registers of first Stream Descriptor for Input Stream is at (mmio_base + 0x80), first Stream Descriptor for
+Output Stream is at (mmio_base + 0x80 + 0x20*4) and first Stream Descriptor for Bidirectional Stream is at
+(mmio_base + 0x80 + 0x20*4 + 0x20*3).
+
+Offset  Size     Description
+0x00    1 byte   Stream Control byte 0
+0x02    1 byte   Stream Control byte 2
+0x03    1 byte   Stream Status
+0x04    4 bytes  Link position in buffer entry
+0x08    4 bytes  Cyclic Buffer Length (size of all entries in Buffer Descriptor List added together)
+0x0C    2 bytes  Last Valid Index (number of entries in Buffer Descriptor List + 1)
+0x12    2 bytes  Stream Format
+0x18    4 bytes  Lower Base Address of Buffer Descriptor List
+0x1C    4 bytes  Upper Base Address of Buffer Descriptor List
+
+Stream Control byte 0
+Bits   Description
+4      1 = Generate interrupt if there is Descriptor error
+3      1 = Generate interrupt if there is FIFO error
+2      1 = Generate interrupt if was transferred buffer with IOC bit set
+1      1 = Stream is running (transferring data)
+0      1 = Reset all registers of Stream Descriptor, must not be set when Stream is running
+       (this bit is not self-clearing, you have to wait for it to be set, then clear it and wait for it to be clear)
+
+Stream Control byte 2
+Bits   Description
+7:4    Number of stream to which this Stream Descriptor will send data. Value 0 is reserved and indicate
+       that this Stream Descriptor is unused.
+3      Relevant only for Bidirectional streams to set their behaviour 0 = Select Input engine 1 = Select Output engine
+2      This bit may be read-only. 0 = Stream will be handled on "best effort" basis
+       1 = Stream will be transferred as preferred traffic
+
+[摘录者注：LVI 一行写作「number of entries + 1」，与 Intel HDA 规范（LVI = 条目数 - 1）
+ 及现有驱动实现均冲突，属 wiki 笔误，方案不采信。]
+
+
+五、BDL（"Playing Audio" → "Create Buffer Descriptor List"）
+-------------------------------------------------------------
+Buffer Descriptor List has to be 1 KB aligned, what mean that first seven bits must be zero.
+It has to contain at least 2 entries. Every entry is 16 bytes long and has following format:
+
+Offset  Length   Description
+0x00    8 bytes  Address of Audio Data
+0x08    4 bytes  Length of Audio Data in bytes
+0x0C    4 bytes  Bit 0 = IOC (Interrupt On Completion), if set, interrupt will be generated after
+                 transferring this entry. Rest is reserved.
+
+NOTE: Sound Card will read Buffer Descriptor List data directly from RAM memory, so you have to be sure,
+that you really wrote it into RAM memory and not only to processor cache. You can do it by flushing
+processor cache by assembly command "wbinvd"
+
+
+六、流启动顺序（"Set Stream Descriptor"）
+------------------------------------------
+Now you have to select Stream Descriptor that you do not already use and program it to transfer your
+Buffer Descriptor List.
+
+(1) Stop Stream Descriptor (clear bit 1 in Control register)
+(2) Reset Stream Descriptor (set bit 0 in Control register, wait until it is set, then clear it and wait
+    until it is cleared)
+(3) Write Buffer Descriptor List physical address
+(4) Add up length of all entries in Buffer Descriptor List and write it to register
+(5) Set number of Buffer Descriptor List entries
+(6) Set Stream Format register by same format you sended to Audio Output node
+(7) Set number of stream you want to use for streaming data (in byte 2 of Control register)
+(8) Start transfer (set bit 1 in Control register)
+
+
+七、初始化相关（"Initalizing CODEC" → "Setting up the AFG codec"）
+-------------------------------------------------------------------
+"Here's an suggestion as to how the initial task might be broken down, but use it only as a rough guide:-"
+
+(9) Set up the paths you want to use by setting an intitial volume/gain and turning off the mutes at every
+    widget in the chain wherever there is one needing to be set. Use verb 2h to set Format for any DACs and
+    ADCs you're going to use, and verb 706h to set the stream and the lowest channel. Verb 707 must be used
+    to enable input/output at the pins (and read up on VrefEn for mic.s, if you can find any good information
+    on this - I'm still searching for it). Remember to set Unsol for the jacks too if you want pins to report
+    headphones/microphone being plugged in or removed, but you can poll them if you prefer.
+
+(11) Set EAPD to enable the external amp for the speakers.
+
+[摘录者注：第 (10) 条是音量控件建模，与本文无关，未抄。]
+
+相关 verb 表原文（节选）：
+Hex   Command                          Notes
+F00   Get Parameter                    Data is number of requested parameter
+F02   Get Connection List Entry
+701   Set Selected Input
+705   Set Power State                  0 in data mean full power
+706   Set Converter Stream, Channel
+707   Set Pin Widget Control
+F09   Get Pin Widget Sense             Used to detect if headphone/microphone is plugged into Pin
+70C   Set EAPD/BTL
+F1C   Get Pin Widget Configuration Default
+72D   Set Output Converter Channel Count
+7FF   Audio Function Node Reset         Reset all nodes in particular Audio Function Group
+0x3   Set Amplifier Gain               (16-bit payload)
+0x2   Set Stream Converter Format      (16-bit payload) Data have same format as Stream Format register
+
+
+八、wiki 未覆盖的条目（方案须另行取证）
+---------------------------------------
+1. VrefEn 的编码（pin widget control bits 3:0 的取值含义）——wiki 原话即「我也没找到资料」。
+2. EAPD 的 payload 位（0x70C 的 data 里哪一位是 EAPD、哪一位是 BTL）。
+3. 每个 widget 开启 unsolicited response 的 verb 号与其 tag 字段布局（wiki 未列该 verb，仅提到
+   GCTL bit8 与「记得给 jack 设 Unsol」）。
+4. "Initalizing sound card" 整节正文只有 "TODO"。
+5. 缓冲区地址的对齐粒度（BDL 本身要求 1KB，条目指向的 PCM 缓冲区是否另有对齐要求）wiki 未说明。

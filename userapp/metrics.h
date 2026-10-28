@@ -37,6 +37,12 @@ void met_analyze(const short *s, int n, double rate, met_result *out);
 /* 只在 [kmin, kmax] 内找 Hann 窗 DFT 幅度峰，返回 bin 号；用于 B4。 */
 int met_peak_bin(const short *s, int n, double rate, int kmin, int kmax);
 
+/* 判定阈值。当前取值来自宿主声卡回环（板载渲染 -> 立体声混音 -> dsound 采集），
+   只覆盖「已知好」的一侧；定稿要等 P01 治具的 3.5mm 电气回环与失真样本。
+   在此之前这两个数是临时值，不是产品规格。 */
+#define MET_THD_N_MAX_PCT   1.0   /* THD+N 上限（%），临时值，待真机定稿 */
+#define MET_SNR_MIN_DB     60.0   /* SNR 下限（dB），临时值，待真机定稿 */
+
 /* 判定行语义（B5 的纯函数部分）：静音优先于 PASS。 */
 int met_verdict(double rms, double thd_n_pct, double snr_db);
 

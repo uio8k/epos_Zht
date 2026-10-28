@@ -21,9 +21,12 @@
 #include <time.h>
 #ifdef TEST_CAPTURE
 #include <audio_capture.h>
+#include "metrics.h"
+#include "segment.h"
 #endif
 #include "graphics.h"
 #include "melody_player.h"
+#include "vga8.h"
 
 extern int vm86call(int fintr, uint32_t n, struct vm86_context *vm86ctx);
 
@@ -37,23 +40,7 @@ extern void *g_heap;
 #define BAR_MAX     200         /* 数值上限 */
 /* 柱高缩放改为动态计算 bar_scale()（见下方），保证不同分辨率下柱子填满屏幕 */
 
-/* VBE 8-bit(256色) 模式候选 */
-static const int g_modes[] = { 0x101, /* 640x480x8 */
-                               0x103, /* 800x600x8 */
-                               0x100, /* 640x400x8 */
-                               0x105  /* 1024x768x8 */
-                             };
-#define N_MODES (int)(sizeof(g_modes)/sizeof(g_modes[0]))
-
-/* 调色板索引 */
-#define COL_BG      0   /* 黑 */
-#define COL_WHITE   1   /* 白 */
-#define COL_GREEN   2   /* 绿 */
-#define COL_RED     3   /* 红 */
-#define COL_YELLOW  4   /* 黄 */
-#define COL_BLUE    5   /* 蓝 */
-#define COL_GRAD_START 6   /* 渐变起始索引 */
-#define COL_GRAD_END   250 /* 渐变结束索引 */
+/* VBE 模式候选、调色板索引、进模式与画字都在 vga8.c（两条路径共用） */
 
 static int g_gfx_ok = 0;    /* 图形模式是否进入成功 */
 static int a[N];            /* 待排序数组 */
@@ -65,76 +52,6 @@ static uint32_t next_rand(void)
 {
     g_seed = g_seed * 1103515245u + 12345u;
     return (g_seed >> 16) & 0x7fff;
-}
-
-/* ================= 256 色渐变调色板 ================= */
-/* t in [0,1000): 蓝->青->绿->黄->红 */
-static void rgb_from_t(int t, int *r, int *g, int *b)
-{
-    if (t < 200)      { *r=0;   *g=255*t/200;      *b=255; }
-    else if (t < 400) { *r=0;   *g=255;            *b=255-255*(t-200)/200; }
-    else if (t < 600) { *r=255*(t-400)/200; *g=255; *b=0; }
-    else if (t < 800) { *r=255; *g=255-255*(t-600)/200; *b=0; }
-    else              { *r=255; *g=0;              *b=255*(t-800)/200; }
-}
-
-static void set_palette(void)
-{
-    /* 把 256 项 RGB 表写到 vm86_init() 已映射为可写的低内存 0xE8000
-       （QEMU 中 0xE8000-0xEFFFF 是 pc.ram，且 vm86.c 已 L2E_V|L2E_W|L2E_U 映射），
-       再通过 vm86 int 0x10 AX=0x1002 写入 VGA DAC。
-       注意：不能用 mmap(0x60000)，因为 vm86 仿真器按线性地址访问，
-       0x60000 未映射会导致页错误。 */
-    uint8_t *pal = (uint8_t *)0xE8000;
-    for (int i = 0; i < 256; i++) {
-        int r = 0, g = 0, b = 0;
-        if (i == COL_BG)         { r=0;   g=0;   b=0; }
-        else if (i == COL_WHITE) { r=255; g=255; b=255; }
-        else if (i == COL_GREEN) { r=0;   g=255; b=0; }
-        else if (i == COL_RED)   { r=255; g=0;   b=0; }
-        else if (i == COL_YELLOW){ r=255; g=255; b=0; }
-        else if (i == COL_BLUE)  { r=0;   g=0;   b=255; }
-        else {
-            int t = (i - COL_GRAD_START) * 1000 /
-                    (COL_GRAD_END - COL_GRAD_START);
-            rgb_from_t(t, &r, &g, &b);
-        }
-        pal[i*3+0] = (uint8_t)(r >> 2);   /* VGA DAC 是 6-bit */
-        pal[i*3+1] = (uint8_t)(g >> 2);
-        pal[i*3+2] = (uint8_t)(b >> 2);
-    }
-    struct vm86_context vm86ctx = { .ss = 0x0000, .esp = 0x1000 };
-    vm86ctx.eax = 0x1002;      /* 设置全部 256 个调色板寄存器 */
-    vm86ctx.es  = 0xE800;
-    vm86ctx.edx = 0x0000;
-    if (vm86call(1, 0x10, &vm86ctx) != 0)
-        printf("[VGA] palette set via vm86 FAILED\r\n");
-    else
-        printf("[VGA] 256-color palette set OK\r\n");
-}
-
-/* ================= 进入 VGA 8-bit 图形模式 ================= */
-static int enter_vga8(void)
-{
-    printf("[VGA] Entering VGA 8-bit (256-color) graphics mode...\r\n");
-    for (int m = 0; m < N_MODES; m++) {
-        int mode = g_modes[m];
-        printf("[VGA] trying VBE mode 0x%04x ... ", mode);
-        if (init_graphic(mode) == 0) {
-            printf("OK (%dx%dx%d)\r\n",
-                   g_graphic_dev.XResolution,
-                   g_graphic_dev.YResolution,
-                   g_graphic_dev.BitsPerPixel);
-            set_palette();
-            printf("[VGA] FrameBuffer=0x%08x size=%u bytes\r\n",
-                   (uint32_t)g_graphic_dev.FrameBuffer,
-                   g_graphic_dev.FrameBufferSize);
-            return 0;
-        }
-        printf("failed\r\n");
-    }
-    printf("[VGA] No 8-bit graphics mode available!\r\n");
-    return -1;
 }
 
 /* ================= 柱状图绘制 ================= */
@@ -590,9 +507,12 @@ static void cap_meter_feed(const char *tag, struct cap_meter *m,
 }
 
 /* 从已启动的采集里取满 expect 字节；返回实际字节数，统计由内核回填到 st。
-   每 20ms 读一次，轮次上限按「每次最多拿到的量」留一倍余量，避免录不到时死等。 */
+   每 20ms 读一次，轮次上限按「每次最多拿到的量」留一倍余量，避免录不到时死等。
+   mono/mono_used/mono_cap 是可选出参：给缓冲区时顺手把左声道下混成单声道留下，
+   供后续裁段与指标计算；给 NULL 时行为与改造前完全一致（边读边丢）。 */
 static uint32_t cap_drain(const char *tag, uint32_t expect,
-                          struct audio_capture_stats *st, struct cap_meter *m)
+                          struct audio_capture_stats *st, struct cap_meter *m,
+                          short *mono, int *mono_used, int mono_cap)
 {
     struct timespec ts;
     uint8_t *buf = (uint8_t *)malloc(CAP_CHUNK);
@@ -607,6 +527,15 @@ static uint32_t cap_drain(const char *tag, uint32_t expect,
         if (n > 0) {
             total += (uint32_t)n;
             cap_meter_feed(tag, m, buf, (uint32_t)n);
+            if (mono != NULL && mono_used != NULL) {
+                uint32_t step = 2 * CAP_CH;
+                for (uint32_t off = 0;
+                     off + step <= (uint32_t)n && *mono_used < mono_cap;
+                     off += step) {
+                    mono[(*mono_used)++] =
+                        (short)(int16_t)(buf[off] | (buf[off + 1] << 8));
+                }
+            }
         }
         if (total >= expect)
             break;
@@ -616,6 +545,103 @@ static uint32_t cap_drain(const char *tag, uint32_t expect,
     }
     free(buf);
     return total;
+}
+
+/* 大字展示：串口行已经打出，这里只把同一结论搬上屏幕。
+   顺序不能换——字库必须在切 VBE 之前取。任何一步失败只告警，不回滚判定。 */
+static void cap_show_verdict(const char *result, double f0, double rms,
+                             double thd_n, double snr)
+{
+    char line[96];
+    int  scale = 6;
+    int  x, y, w;
+    unsigned char color;
+
+    if (vga8_font_load() != 0) {
+        printf("[VGA] big text skipped: no font\r\n");
+        return;
+    }
+    if (vga8_enter() != 0) {
+        printf("[VGA] big text skipped: no mode\r\n");
+        return;
+    }
+
+    color = (result[0] == 'P') ? COL_GREEN
+          : ((result[0] == 'S') ? COL_YELLOW : COL_RED);
+
+    w = 8 * scale * (int)strlen(result);
+    x = (g_graphic_dev.XResolution - w) / 2;
+    y = g_graphic_dev.YResolution / 5;
+    if (x < 0)
+        x = 0;
+    vga8_text(result, x, y, scale, color, COL_BG);
+
+    snprintf(line, sizeof(line), "f0=%.0f rms=%.0f thdn=%.1f%% snr=%.1f",
+             f0, rms, thd_n, snr);
+    w = 8 * 2 * (int)strlen(line);
+    x = (g_graphic_dev.XResolution - w) / 2;
+    y = y + 16 * scale + 40;
+    if (x < 0)
+        x = 0;
+    vga8_text(line, x, y, 2, COL_WHITE, COL_BG);
+
+    printf("[VGA] verdict shown: %s\r\n", result);
+}
+
+/* 单行判定：AUDIO_VERDICT v=1 result=... f0= rms= thd_n= snr= peak= silent=
+   格式固定，评测脚本按行首正则取字段。失败也出行（带 rc=），否则脚本没法
+   区分「没跑到」和「跑了但不合格」。串口这行是唯一判据，屏幕只是展示。 */
+static void cap_verdict_line(const short *mono, int frames,
+                             const struct audio_capture_stats *st)
+{
+    int start = 0, len = 0, rc;
+    met_result mr;
+    const char *result = "FAIL";
+    double f0 = 0.0, rms = 0.0, thd_n = 0.0, snr = 0.0;
+
+    if (mono == NULL || frames <= 0) {
+        printf("AUDIO_VERDICT v=1 result=FAIL f0=0.0 rms=0.0 thd_n=0.0 "
+               "snr=0.0 peak=%u silent=0 rc=-1\r\n", st->peak);
+        return;
+    }
+
+    rc = seg_find_span(mono, frames, seg_thresh_for_peak((int)st->peak),
+                       &start, &len);
+    if (rc != 0) {
+        result = (rc == -2) ? "SILENT" : "FAIL";
+        printf("AUDIO_VERDICT v=1 result=%s f0=0.0 rms=0.0 thd_n=0.0 "
+               "snr=0.0 peak=%u silent=%d rc=%d\r\n",
+               result, st->peak, (rc == -2) ? 1 : 0, rc);
+    } else {
+        /* 只算能量最高的一个分析窗，不拿整段：采集里除参考音还有底噪与
+           宿主其它声源，整段做 THD+N 会把它们全算成失真（实测 7884%）。
+           窗长 8192 ≈ 186ms，1kHz 有 186 个周期，频率分辨率足够。 */
+        const short *seg = mono + start;
+        int alen = len;
+        int off  = 0;
+
+        if (len > SEG_ANALYZE_SAMPLES &&
+            seg_find_loudest(seg, len, SEG_ANALYZE_SAMPLES, &off) == 0) {
+            seg  += off;
+            alen  = SEG_ANALYZE_SAMPLES;
+        }
+
+        memset(&mr, 0, sizeof(mr));
+        met_analyze(seg, alen, CAP_RATE, &mr);
+        f0    = mr.f0_hz;
+        rms   = mr.rms;
+        thd_n = mr.thd_n_pct;
+        snr   = mr.snr_db;
+
+        int v = met_verdict(mr.rms, mr.thd_n_pct, mr.snr_db);
+        result = (v == MET_PASS) ? "PASS" : ((v == MET_SILENT) ? "SILENT" : "FAIL");
+        printf("AUDIO_VERDICT v=1 result=%s f0=%.1f rms=%.1f thd_n=%.1f "
+               "snr=%.1f peak=%u silent=%d\r\n",
+               result, f0, rms, thd_n, snr, st->peak,
+               (v == MET_SILENT) ? 1 : 0);
+    }
+
+    cap_show_verdict(result, f0, rms, thd_n, snr);
 }
 
 static void cap_report(const char *tag, uint32_t total, uint32_t expect,
@@ -691,11 +717,19 @@ static void run_capture_test(void)
     rc = audio_capture_start(CAP_RATE, CAP_CH, CAP_BITS, 1000);
     printf("[CAP-A] start rc=%d\r\n", (int)rc);
     if (rc == 0) {
+        /* A 用例保留 1 秒单声道 PCM（86KB），供裁段与指标计算用；
+           分配失败不致命，cap_verdict_line 会走 rc=-1 分支照常出行。 */
+        int   mono_cap  = CAP_RATE;
+        int   mono_used = 0;
+        short *mono = (short *)malloc((size_t)mono_cap * sizeof(short));
+
         cap_sleep_ms(200);
         cap_play_tone(CAP_TONE_MS);
-        total = cap_drain("A", bps, &st, &m);
+        total = cap_drain("A", bps, &st, &m, mono, &mono_used, mono_cap);
         printf("[CAP-A] stop rc=%d\r\n", audio_capture_stop());
         cap_report("A", total, bps, &st, &m);
+        cap_verdict_line(mono, mono_used, &st);
+        free(mono);
     }
 
     /* B：3 秒，529200 字节 > 256KB → 缓冲升到 512KB，LPIB 应绕回 1 次 */
@@ -704,7 +738,7 @@ static void run_capture_test(void)
     rc = audio_capture_start(CAP_RATE, CAP_CH, CAP_BITS, 3000);
     printf("[CAP-B] start rc=%d\r\n", (int)rc);
     if (rc == 0) {
-        total = cap_drain("B", bps * 3, &st, &m);
+        total = cap_drain("B", bps * 3, &st, &m, NULL, NULL, 0);
         printf("[CAP-B] stop rc=%d\r\n", audio_capture_stop());
         cap_report("B", total, bps * 3, &st, &m);
     }
@@ -755,7 +789,7 @@ void main(void *pv)
         a[i] = BAR_MIN + (int)(next_rand() % (BAR_MAX - BAR_MIN + 1));
 
     /* 2. 进入 VGA 8-bit 图形模式 */
-    if (enter_vga8() == 0) {
+    if (vga8_enter() == 0) {
         g_gfx_ok = 1;
         printf("[VGA] graphics mode entered, drawing bar chart\r\n");
     } else {

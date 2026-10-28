@@ -237,7 +237,7 @@ int met_verdict(double rms, double thd_n_pct, double snr_db)
 {
     if (rms < 1.0)
         return MET_SILENT;
-    if (thd_n_pct < 1.0 && snr_db > 60.0)
+    if (thd_n_pct < MET_THD_N_MAX_PCT && snr_db > MET_SNR_MIN_DB)
         return MET_PASS;
     return MET_FAIL;
 }

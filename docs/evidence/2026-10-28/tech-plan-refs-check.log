@@ -1,0 +1,55 @@
+﻿== tech-plan-hda.md 引用核对  基线 HEAD 209a1a6  2026-10-28 23:03 ==
+-- 命令：Select-String -Path <文件> -Pattern '<各条关键行>'，逐条输出 行号+原文
+-- 说明：首次生成时 Tee-Object 写成 UTF-16 且串口段被 PowerShell 格式化成对象，本文件按同一批实测输出重排为纯文本，行号与原文未改动。
+
+kernel/hda.c:28	#define HDA_DMA_BASE  0x400000
+kernel/hda.c:36	uint32_t pa = frame_alloc_in_addr(hda_dma_next, pages);
+kernel/hda.c:79	/* 用 IC（Immediate Command）寄存器发送 verb，绕过 CORB DMA！
+kernel/hda.c:165	printk("HDA: GCAP=0x%04x v%d.%d (OSS=%u ISS=%u BSS=%u)\r\n",
+kernel/hda.c:167	gcap & 0xF, (gcap >> 4) & 0xF, (gcap >> 8) & 0xF);
+kernel/hda.c:178	hda_writel(HDA_GCTL, hda_readl(HDA_GCTL) | HDA_GCTL_CRST | HDA_GCTL_UNSOL);
+kernel/hda.c:185	hda_writel(HDA_INTCTL, 0x80000000);   /* GIE=1 (bit 31) */
+kernel/hda.c:223	hda_send_verb(cad, g_hda.output_pin,  HDA_VERB_SET_PIN_WIDGET_CTRL | 0x40);
+
+kernel/hda.h:58	#define HDA_SD_BASE(n)      (0x80 + (n) * 0x20)
+kernel/hda.h:66	#define HDA_OUTPUT_STREAM   4
+kernel/hda.h:71	#define HDA_INPUT_STREAM    0
+kernel/hda.h:72	#define HDA_INPUT_TAG       1
+kernel/hda.h:122	/* 条目上限：LVI 为 8 位（0-255），即最多 256 条目。连续流按 4KB 分段，
+kernel/hda.h:124	#define HDA_BDL_ENTRIES     256
+kernel/hda.h:127	struct hda_bdl_entry {
+kernel/hda.h:150	struct hda_dev {
+kernel/hda.h:156	struct hda_bdl_entry *bdl;  /* BDL 虚拟地址 */
+kernel/hda.h:209	#define HDA_PARAM_AUDIO_WIDGET_CAP   0x09
+kernel/hda.h:230	#define HDA_CFG_DEVICE_MIC_IN     0xA       /* Mic In */
+kernel/hda.h:233	输入使能是 bit5；bits 4:2 是 VREF，本轮置 0（Hi-Z）。 */
+
+hda_stream.c:48	#define HDA_CONT_SEG_STREAM 0x4000
+hda_stream.c:504	g_hda.bdl[i].flags   = 0x01;   /* IOC：条目完成即中断 */
+hda_stream.c:519	hda_writel(HDA_SD_BDPL(HDA_OUTPUT_STREAM), bdl_phys);
+hda_stream.c:522	hda_writew(HDA_SD_LVI(HDA_OUTPUT_STREAM), bdl_entries - 1);
+hda_stream.c:538	hda_writeb(HDA_SD_CTL(HDA_OUTPUT_STREAM) + 2, (uint8_t)(HDA_OUTPUT_STREAM << 4));
+hda_capture.c:24	#define HDA_CAP_SEG     0x1000   /* 每条 4KB：256KB→64 条，512KB→128 条 */
+hda_capture.c:304	g_cap_bdl[i].flags   = 0;
+hda_capture.c:311	hda_writel(HDA_SD_BDPL(HDA_INPUT_STREAM), g_cap_bdl_pa);
+hda_capture.c:314	hda_writew(HDA_SD_LVI(HDA_INPUT_STREAM), (uint16_t)(entries - 1));
+hda_capture.c:359	HDA_VERB_SET_CONVERTER_STREAM_CHANNEL | (HDA_INPUT_TAG << 4));
+hda_capture.c:383	hda_writeb(HDA_SD_CTL(HDA_INPUT_STREAM) + 2, (uint8_t)(HDA_INPUT_TAG << 4));
+
+qemu-serial.log:31	HDA: GCAP=0x4401 v1.0 (OSS=1 ISS=0 BSS=4)
+qemu-serial.log:33	HDA: GCTL=0x00000101 (CRST=1)
+qemu-serial.log:35	HDA: INTCTL set to 0x80000000
+
+== 核对结论 ==
+hda.c / hda.h / hda_stream.c / hda_capture.c 的全部「文件:行号」与基线一致（上文逐条原文即证据）。
+串口引文：GCAP 在 qemu-serial.log:31、GCTL 在 :33、INTCTL 在 :35。初稿写 :16/:17，是 ripgrep 与 PowerShell 对 CR 行尾计数不同造成的偏差。
+
+== 本轮按实测订正（只改文档） ==
+C1 qemu-serial.log:16 -> :31（GCAP 引文）
+C2 qemu-serial.log:17 -> :33（GCTL 引文）；正文「第 17 行会变」-> 「第 33 行会变」
+C3 hda.c:47-54 -> hda.c:79-82：IC 绕过 CORB 的注释在 hda_send_verb 里，47-54 是 hda.h 的 IC 寄存器宏，原引用张冠李戴
+C4 hda.c:33-45 补注起始宏位置 hda.c:28（HDA_DMA_BASE 0x400000）
+C5 「run_tests.bat 接第 4 段」改写为「新增一段，接在已停用的计划自洽校验之后」（run_tests.bat:52-54 有停用注释）
+
+== 未验证项 ==
+wiki 引文均取自 docs/evidence/2026-10-28/wiki-hda-excerpt.txt，未与 Intel 规范印刷版逐字比对；EAPD payload、VREFEN 编码、Unsol verb 布局在方案第 11 章按置信度标注，未标为确定结论。
