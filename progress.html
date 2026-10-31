@@ -362,7 +362,7 @@ footer p{max-width:none}
       <thead><tr><th>层</th><th>入口</th><th>覆盖</th><th>预算</th><th>状态</th></tr></thead>
       <tbody>
         <tr><td>L1</td><td><code>make test</code></td><td>codec 配置层（verb 构造、分级回读、连接列表长短格式、amp 方向位）+ 指标纯函数（f0/RMS/THD/SNR、频谱 bin）+ 播放拓扑发现（profile 命中、DFS 路径、长链与成环）+ 有效段裁剪与分析窗（8 条）+ BDL 合规断言（六类负码与边界，10 条）</td><td>&lt;2s</td><td><span class="badge">部分 · 36 测试 / 5 段</span></td></tr>
-        <tr><td>L2</td><td><code>make qtest</code></td><td>流与缓冲：BDL/CBL/LVI、RUN、LPIB 推进与环绕回、BCIS</td><td>数秒</td><td><span class="badge">未开始</span></td></tr>
+        <tr><td>L2</td><td><code>make qtest</code></td><td>流与缓冲：BDL/CBL/LVI、RUN、LPIB 推进与环绕回、BCIS（U-L2-01/02 已落地；BCIS 后置）</td><td>数秒</td><td><span class="badge">部分 · 2 用例 / 15 断言</span></td></tr>
         <tr><td>L3</td><td><code>make full</code></td><td>整机 <code>none</code> 后端：syscall 往返、WAV 读取、重复 start 幂等</td><td>&lt;60s</td><td><span class="badge">未开始</span></td></tr>
         <tr><td>L4</td><td>COM1 自检</td><td>目标机启动自检：分配器、信号量、tick、HDA 探测</td><td>&lt;2s</td><td><span class="badge">未开始</span></td></tr>
         <tr><td>L5</td><td>手动 3.5mm</td><td>真实样本回环：峰值、overruns、与离线指标比对</td><td>不计</td><td><span class="badge">部分 · 仅宿主回环</span></td></tr>
@@ -378,12 +378,12 @@ footer p{max-width:none}
       </label>
       <span class="state">已完成</span>
     </li>
-    <li class="item" data-id="P09" data-stage="0" data-done="0">
-      <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-P09"></span>
+    <li class="item" data-id="P09" data-stage="0" data-done="1">
+      <span class="check" role="checkbox" aria-checked="true" tabindex="0" aria-labelledby="l-P09"></span>
       <label class="label" id="l-P09">L2 qtest：不启动 OS，寄存器级验 BDL 链、RUN 位、LPIB 环绕回
-        <span class="ev">依据：无 —— 上游 intel-hda-test.c 只测初始化，需自建最小可行用例</span>
+        <span class="ev">依据：docs/evidence/2026-10-31/qtest-run.log（15 PASS / 0 FAIL，exit=0）。tests/qtest_client.py：qtest tcp 行客户端（:118）+ PCI 扫描（00:02.0）+ BAR 自适应（SeaBIOS 代配 0xfebfc000）+ ICS verb 路径（:239）+ U-L2-01（:283，BDL/CBL/LVI/BDP/tag 回读 + RUN 置清）+ U-L2-02（:303，LPIB 推进/环绕 1 次/停流冻结）。U1 定论：本地 3.1.50 未编 qtest accelerator（"No accelerator found"，:85），clock_step 不可用，改运行中的机器 + 真实时间驱动（上游 ich6_test 同模式）；codec 绑定 tag=0（无 verb 时 st->stream=0，intel_hda_xfer 按 ctl&gt;&gt;20 匹配）。make test 36 条不退化；方案 docs/tech-plan-qtest.md（§10 落地记录）</span>
       </label>
-      <span class="state">待做</span>
+      <span class="state">已完成</span>
     </li>
     <li class="item" data-id="P10" data-stage="0" data-done="0">
       <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-P10"></span>
@@ -420,7 +420,7 @@ footer p{max-width:none}
         <tr><td>U-L1-06…10</td><td>L1</td><td><span class="badge ok">已实现</span></td><td>指标纯函数，对 Python 参照全绿；未接入采集流程</td></tr>
         <tr><td>U-L1-04</td><td>L1</td><td><span class="badge ok">已实现</span></td><td>QEMU profile 命中 + 未知机型走 DFS，8 条用例覆盖（含长链与成环防御）</td></tr>
         <tr><td>U-L1-05</td><td>L1</td><td><span class="badge">空着</span></td><td>等真机 codec dump；未命中 profile 时打 <code>SKIP</code>，不假装发现</td></tr>
-        <tr><td>U-L2-01 / 02</td><td>L2</td><td><span class="badge">空着</span></td><td>qtest 骨架未建；「不启 OS 操作 BDL」这个前提本身还没验证</td></tr>
+        <tr><td>U-L2-01 / 02</td><td>L2</td><td><span class="badge ok">已实现</span></td><td>make qtest 15 PASS / 0 FAIL（docs/evidence/2026-10-31/qtest-run.log）；BCIS 中断用例后置</td></tr>
         <tr><td>U-L3-01 / 02</td><td>L3</td><td><span class="badge">空着</span></td><td>make full 目标未建，需 QEMU none 后端整机跑通</td></tr>
         <tr><td>U-L4-01</td><td>L4</td><td><span class="badge">受真机阻塞</span></td><td>需 OptiPlex + COM1 自检，治具未到位</td></tr>
         <tr><td>U-L5-01</td><td>L5</td><td><span class="badge ok">已实现</span></td><td>宿主声卡回环（P12），两轮 4/4 PASS；<b>不等于治具验证</b></td></tr>
@@ -429,7 +429,7 @@ footer p{max-width:none}
     </table>
     </div>
   </div>
-  <p class="small" style="margin-top:10px">已实现 10/17 条；其余 7 条按上表原因留空，<b>不写占位测试</b>——空着的用例不会假装通过。</p>
+  <p class="small" style="margin-top:10px">已实现 12/17 条；其余 5 条按上表原因留空，<b>不写占位测试</b>——空着的用例不会假装通过。</p>
 </section>
 
 <footer>
@@ -439,6 +439,8 @@ footer p{max-width:none}
   <p>另一台设备 <code>git pull</code> 后直接打开即看到同一状态。约定：勾选集中在主力机，另一台只读；若两边都改，冲突时按条目并集手工保留。</p>
   <h2 style="font-size:13px;margin-top:20px">变更记录</h2>
   <ul class="list">
+    <li><b>2026-10-31</b> P09 L2 qtest 落地：tests/qtest_client.py（qtest tcp 行客户端，PCI 扫描不硬编码 BDF、BAR 自适应——运行中的 SeaBIOS 已代配 0xfebfc000、ICS verb 路径与内核 hda_send_verb 同款）+ 根 Makefile qtest 目标（uv 直调，无 watcher/bat，D10）。U-L2-01：BDL/CBL/LVI/BDP/tag 写读回 + RUN 置清，9 断言全绿；U-L2-02：LPIB 推进、环绕回 1 次、停流冻结。U1 定论：本地 3.1.50 w 构建未编 qtest accelerator（"No accelerator found"），clock_step 不可用——机器不冻结、真实时间驱动（上游 ich6_test 同模式），已回写 tech-plan-qtest.md §5.1/§8/§10。codec 绑定实测：清洁 verb 绑定（tag=1）不推进，tag=0（无 verb 时 codec 默认 st->stream=0，intel_hda_xfer 按 ctl&gt;&gt;20 匹配）实测 300ms 推进 ~62KB，客户端内置组合回退留痕。make qtest 15 PASS/0 FAIL；make test 36 条不退化。证据：qtest-run.log（PS 捕获中文曾按 GBK 解码乱码，OutputEncoding=UTF8 修复重落）+ refs-check-p09 全 PASS。BCIS 中断用例后置。</li>
+    <li><b>2026-10-31</b> 调研轮（不改代码）：新立长期约定「每项工作动代码前先上 Gitee/osdev wiki 调研」，已写入外层 AGENTS.md 规则表。本轮产出：①新建 docs/tech-plan-qtest.md（P09 方案）——「不启 OS 操作 BDL」前提三路互证成立：[Gitee: tests/qtest/intel-hda-test.c] test_issue542_ich6 先例（0xcf8/0xcfc 使能+自配 BAR+bufwrite 直访 MMIO）、本地 QEMU 3.1.50 qtest tcp 探针 23 条命令全 PASS（PCI 扫描命中 00:02.0、BAR0 自配 0xE0000000、GCAP 读回 0x4401）、GCAP 三方一致（Gitee intel-hda.c:614 .reset=0x4401 / 探针 / 10-28 串口 ：31，行号 Select-String 裁决）；客户端定 Python stdlib + make qtest（D10），不确定项 6 条单列。②tech-plan-hda.md 增 §4.7 取证补充（intel-hda.c:579 output=stream>=4 一手行号；intel-hda-defs.h:19-20 VMIN@0x02/VMAJ@0x03 与内核同序，与规范常见表述的出入列 U3 待真机核对）并订正两处行号漂移（struct hda_dev 172-196）。③证据落 docs/evidence/2026-10-31/：gitee 摘录三份、qemu-capability-probe.log（含 v1 教训：inl 是 PIO 语义，读 MMIO 会崩连接，必须用 read/write 系列）、refs-check-research.log 27/27 PASS。本轮零代码改动；P09/P07-a 实现均下轮排期。</li>
     <li><b>2026-10-31</b> P06 BDL 合规断言落地：新建 <code>kernel/hda_bdl.c</code>（<code>hda_bdl_validate</code> 六类负码，检查序=码序，O(n) 只读，ok/reject 各打一行串口），两条 start 路径在 SRST 脉冲前接入（拒绝返回 <code>HDA_CONT_ERR_BDL(-4)</code> / <code>HDA_CAP_ERR_BDL(-13)</code>；validate 自身 0..-6 不上抛，避免与既有 -1..-3 撞车）；<code>_Static_assert(sizeof==16)</code> 进 hda.h；§5.6 的 LVI 注释订正落 hda.h 与 hda_stream.c 各一处。L1 新增第 5 段 <code>tests/test_bdl.c</code> 十条向量（OK+六负码+双侧边界，含原表漏掉的 ERR_ADDR），make test 36 条 5/5/8/8/10 全绿。两处已声明偏差：①tech-plan §5.5 的 T1–T4（GCAP 解码）属 P07-a，随 P07 落地，本次以十条纯 BDL 向量替代；②调用方错误码 tech-plan 未规定，补定为 -4/-13。串口证据（docs/evidence/2026-10-31/）：整曲 220s <code>BDL ok</code> 且 underruns=0；故意改坏段长打出 <code>BDL reject rc=-4</code> 后回退复绿；采集路径 A/B/C 三场景 BDL ok 且 [CAP-C] 契约 0/0/-2/0 不变。hda_tests --suite fast 的 QEMU 五用例（Q-SINE/Q-IMPULSE/Q-STEP/S-XRUN/D-TRACE）全 PASS；static 套件两处存量 FAIL（ST-ENUM-TABLE 缺 3 个 CAP trace case、ST-SYSCALL-NR 明细自相矛盾）经 stash 对照证实早于本次改动存在，suite 退出码 1 系其所致。另：run_all.bat 的中文 rem 行在部分 cmd 环境下解析即崩，证据日志按其实质命令（同一 uv 行）直调取得。</li>
     <li><b>2026-10-29</b> P05 判定输出落地：<code>metrics.o/segment.o/vga8.o</code> 进 a.out；采集 A 段保留单声道 PCM → 裁段 → 取能量最高分析窗（8192 样本）→ <code>met_analyze</code> → 单行 <code>AUDIO_VERDICT</code>；大字用 BIOS <code>int 10h 1130h</code> 字库放大 6 倍。L1 26 测试（新增 8 条裁段/分析窗），三种构建零新增告警。两个坑：VBE 下 <code>AX=1002h</code> 设调色板被忽略（改 <code>1012h</code>，回读 <code>dac[1]=3f3f3f</code> 才作数）；字库位序是 MSB 在左，按 LSB 画会镜像。采集回环本轮 G3 时红时绿（宿主端点回环不稳），判定行如实输出 FAIL，未改判据。</li>
     <li><b>2026-10-28</b> P06/P07 技术方案落地：<code>docs/tech-plan-hda.md</code>（wiki oldid=30627 取证、现状核对表、实施顺序、验收判据、不确定项）；③ 的 BDL 与控制器两行改「方案已定」；wiki 原文摘录存 <code>docs/evidence/2026-10-28/wiki-hda-excerpt.txt</code>。核对出两处代码错：GCAP 解码位段错、<code>HDA_OUTPUT_STREAM</code> 写死 4。</li>

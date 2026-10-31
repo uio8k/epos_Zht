@@ -1,0 +1,30 @@
+﻿command: PATH=<repo-bundled msys usr/bin> make qtest  (cwd=E:\ComputerScience\epos_Zht\epos_Zht)  [P09 实现轮；PS OutputEncoding=UTF8 修复捕获]
+"${HOME:-${USERPROFILE}}/.local/bin/uv.exe" run --no-project python tests/qtest_client.py
+== qtest 连接建立（QEMU pid=17944）==
+  intel-hda @ 00:02.0
+  [PASS] BAR0 有效（0xfebfc000，SeaBIOS 已分配）
+  [PASS] GCAP=0x4401（期望 0x4401：OSS=4 ISS=4）
+  out_sd=#4 (ISS=4) SD@0xfebfc100
+-- U-L2-01: BDL 链写读回 + RUN 位 --
+  intel-hda @ 00:02.0
+  [PASS] BAR0 有效（0xfebfc000，SeaBIOS 已分配）
+  [PASS] GCAP=0x4401（期望 0x4401：OSS=4 ISS=4）
+  out_sd=#4 (ISS=4) SD@0xfebfc100
+  [PASS] CBL 回读 0x40000
+  [PASS] LVI 回读 1
+  [PASS] BDPL 回读 0x300000
+  [PASS] BDPU 回读 0
+  [PASS] CTL tag 回读 1
+  [PASS] RUN 位置 1 读回
+  [PASS] RUN 清 0 读回
+-- U-L2-02: LPIB 推进与环绕回 --
+  verb resp: streamid=0x00000000 fmt=0x00000000
+  U1: start=0 real+300ms -> +0 bytes（期望 ~9600±，来自 2*ch*freq）
+  组合 tag=4 fmt=0x10: LPIB +0
+  组合 tag=0 fmt=0x00: LPIB +61792
+  [PASS] LPIB 真实时间推进（300ms 内有变化）
+  [PASS] LPIB 有推进（20/20 次采样变化）
+  [PASS] LPIB 环绕回 >=1 次（实测 1 次）
+  [PASS] 停 RUN 后 LPIB 冻结
+== 汇总：15 PASS，0 FAIL ==
+exit=0

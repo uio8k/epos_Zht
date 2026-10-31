@@ -1,0 +1,85 @@
+﻿Gitee QEMU 镜像摘录（tests/qtest/intel-hda-test.c 全文 81 行）
+URL:    https://gitee.com/mirrors/qemu/raw/master/tests/qtest/intel-hda-test.c
+抓取:   2026-10-31。要点：ich6_test 自述 Tests only initialization so far；
+        test_issue542_ich6 演示不启 OS 直接 0xcf8/0xcfc 使能 MEM/BME、自配 BAR0=0x6a44000、bufwrite 直访 MMIO。
+    1: /*
+    2:  * QTest testcase for Intel HDA
+    3:  *
+    4:  * Copyright (c) 2014 SUSE LINUX Products GmbH
+    5:  *
+    6:  * This work is licensed under the terms of the GNU GPL, version 2 or later.
+    7:  * See the COPYING file in the top-level directory.
+    8:  */
+    9: 
+   10: #include "qemu/osdep.h"
+   11: #include "libqtest-single.h"
+   12: 
+   13: #define HDA_ID "hda0"
+   14: #define AUDIODEV " -audiodev driver=none,id=audio0 "
+   15: #define AUDIODEV_REF "audiodev=audio0"
+   16: #define CODEC_DEVICES " -device hda-output,bus=" HDA_ID ".0," AUDIODEV_REF \
+   17:                       " -device hda-micro,bus=" HDA_ID ".0," AUDIODEV_REF \
+   18:                       " -device hda-duplex,bus=" HDA_ID ".0," AUDIODEV_REF
+   19: 
+   20: /* Tests only initialization so far. TODO: Replace with functional tests */
+   21: static void ich6_test(void)
+   22: {
+   23:     qtest_start(AUDIODEV "-machine pc -device intel-hda,id=" HDA_ID CODEC_DEVICES);
+   24:     qtest_end();
+   25: }
+   26: 
+   27: static void ich9_test(void)
+   28: {
+   29:     qtest_start("-machine q35"
+   30:                 AUDIODEV
+   31:                 "-device ich9-intel-hda,bus=pcie.0,addr=1b.0,id="
+   32:                 HDA_ID CODEC_DEVICES);
+   33:     qtest_end();
+   34: }
+   35: 
+   36: /*
+   37:  * https://gitlab.com/qemu-project/qemu/-/issues/542
+   38:  * Used to trigger:
+   39:  *  AddressSanitizer: stack-overflow
+   40:  */
+   41: static void test_issue542_ich6(void)
+   42: {
+   43:     QTestState *s;
+   44: 
+   45:     s = qtest_init("-nographic -nodefaults -M pc-q35-6.2 "
+   46:                    AUDIODEV
+   47:                    "-device intel-hda,id=" HDA_ID CODEC_DEVICES);
+   48: 
+   49:     qtest_outl(s, 0xcf8, 0x80000804);
+   50:     qtest_outw(s, 0xcfc, 0x06);
+   51:     qtest_bufwrite(s, 0xff0d060f, "\x03", 1);
+   52:     qtest_bufwrite(s, 0x0, "\x12", 1);
+   53:     qtest_bufwrite(s, 0x2, "\x2a", 1);
+   54:     qtest_writeb(s, 0x0, 0x12);
+   55:     qtest_writeb(s, 0x2, 0x2a);
+   56:     qtest_outl(s, 0xcf8, 0x80000811);
+   57:     qtest_outl(s, 0xcfc, 0x006a4400);
+   58:     qtest_bufwrite(s, 0x6a44005a, "\x01", 1);
+   59:     qtest_bufwrite(s, 0x6a44005c, "\x02", 1);
+   60:     qtest_bufwrite(s, 0x6a442050, "\x00\x00\x44\x6a", 4);
+   61:     qtest_bufwrite(s, 0x6a44204a, "\x01", 1);
+   62:     qtest_bufwrite(s, 0x6a44204c, "\x02", 1);
+   63:     qtest_bufwrite(s, 0x6a44005c, "\x02", 1);
+   64:     qtest_bufwrite(s, 0x6a442050, "\x00\x00\x44\x6a", 4);
+   65:     qtest_bufwrite(s, 0x6a44204a, "\x01", 1);
+   66:     qtest_bufwrite(s, 0x6a44204c, "\x02", 1);
+   67:     qtest_quit(s);
+   68: }
+   69: 
+   70: int main(int argc, char **argv)
+   71: {
+   72:     g_test_init(&argc, &argv, NULL);
+   73:     if (qtest_has_machine("pc")) {
+   74:         qtest_add_func("/intel-hda/ich6", ich6_test);
+   75:     }
+   76:     if (qtest_has_machine("q35")) {
+   77:         qtest_add_func("/intel-hda/ich9", ich9_test);
+   78:         qtest_add_func("/intel-hda/fuzz/issue542", test_issue542_ich6);
+   79:     }
+   80:     return g_test_run();
+   81: }

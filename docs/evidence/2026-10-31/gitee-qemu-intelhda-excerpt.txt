@@ -1,0 +1,65 @@
+﻿Gitee QEMU 镜像摘录（intel-hda 模型：GCAP 复位值 / 流方向判定 / 版本寄存器偏移）
+URL:    https://gitee.com/mirrors/qemu/raw/master/hw/audio/intel-hda.c
+URL:    https://gitee.com/mirrors/qemu/raw/master/hw/audio/intel-hda-defs.h
+抓取:   2026-10-31；行号=各原文件行号。镜像 master 与本地 QEMU 3.1.50（v3.1.0-13607）版本不同，
+        行号以镜像为准；GCAP=0x4401 另有本地实测互证（见 qemu-capability-probe.log 与 qemu-serial.log:31）。
+-- intel-hda.c 577-580（intel_hda_set_st_ctl：流方向判定）--
+  577: static void intel_hda_set_st_ctl(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old)
+  578: {
+  579:     bool output = reg->stream >= 4;
+  580:     IntelHDAStream *st = d->st + reg->stream;
+-- intel-hda.c 605-631（ST_REG 宏 + regtab：GCAP/VMIN/VMAJ 复位值）--
+  605: /* --------------------------------------------------------------------- */
+  606: 
+  607: #define ST_REG(_n, _o) (0x80 + (_n) * 0x20 + (_o))
+  608: 
+  609: static const struct IntelHDAReg regtab[] = {
+  610:     /* global */
+  611:     [ ICH6_REG_GCAP ] = {
+  612:         .name     = "GCAP",
+  613:         .size     = 2,
+  614:         .reset    = 0x4401,
+  615:     },
+  616:     [ ICH6_REG_VMIN ] = {
+  617:         .name     = "VMIN",
+  618:         .size     = 1,
+  619:     },
+  620:     [ ICH6_REG_VMAJ ] = {
+  621:         .name     = "VMAJ",
+  622:         .size     = 1,
+  623:         .reset    = 1,
+  624:     },
+  625:     [ ICH6_REG_OUTPAY ] = {
+  626:         .name     = "OUTPAY",
+  627:         .size     = 2,
+  628:         .reset    = 0x3c,
+  629:     },
+  630:     [ ICH6_REG_INPAY ] = {
+  631:         .name     = "INPAY",
+-- intel-hda-defs.h 13-31（GCAP/VMIN/VMAJ/GCTL/INTCTL 偏移）--
+   13: #define ICH6_REG_GCAP			0x00
+   14: #define   ICH6_GCAP_64OK	(1 << 0)   /* 64bit address support */
+   15: #define   ICH6_GCAP_NSDO	(3 << 1)   /* # of serial data out signals */
+   16: #define   ICH6_GCAP_BSS		(31 << 3)  /* # of bidirectional streams */
+   17: #define   ICH6_GCAP_ISS		(15 << 8)  /* # of input streams */
+   18: #define   ICH6_GCAP_OSS		(15 << 12) /* # of output streams */
+   19: #define ICH6_REG_VMIN			0x02
+   20: #define ICH6_REG_VMAJ			0x03
+   21: #define ICH6_REG_OUTPAY			0x04
+   22: #define ICH6_REG_INPAY			0x06
+   23: #define ICH6_REG_GCTL			0x08
+   24: #define   ICH6_GCTL_RESET	(1 << 0)   /* controller reset */
+   25: #define   ICH6_GCTL_FCNTRL	(1 << 1)   /* flush control */
+   26: #define   ICH6_GCTL_UNSOL	(1 << 8)   /* accept unsol. response enable */
+   27: #define ICH6_REG_WAKEEN			0x0c
+   28: #define ICH6_REG_STATESTS		0x0e
+   29: #define ICH6_REG_GSTS			0x10
+   30: #define   ICH6_GSTS_FSTS	(1 << 1)   /* flush status */
+   31: #define ICH6_REG_INTCTL			0x20
+-- intel-hda-defs.h 75-80（SD_LPIB/CBL/LVI 偏移）--
+   75: #define ICH6_REG_SD_CTL			0x00
+   76: #define ICH6_REG_SD_STS			0x03
+   77: #define ICH6_REG_SD_LPIB		0x04
+   78: #define ICH6_REG_SD_CBL			0x08
+   79: #define ICH6_REG_SD_LVI			0x0c
+   80: #define ICH6_REG_SD_FIFOW		0x0e

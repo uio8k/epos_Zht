@@ -28,6 +28,12 @@ hd.img: subdirs
 test:
 	$(MAKE) -C tests test
 
+# L2 qtest：不启动 OS，qtest 协议寄存器级验流与缓冲（docs/tech-plan-qtest.md）。
+# D10：入口统一 make qtest，不用 watcher、不用独立 bat；uv 管理解释器。
+.PHONY: qtest
+qtest:
+	"$${HOME:-$${USERPROFILE}}/.local/bin/uv.exe" run --no-project python tests/qtest_client.py
+
 .PHONY: qemu
 qemu: hd.img
 	-qemu-system-i386$(W) -m 48 -boot order=c -vga std -drive format=raw,file=$^,index=0,media=disk -device intel-hda -device hda-duplex -serial file:userapp/serial.log

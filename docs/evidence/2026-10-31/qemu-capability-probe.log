@@ -1,0 +1,63 @@
+﻿QEMU 3.1.50 本地能力探测（P09 调研轮，2026-10-31）
+二进制: E:\ComputerScience\epos_Zht\Qemu\qemu-system-i386w.exe
+
+command: & $q --version
+QEMU emulator version 3.1.50 (v3.1.0-13607-geb2db0f7ba-dirty)
+Copyright (c) 2003-2019 Fabrice Bellard and the QEMU Project developers
+exit=0
+
+command: cmd /c "$q -device help" 2>&1 | Select-String hda   （GUI 子系统 exe 的 stdout 须借 cmd 管道）
+
+name "hda-duplex", bus HDA, desc "HDA Audio Codec, duplex (line-out, line-in)"
+name "hda-micro", bus HDA, desc "HDA Audio Codec, duplex (speaker, microphone)"
+name "hda-output", bus HDA, desc "HDA Audio Codec, output-only (line-out)"
+name "ich9-intel-hda", bus PCI, desc "Intel HD Audio Controller (ich9)"
+name "intel-hda", bus PCI, desc "Intel HD Audio Controller (ich6)"
+
+
+exit=0
+
+command: cmd /c "$q -machine help" 2>&1 | Select-String "none|isapc|pc-i440fx-4.0"
+
+pc                   Standard PC (i440FX + PIIX, 1996) (alias of pc-i440fx-4.0)
+pc-i440fx-4.0        Standard PC (i440FX + PIIX, 1996) (default)
+isapc                ISA-only PC
+none                 empty machine
+
+
+exit=0
+
+command: Start-Process $q -ArgumentList "-M","pc","-S","-nodefaults","-display","none","-serial","none","-monitor","none","-device","intel-hda","-qtest","tcp:127.0.0.1:4653,server,nowait"; uv run python qtest_probe.py; Stop-Process
+探针脚本: %TEMP%\probe-20261031\qtest_probe.py（stdlib socket 行客户端）
+
+-- v1 探针（教训）：用 inl 读 MMIO -> QEMU 连接被重置 --
+< outl 0xcf8 0x80001010
+> OK
+< outl 0xcfc 0xe0000000
+> OK
+< inl 0xe0000000            <- inl 是 PIO 语义（x86 端口空间 64KB，地址被截断）
+Traceback: ConnectionResetError: [WinError 10054] 远程主机强迫关闭了一个现有的连接。
+probe exit=1
+
+-- v2 探针（PASS 全程，23 条命令）：MMIO 改用 readl/readb（物理内存语义，上游 test_issue542 同款） --
+< outl 0xcf8 0x80000000        > OK
+< inl 0xcfc                    > OK 0x12378086      (00:00.0 i440fx)
+< inl 0xcfc @00:01.0           > OK 0x70008086      (PIIX3)
+< inl 0xcfc @00:01.1           > OK 0x70108086      (PIIX3 IDE)
+< inl 0xcfc @00:02.0           > OK 0x26688086      (= intel-hda ICH6)
+== FOUND intel-hda at 00:02.0 (vid:did=0x26688086)
+< inw 0xcfc (cmd reg)          > OK 0x0000          (-S 冻结，无固件使能过)
+< outw 0xcfc 0x06              > OK                 (MEM|BUSM，上游同款)
+< outl 0xcfc 0xe0000000 (BAR0) > OK                 (自配 BAR，-S 下无固件代配)
+< inl 0xcfc (BAR readback)     > OK 0xe0000000
+< readl 0xe0000000             > OK 0x0000000000004401   *** GCAP=0x4401 ***
+< readb 0xe0000002             > OK 0x0             (VMIN，QEMU 偏移 0x02)
+< readb 0xe0000003             > OK 0x1             (VMAJ，QEMU 偏移 0x03)
+< readl 0xe0000084             > OK 0x0             (SD0 LPIB 未运行)
+== GCAP=0x4401 -> OSS=4 ISS=4 BSS=0 64OK=1 (expect OSS=4 ISS=4 BSS=0 64OK=1)
+== PROBE PASS: qtest tcp + PCI scan + BAR assign + MMIO read, 23 commands
+probe exit=0
+
+结论: 「不启 OS 操作 BDL」前提三路互证成立 —— [Gitee: tests/qtest/intel-hda-test.c] 先例、
+[实测: 本地 3.1.50 qtest tcp 全链路 PASS]、[Gitee: intel-hda.c:614 .reset=0x4401] 与探针 GCAP 读值一致。
+清理: 探针 QEMU 实例已 Stop-Process。

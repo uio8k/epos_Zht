@@ -1,0 +1,213 @@
+﻿Gitee QEMU 镜像摘录（qtest 行协议）
+URL:    https://gitee.com/mirrors/qemu/raw/master/system/qtest.c
+抓取:   2026-10-31  原文件 1071 行；以下为 DOC: QTest Protocol 一节（60-268 行）逐字，行号=原文件行号
+另参:   https://gitee.com/mirrors/qemu/raw/master/docs/devel/qtest.rst（框架：libqtest/libqos/meson 注册）
+   60: static void *qtest_server_send_opaque;
+   61: 
+   62: #define FMT_timeval "%.06f"
+   63: 
+   64: /**
+   65:  * DOC: QTest Protocol
+   66:  *
+   67:  * Line based protocol, request/response based.  Server can send async messages
+   68:  * so clients should always handle many async messages before the response
+   69:  * comes in.
+   70:  *
+   71:  * Valid requests
+   72:  * ^^^^^^^^^^^^^^
+   73:  *
+   74:  * Clock management:
+   75:  * """""""""""""""""
+   76:  *
+   77:  * The qtest client is completely in charge of the QEMU_CLOCK_VIRTUAL.  qtest commands
+   78:  * let you adjust the value of the clock (monotonically).  All the commands
+   79:  * return the current value of the clock in nanoseconds.
+   80:  *
+   81:  * .. code-block:: none
+   82:  *
+   83:  *  > clock_step
+   84:  *  < OK VALUE
+   85:  *
+   86:  * Advance the clock to the next deadline.  Useful when waiting for
+   87:  * asynchronous events.
+   88:  *
+   89:  * .. code-block:: none
+   90:  *
+   91:  *  > clock_step NS
+   92:  *  < OK VALUE
+   93:  *
+   94:  * Advance the clock by NS nanoseconds.
+   95:  *
+   96:  * .. code-block:: none
+   97:  *
+   98:  *  > clock_set NS
+   99:  *  < OK VALUE
+  100:  *
+  101:  * Advance the clock to NS nanoseconds (do nothing if it's already past).
+  102:  *
+  103:  * PIO and memory access:
+  104:  * """"""""""""""""""""""
+  105:  *
+  106:  * .. code-block:: none
+  107:  *
+  108:  *  > outb ADDR VALUE
+  109:  *  < OK
+  110:  *
+  111:  * .. code-block:: none
+  112:  *
+  113:  *  > outw ADDR VALUE
+  114:  *  < OK
+  115:  *
+  116:  * .. code-block:: none
+  117:  *
+  118:  *  > outl ADDR VALUE
+  119:  *  < OK
+  120:  *
+  121:  * .. code-block:: none
+  122:  *
+  123:  *  > inb ADDR
+  124:  *  < OK VALUE
+  125:  *
+  126:  * .. code-block:: none
+  127:  *
+  128:  *  > inw ADDR
+  129:  *  < OK VALUE
+  130:  *
+  131:  * .. code-block:: none
+  132:  *
+  133:  *  > inl ADDR
+  134:  *  < OK VALUE
+  135:  *
+  136:  * .. code-block:: none
+  137:  *
+  138:  *  > writeb ADDR VALUE
+  139:  *  < OK
+  140:  *
+  141:  * .. code-block:: none
+  142:  *
+  143:  *  > writew ADDR VALUE
+  144:  *  < OK
+  145:  *
+  146:  * .. code-block:: none
+  147:  *
+  148:  *  > writel ADDR VALUE
+  149:  *  < OK
+  150:  *
+  151:  * .. code-block:: none
+  152:  *
+  153:  *  > writeq ADDR VALUE
+  154:  *  < OK
+  155:  *
+  156:  * .. code-block:: none
+  157:  *
+  158:  *  > readb ADDR
+  159:  *  < OK VALUE
+  160:  *
+  161:  * .. code-block:: none
+  162:  *
+  163:  *  > readw ADDR
+  164:  *  < OK VALUE
+  165:  *
+  166:  * .. code-block:: none
+  167:  *
+  168:  *  > readl ADDR
+  169:  *  < OK VALUE
+  170:  *
+  171:  * .. code-block:: none
+  172:  *
+  173:  *  > readq ADDR
+  174:  *  < OK VALUE
+  175:  *
+  176:  * .. code-block:: none
+  177:  *
+  178:  *  > read ADDR SIZE
+  179:  *  < OK DATA
+  180:  *
+  181:  * .. code-block:: none
+  182:  *
+  183:  *  > write ADDR SIZE DATA
+  184:  *  < OK
+  185:  *
+  186:  * .. code-block:: none
+  187:  *
+  188:  *  > b64read ADDR SIZE
+  189:  *  < OK B64_DATA
+  190:  *
+  191:  * .. code-block:: none
+  192:  *
+  193:  *  > b64write ADDR SIZE B64_DATA
+  194:  *  < OK
+  195:  *
+  196:  * .. code-block:: none
+  197:  *
+  198:  *  > memset ADDR SIZE VALUE
+  199:  *  < OK
+  200:  *
+  201:  * ADDR, SIZE, VALUE are all integers parsed with strtoul() with a base of 0.
+  202:  * For 'memset' a zero size is permitted and does nothing.
+  203:  *
+  204:  * DATA is an arbitrarily long hex number prefixed with '0x'.  If it's smaller
+  205:  * than the expected size, the value will be zero filled at the end of the data
+  206:  * sequence.
+  207:  *
+  208:  * B64_DATA is an arbitrarily long base64 encoded string.
+  209:  * If the sizes do not match, the data will be truncated.
+  210:  *
+  211:  * IRQ management:
+  212:  * """""""""""""""
+  213:  *
+  214:  * .. code-block:: none
+  215:  *
+  216:  *  > irq_intercept_in QOM-PATH
+  217:  *  < OK
+  218:  *
+  219:  * .. code-block:: none
+  220:  *
+  221:  *  > irq_intercept_out QOM-PATH
+  222:  *  < OK
+  223:  *
+  224:  * Attach to the gpio-in (resp. gpio-out) pins exported by the device at
+  225:  * QOM-PATH.  When the pin is triggered, one of the following async messages
+  226:  * will be printed to the qtest stream::
+  227:  *
+  228:  *  IRQ raise NUM
+  229:  *  IRQ lower NUM
+  230:  *
+  231:  * where NUM is an IRQ number.  For the PC, interrupts can be intercepted
+  232:  * simply with "irq_intercept_in ioapic" (note that IRQ0 comes out with
+  233:  * NUM=0 even though it is remapped to GSI 2).
+  234:  *
+  235:  * Setting interrupt level:
+  236:  * """"""""""""""""""""""""
+  237:  *
+  238:  * .. code-block:: none
+  239:  *
+  240:  *  > set_irq_in QOM-PATH NAME NUM LEVEL
+  241:  *  < OK
+  242:  *
+  243:  * where NAME is the name of the irq/gpio list, NUM is an IRQ number and
+  244:  * LEVEL is an signed integer IRQ level.
+  245:  *
+  246:  * Forcibly set the given interrupt pin to the given level.
+  247:  *
+  248:  */
+  249: 
+  250: static int hex2nib(char ch)
+  251: {
+  252:     if (ch >= '0' && ch <= '9') {
+  253:         return ch - '0';
+  254:     } else if (ch >= 'a' && ch <= 'f') {
+  255:         return 10 + (ch - 'a');
+  256:     } else if (ch >= 'A' && ch <= 'F') {
+  257:         return 10 + (ch - 'A');
+  258:     } else {
+  259:         return -1;
+  260:     }
+  261: }
+  262: 
+  263: void qtest_send_prefix(CharBackend *chr)
+  264: {
+  265:     if (!qtest_log_fp || !qtest_opened) {
+  266:         return;
+  267:     }
+  268: 

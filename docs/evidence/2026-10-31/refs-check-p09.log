@@ -1,0 +1,18 @@
+﻿refs-check-p09 @ 2026-10-31（P09 实现轮：progress.html 与 tech-plan-qtest.md 引用复核，全部 Select-String）
+PASS  Makefile qtest 目标  /^qtest:|uv\.exe" run --no-project python tests/qtest_client/  -> 行:34,35
+PASS  client 行客户端类  /class QTest/  -> 行:118
+PASS  client 残留实例检测(U5)  /疑似残留 QEMU 实例/  -> 行:66
+PASS  client BAR 自适应(SeaBIOS)  /SeaBIOS 可能已代配|SeaBIOS 已分配/  -> 行:225
+PASS  client U-L2-01  /def ul2_01/  -> 行:283
+PASS  client U-L2-02  /def ul2_02/  -> 行:303
+PASS  client U1 定论注释  /No accelerator found/  -> 行:85,305
+PASS  client ICS verb 路径  /def verb/  -> 行:239
+PASS  client tag=0 组合回退  /combos = \[\(4, 0x10\)/  -> 行:326
+PASS  qtest-run.log 汇总  /15 PASS，0 FAIL/  -> 行:29
+PASS  qtest-run.log tag=0 组合  /tag=0 fmt=0x00/  -> 行:24
+PASS  qtest-run.log 退出码  /^exit=0/  -> 行:30
+PASS  tech-plan §10 落地记录  /## 10 落地记录/  -> 行:192
+PASS  tech-plan U1 已定论  /U1 LPIB 时钟域（已定论/  -> 行:165
+PASS  tech-plan 启动形态修正  /撤回原 -S 方案/  -> 行:85
+PASS  受阻表原行(订正基线)  /不启 OS 操作 BDL/  -> 行:423,442
+checked 见上；fail=0

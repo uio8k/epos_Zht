@@ -110,7 +110,7 @@ uint8_t hda_sd_index_in (const struct hda_gcap *c, uint8_t k);
 uint8_t hda_sd_index_out(const struct hda_gcap *c, uint8_t k);
 ```
 
-`struct hda_dev`（`hda.h:150-173`）加三个字节：`uint8_t sd_in, sd_out, gcap_ok64`，在 `hda.c` 探测到 GCAP 之后算好，后续所有 `HDA_SD_*(HDA_OUTPUT_STREAM)` / `HDA_SD_*(HDA_INPUT_STREAM)` 换成 `HDA_SD_*(g_hda.sd_out)` / `(g_hda.sd_in)`。
+`struct hda_dev`（`hda.h:172-196`，2026-10-31 复核时自 §4.5 原引的 150-173 漂移）加三个字节：`uint8_t sd_in, sd_out, gcap_ok64`，在 `hda.c` 探测到 GCAP 之后算好，后续所有 `HDA_SD_*(HDA_OUTPUT_STREAM)` / `HDA_SD_*(HDA_INPUT_STREAM)` 换成 `HDA_SD_*(g_hda.sd_out)` / `(g_hda.sd_in)`。
 
 ### 4.6 落点
 
@@ -120,7 +120,26 @@ uint8_t hda_sd_index_out(const struct hda_gcap *c, uint8_t k);
 | `hda.c:185` | INTCTL 补逐流位 |
 | `hda.h:58-72` | `HDA_OUTPUT_STREAM` 降级为「QEMU profile 的默认输出条序号」，新增 tag 宏；`HDA_SD_BASE` 宏改收变量 |
 | `hda_stream.c`、`hda_capture.c` | 全部流寄存器访问改用 `g_hda.sd_out` / `g_hda.sd_in` |
-| `hda.h:150-173` | `struct hda_dev` 增字段 |
+| `hda.h:172-196` | `struct hda_dev` 增字段（2026-10-31 自 150-173 订正，refs-check-research.log） |
+
+### 4.7 Gitee/osdev 取证补充（2026-10-31 调研轮）
+
+- QEMU 模型侧 GCAP 复位值：`[Gitee: hw/audio/intel-hda.c:611-614]` regtab 中 GCAP
+  `.reset = 0x4401`，与 §4.1 位段表、`[实测: docs/evidence/2026-10-28/qemu-serial.log:31]`
+  （行号 Select-String 复核，CR-only 文件勿用 rg 行号）、qtest 探针读值四方一致
+  （探针见 `docs/tech-plan-qtest.md` §4）。
+- §4.3「第 4 号必是输出流」假设所依据的 QEMU 行为，一手出处首次落到源码行号：
+  `[Gitee: hw/audio/intel-hda.c:577-579]` `intel_hda_set_st_ctl()` 内
+  `bool output = reg->stream >= 4;`。
+- 版本寄存器偏移（顺带发现）：`[Gitee: hw/audio/intel-hda-defs.h:19-20]` QEMU 定义
+  VMIN=0x02、VMAJ=0x03，内核 `hda.h:13-14` 同序；本仓 wiki 摘录未含此二寄存器，
+  与 Intel 规范常见表述（VMaj@0x02）的出入列入 `docs/tech-plan-qtest.md` §8 U3，
+  真机轮核对。影响仅版本打印，无数据通路。
+- 本仓 wiki 摘录（oldid=30627）已覆盖本节全部位段依据；qtest 层的协议与可行性
+  取证见 `docs/tech-plan-qtest.md`。
+- 证据：`docs/evidence/2026-10-31/` 下 `gitee-qemu-intelhda-excerpt.txt`、
+  `gitee-qemu-qtest-protocol-excerpt.txt`、`gitee-qemu-intelhda-test-excerpt.txt`、
+  `qemu-capability-probe.log`、`refs-check-research.log`。
 
 ## 5 P06：BDL 合规断言
 

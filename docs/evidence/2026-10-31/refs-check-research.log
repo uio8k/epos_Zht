@@ -1,0 +1,29 @@
+﻿refs-check-research @ 2026-10-31（调研轮：tech-plan-qtest.md 与 tech-plan-hda.md §4.7 的引用复核，全部 Select-String）
+PASS  kernel/hda.h VMIN/VMAJ 宏  /define HDA_VMIN|define HDA_VMAJ/  -> 行:13,14
+PASS  tools/run_headless.bat QEMU 命令  /qemu-system-i386w\.exe|-monitor telnet/  -> 行:56,61
+PASS  decisions D5  /D5 \|/  -> 行:14
+PASS  decisions D8  /D8 \|/  -> 行:17
+PASS  decisions D10  /D10 \|/  -> 行:19
+PASS  qemu-serial.log GCAP 行（CR-only，以 Select-String 为准）  /HDA: GCAP=0x4401/  -> 行:31
+PASS  tech-plan-hda.md §4 标题  /## 4 P07-a/  -> 行:62
+PASS  tech-plan-hda.md §4.6 struct hda_dev 引用行  /hda\.h:150-173/  -> 行:113,123
+PASS  kernel/hda.h struct hda_dev 现位置  /struct hda_dev \{/  -> 行:173
+PASS  kernel/hda.h HDA_INPUT_TAG 已存在  /define HDA_INPUT_TAG/  -> 行:72
+PASS  根 Makefile test 目标（qtest 照此风格）  /^test:/  -> 行:28
+PASS  [Gitee] intel-hda-test.c Tests only initialization  /Tests only initialization/  -> 行:20
+PASS  [Gitee] intel-hda-test.c test_issue542 起始  /static void test_issue542_ich6/  -> 行:41
+PASS  [Gitee] intel-hda-test.c 配置空间使能  /0x80000804|0xcfc, 0x06/  -> 行:49,50
+PASS  [Gitee] intel-hda-test.c BAR 自配  /0x80000811|0x006a4400/  -> 行:56,57
+PASS  [Gitee] system/qtest.c DOC: QTest Protocol  /DOC: QTest Protocol/  -> 行:65
+PASS  [Gitee] system/qtest.c outl 命令  /> outl ADDR VALUE/  -> 行:118
+PASS  [Gitee] system/qtest.c read/write 命令  /> write ADDR SIZE DATA/  -> 行:183
+PASS  [Gitee] system/qtest.c clock_step  /> clock_step NS/  -> 行:91
+PASS  [Gitee] system/qtest.c irq_intercept_in  /> irq_intercept_in QOM-PATH/  -> 行:216
+PASS  [Gitee] intel-hda.c set_st_ctl output 判定  /bool output = reg->stream >= 4/  -> 行:579
+PASS  [Gitee] intel-hda.c GCAP .reset=0x4401  /\.reset\s*=\s*0x4401/  -> 行:614
+PASS  [Gitee] defs.h GCAP=0x00  /define ICH6_REG_GCAP/  -> 行:13
+PASS  [Gitee] defs.h VMIN=0x02 / VMAJ=0x03  /define ICH6_REG_VMIN|define ICH6_REG_VMAJ/  -> 行:19,20
+PASS  [Gitee] defs.h INTCTL=0x20  /define ICH6_REG_INTCTL/  -> 行:31
+PASS  [Gitee] defs.h SD_LPIB/CBL/LVI  /define ICH6_REG_SD_LPIB|define ICH6_REG_SD_CBL|define ICH6_REG_SD_LVI/  -> 行:77,78,79
+PASS  [Gitee] defs.h SD_BDPL/BDPU 偏移  /define ICH6_REG_SD_BDLPL|define ICH6_REG_SD_BDLPU/  -> 行:83,84
+checked 文件引用见上；fail=0
