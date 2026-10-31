@@ -1,0 +1,47 @@
+﻿refs-check-vmddiff @ 2026-10-31（P13 调研轮：tech-plan-vm-diff.md 引用与证据存在性复核，全部 Select-String）
+PASS  tech-plan-vm-diff.md  (文件存在)
+PASS  文档 证伪记录节  /## 3 证伪记录/  -> 行:40
+PASS  文档 方案设计节  /## 6 VBox 差分方案设计/  -> 行:86
+PASS  文档 不确定项节  /## 11 不确定项/  -> 行:204
+PASS  文档 局限性节  /## 10 局限性/  -> 行:194
+PASS  文档 入口 make xdiff  /make xdiff/  -> 行:171,183
+PASS  文档 两级规则表  /行为级（必须一致）/  -> 行:127
+PASS  文档 D2 补充声明  /提交前可选第三档/  -> 行:158
+PASS  文档 D8 相容  /D8 不动 QEMU/  -> 行:169
+PASS  标记 spec VBox  /\[spec: VBox 手册/  -> 行:81,136
+PASS  标记 src bochs  /\[src: bochs-emu/Bochs@master/  -> 行:44
+PASS  标记 wiki  /\[wiki: Emulator_Comparison/  -> 行:49,74
+PASS  标记 实测 TUNA  /\[实测: bochs-sf-reachability\.log/  -> 行:81
+PASS  标记 检索(新增)  /\[检索: websearch-snapshot/  -> 行:82
+PASS  bochs摘录 2.7 实为 ES1370 移植  /ported ES1370 soundcard emulation from Qemu/  -> 行:59
+PASS  bochs摘录 win64 构建配置  /conf\.win64-vcpp/  -> 行:83,84
+PASS  bochs摘录 结论块  /Bochs 任何官方版本（至 3.1/  -> 行:135
+PASS  bochs摘录 RSS 标题  /Bochs 3.1 released/  -> 行:73
+PASS  bochs摘录 com1 mode=file  /mode=file, dev=serial\.out/  -> 行:12
+PASS  vbox摘录 HD Audio 控制器  /Intel HD Audio controller/  -> 行:8
+PASS  vbox摘录 Raw File 串口  /Raw File: Send the virtual serial port output to a file/  -> 行:16
+PASS  vbox摘录 录制  /video and audio recording/  -> 行:22
+PASS  vbox摘录 TUNA 渠道  /mirrors\.tuna\.tsinghua\.edu\.cn/virtualbox/  -> 行:29
+PASS  osdev 多模拟器金句  /more than one emulator/  -> 行:18
+PASS  osdev 真机警告  /might not work on the real thing/  -> 行:34
+PASS  osdev Bochs 声卡 SB-16  /Bochs        SB-16/  -> 行:22
+PASS  SF 直链大小  /Content-Length: 8029860/  -> 行:26
+PASS  TUNA virtualbox 200  /TUNA /virtualbox/ -> HTTP 200/  -> 行:42
+PASS  TUNA bochs 404  /TUNA /bochs/ -> HTTP 404/  -> 行:40
+PASS  Gitee 浏览器 404 定案  /你所访问的页面不存在 \(404\)/  -> 行:43
+PASS  Gitee 对照 qemu 有效  /TITLE「qemu: QEMU/  -> 行:44
+PASS  baidu 官方站 3.1 发布  /Bochs 3.1 released on August 23, 2026/  -> 行:19
+PASS  baidu kyos 捆绑 2.6.9  /bochs-2\.6\.9/  -> 行:15
+PASS  websearch 失实摘要存证  /Added Intel HD Audio device emulation/  -> 行:9
+PASS  websearch QEMU 无国内镜像  /qemu\.weilnetz\.de/  -> 行:38
+PASS  baidu-bochs-hdaudio.log  (文件存在)
+PASS  baidu-bochs-download-cn.log  (文件存在)
+PASS  gitee-bochs-mirror-search.log  (文件存在)
+PASS  bochs-sf-reachability.log  (文件存在)
+PASS  websearch-snapshot-20261031.log  (文件存在)
+PASS  osdev-bochs-emulator-comparison-excerpt.txt  (文件存在)
+PASS  progress P13 条目  /data-id="P13"/  -> 行:409
+PASS  progress P13 方案行  /docs/tech-plan-vm-diff\.md/  -> 行:412,449
+PASS  progress 计数 /13  //13 完成/  -> 行:227
+PASS  progress 变更记录  /VBox HD Audio × QEMU 双模拟器差分/  -> 行:449
+checked 见上；fail=0

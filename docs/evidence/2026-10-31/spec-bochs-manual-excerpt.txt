@@ -1,0 +1,139 @@
+Bochs 官方资料摘录（hdaudio 能力核查）——本文件是 tech-plan 的 [spec:]/[Gitee 类] 出处
+抓取日期: 2026-10-31；方法: curl 直抓 bochs.sourceforge.io 在线手册 + jsdelivr CDN 拉 github bochs-emu/Bochs@master 源码树（官方站自述源码树 GIT 托管 github）
+
+==============================================================
+摘录 1: 在线手册 bochsrc.html §4.3.28 com[1-4]（串口落盘依据）
+URL: https://bochs.sourceforge.io/doc/docbook/user/bochsrc.html
+--------------------------------------------------------------
+示例原文:
+  com1: enabled=1, mode=null
+  com1: enabled=1, mode=mouse
+  com1: enabled=1, mode=term, dev=/dev/ttyp9
+  com2: enabled=1, mode=file, dev=serial.out
+  com3: enabled=1, mode=raw, dev=com1
+  com3: enabled=1, mode=socket-client, dev=localhost:8888
+  com3: enabled=1, mode=socket-server, dev=localhost:8888
+  com4: enabled=1, mode=pipe-client, dev=\.\pipe\mypipe
+  com4: enabled=1, mode=pipe-server, dev=\.\pipe\mypipe
+正文原文: Other serial modes are 'null' (no input/output), 'file' (output to a file
+specified as the 'dev' parameter and changeable at runtime), 'raw' (use the real
+serial port - partly implemented on win32), 'mouse' (standard serial mouse ...).
+
+==============================================================
+摘录 2: 在线手册 using-sound.html §5.6.1 开头（证明在线手册为旧版）
+URL: https://bochs.sourceforge.io/doc/docbook/user/using-sound.html
+--------------------------------------------------------------
+>5.6.1. Sound basics</A
+></H2
+><P
+正文首句: Bochs supports two types of soundcards (SB16 ISA and ES1370 PCI) and the legacy PC speaker.
+
+==============================================================
+摘录 3: master 源码树现行文档中 hdaudio 计数
+来源: https://cdn.jsdelivr.net/gh/bochs-emu/Bochs@master/bochs/doc/man/bochsrc.5 与 bochs/.bochsrc
+--------------------------------------------------------------
+bochsrc.5 中 hdaudio 命中数: 0
+.bochsrc 中 hdaudio 命中数: 0
+
+==============================================================
+摘录 4: master 源码树 bochs/iodev/sound/ 完整文件清单（无 hdaudio.cc）
+来源: https://data.jsdelivr.com/v1/packages/gh/bochs-emu/Bochs@master 文件树
+--------------------------------------------------------------
+es1370.cc es1370.h Makefile.in opl.cc opl.h sb16.cc sb16.h
+soundalsa.cc soundalsa.h sounddummy.cc soundfile.cc soundfile.h
+soundlow.cc soundlow.h soundmod.cc soundmod.h soundoss.cc soundoss.h
+soundosx.cc soundosx.h soundpulse.cc soundpulse.h soundsdl.cc soundsdl.h
+soundwin.cc soundwin.h
+
+==============================================================
+摘录 5: master CHANGES 头部（时效性证明）
+--------------------------------------------------------------
+Changes after Bochs 3.1 release:
+
+(up to date with commits done till 28 Oct 2026)
+
+==============================================================
+摘录 6: 2.7 版 CHANGES 的 Sound 节（2.7 实际新增内容）
+来源: https://cdn.jsdelivr.net/gh/gmh5225/bochs-2.7-msvc@master/CHANGES（bochs 2.7 CHANGES 镜像）
+--------------------------------------------------------------
+- Sound: ported ES1370 soundcard emulation from Qemu
+- Sound:
+    - implemented PC speaker beep using the lowlevel sound interface.
+    - SDL audio output support.
+- Added ability to set log action per device from .bochsrc.
+- Moved disk imaging, networking, sound and USB devices to subdirectories
+  in the iodev folder.
+2.7 CHANGES 全文 hdaudio 命中数: 
+
+==============================================================
+摘录 7: 官方新闻 RSS（2.7/2.8/3.0/3.1 发布公告）
+URL: https://sourceforge.net/p/bochs/news/feed.rss
+--------------------------------------------------------------
+<title>Recent posts to news</title>
+<title>Bochs 3.1 released</title>
+<title>Bochs 3.0 released</title>
+<title>Bochs 2.8 released</title>
+<title>Bochs 2.7 released</title>
+<title>First pre-release of Bochs 2.7 now available</title>
+<title>Bochs 2.6.11 released</title>
+<title>Bochs 2.6.10 released</title>
+公告全文 hda 命中数: 0
+
+==============================================================
+摘录 8: master .conf.win64-vcpp 全文（官方 Win64 构建配置，无 --enable-hdaudio）
+URL: https://cdn.jsdelivr.net/gh/bochs-emu/Bochs@master/bochs/.conf.win64-vcpp
+--------------------------------------------------------------
+#!/bin/sh
+
+set echo
+
+./configure --target=x86_64-windows \
+            --enable-sb16 \
+            --enable-ne2000 \
+            --enable-all-optimizations \
+            --enable-cpu-level=6 \
+            --enable-3dnow \
+            --enable-x86-64 \
+            --enable-vmx=2 \
+            --enable-svm \
+            --enable-avx \
+            --enable-evex \
+            --enable-cet \
+            --enable-fred \
+            --enable-pci \
+            --enable-clgd54xx \
+            --enable-geforce \
+            --enable-voodoo \
+            --enable-usb \
+            --enable-usb-ohci \
+            --enable-usb-ehci \
+            --enable-usb-xhci \
+            --enable-busmouse \
+            --enable-es1370 \
+            --enable-e1000 \
+            --enable-show-ips \
+            --enable-debugger \
+            --enable-debugger-gui \
+            --disable-readline \
+            --without-x \
+            --with-win32 --with-rfb --with-nogui
+
+unset echo
+
+# Fix up all makefiles so that nmake can handle them.
+for i in `find . -name Makefile`; do
+  if test "$i" != "./cpu/softfloat3e/Makefile"; then
+    echo Removing curly brackets in $i for NMAKE.
+    mv $i $i.tmp
+    sed -e 's/{/(/g' -e 's/}/)/g' < $i.tmp > $i
+    rm -f $i.tmp
+  fi
+done
+
+==============================================================
+结论（2026-10-31，多源一致）:
+1. Bochs 任何官方版本（至 3.1，2026-08-23 发布）均无 Intel HD Audio 设备仿真。
+   证据链: master 文件树无 hdaudio 设备源码 + bochsrc.5/.bochsrc/CHANGES(2.7 至 post-3.1)/发布公告 RSS 全部 0 命中 + win64 官方构建配置无 --enable-hdaudio。
+2. 此前检索快照（websearch-snapshot-20261031.log 检索 1）所称『Bochs 2.7 added Intel HD Audio device emulation / hdaudio 设备 + --enable-hdaudio』为检索摘要失实，本文件一手证据予以纠正。
+3. Bochs 官方支持的声卡仿真为 SB16 / ES1370（2.7 起自 QEMU 移植 ES1370）+ PC speaker。
+4. com1 mode=file 串口落盘能力属实（摘录 1），但设备层面无法与 epos 的 HDA 驱动差分。

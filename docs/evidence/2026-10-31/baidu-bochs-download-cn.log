@@ -1,0 +1,41 @@
+百度搜索 MCP 检索存证（Bochs Windows 安装包国内下载源）
+工具: mcp__baidu-search__chatCompletions（用户点名通道）
+日期: 2026-10-31
+query: Bochs windows 安装包 下载 国内镜像 sourceforge gitee
+instruction: 输出格式：列出 Bochs Windows 安装包的可用下载渠道与各自性质（官方源、国内镜像站、Gitee 仓库），标注哪些是国内源。只要事实，不要评论。
+model: 未指定（返回原始检索结果，不经 LLM 总结）
+
+---- 检索原文 BEGIN ----
+[1] 标题: Windows下,bochs配置虚拟机及疑难杂症解决指南
+    URL: https://zhangcoder.blog.csdn.net/article/details/159120000
+    摘要: 准备 Bochs 两法：下载发布版本 / VS2022 编译源码。
+
+[2] 标题: https://gitee.com/gh0712/kyos
+    URL: https://gitee.com/gh0712/kyos
+    摘要: Gitee 社区 OS 项目 KyOS 捆绑 bochs-2.6.9.tar.gz 源码并给出 Linux 下编译流程（./configuration.sh → make → make install）。注意：这是社区项目自带源码包，不是 bochs 官方镜像，版本旧（2.6.9，无 hdaudio——hdaudio 自 2.7 才引入）。
+
+[3] 标题: Welcome to the Bochs IA-32 Emulator Project（官方站）
+    URL: https://bochs.sourceforge.net/
+    摘要: 原文 "Bochs 3.1 released on August 23, 2026 ! ... You can download it from the Bochs project page on SourceForge. See the CHANGES file ... The Bochs source tree is GIT hosted on github."——官方当前版 3.1（2026-08-23），下载在 SourceForge，源码树 GIT 托管在 github。
+
+[4] 标题: bochs: The Open Source IA-32 Emulation Project (Get Involved)
+    URL: https://bochs.sourceforge.net/diskimages.html
+    摘要: 官方磁盘镜像页（FreeDOS/DLX Linux 等），指向 SourceForge files 区。
+
+[5] 标题: Windows下用Bochs编译运行Linux-0.11
+    URL: https://cloud.tencent.com/developer/article/1434859
+    摘要: 国内教程普遍通过打包分发 Bochs-2.1.1.exe（旧版捆绑包）。
+
+[6] 标题: https://gitee.com/zhengxiaogeng/fish-os
+    URL: https://gitee.com/zhengxiaogeng/fish-os
+    摘要: 社区 OS 项目 FishOS（xbook2 内核）明确支持 qemu/bochs/virtualbox/vmware 四模拟器跑同一镜像——"同一 OS 镜像多模拟器运行"在国内社区是通行做法，佐证差分验证路线的社区先例。
+
+[7]-[10] 其他: 系统下载基地/Office 推广/悬镜源鉴等无关结果，仅记录存在。
+    URL: https://baike.baidu.com/item/系统下载基地/15575463 等
+---- 检索原文 END ----
+
+检索人读结论:
+1. Bochs 官方当前版 3.1（2026-08-23 发布），Windows 安装包只在 SourceForge（官方声明），源码树 GIT 托管 github。
+2. 国内通用镜像站（TUNA/USTC/阿里/华为——另见 bochs-sf-reachability.log 的 TUNA 索引实查）未收录 Bochs。
+3. Gitee 无官方 bochs 镜像；仅有社区项目捆绑旧版源码（2.6.9，早于 hdaudio 引入的 2.7，不可用于本方案）。
+4. 结论：Bochs 无国内官方下载源。按用户约定的降级路径，剩余两条：a) SourceForge 官方直连（可达性实测见 bochs-sf-reachability.log）；b) github 源码树经 Gitee "导入仓库"功能转存后用仓内 msys 工具链自编（只写方案不执行）。

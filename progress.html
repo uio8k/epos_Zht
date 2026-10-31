@@ -224,7 +224,7 @@ footer p{max-width:none}
 </header>
 
 <div class="meter">
-  <div class="num"><b id="doneN">0</b>/12 完成</div>
+  <div class="num"><b id="doneN">0</b>/13 完成</div>
   <div class="track"><i id="doneBar"></i></div>
 </div>
 
@@ -406,6 +406,13 @@ footer p{max-width:none}
       </label>
       <span class="state">已完成</span>
     </li>
+    <li class="item" data-id="P13" data-stage="0" data-done="0">
+      <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-P13"></span>
+      <label class="label" id="l-P13">L3+ 第二实现差分：VBox HD Audio × QEMU 双模拟器交叉验证
+        <span class="ev">方案已定（调研完成）：docs/tech-plan-vm-diff.md；原定 Bochs 差分被一手证据证伪——官方全版本无 HDA 设备（spec-bochs-manual-excerpt.txt 六路证据），差分对象修正为 VirtualBox（手册确认 HD Audio 控制器 + TUNA 国内源）</span>
+      </label>
+      <span class="state">待做</span>
+    </li>
   </ul>
 </section>
 
@@ -439,6 +446,7 @@ footer p{max-width:none}
   <p>另一台设备 <code>git pull</code> 后直接打开即看到同一状态。约定：勾选集中在主力机，另一台只读；若两边都改，冲突时按条目并集手工保留。</p>
   <h2 style="font-size:13px;margin-top:20px">变更记录</h2>
   <ul class="list">
+    <li><b>2026-10-31</b> 调研轮（测试方式审视，不改代码）：原定「Bochs 差分」被一手证据证伪——master 源码树 iodev/sound 无 hdaudio 设备、bochsrc.5/.bochsrc/CHANGES(2.7→post-3.1)/发布公告 RSS 全部 0 命中、官方 Win64 构建配置无 --enable-hdaudio、osdev 硬件表 Bochs 声卡仅 SB-16（2.7 实际新增=从 QEMU 移植 ES1370）。检索摘要曾称"Bochs 2.7 加 HDA"系失实，再证一手出处规则必要。修正路线：新立 P13 = VBox HD Audio × QEMU 双模拟器差分（VBox 手册 Audio Controller 含 "Intel HD Audio controller"、串口 Raw File 落判定行、录制含音轨；TUNA 国内源直供实测 200）。细化方案 docs/tech-plan-vm-diff.md：两级差分规则（行为级必须一致 / 拓扑级语义等价——两家 codec 模型不同拓扑）、音轨提取走 PyPI 清华镜像 ffmpeg wheel 喂 audio_metrics.py、入口 make xdiff（D10）、差分列提交前第三档（对 D2 显式补充）、D1–D12 相容性逐条核对、不确定项 U1–U7 单列；kernel/userapp/tests 零改动。证据落 docs/evidence/2026-10-31/：百度 MCP 检索×2 原文、Gitee 无 bochs 官方镜像浏览器定案（curl/WebFetch 均被 405 反爬拦截、含有效页对照，405 不作存在性证据）、SF 直连可达（Bochs-win64-3.1.exe 302→200 / 8,029,860 字节）、TUNA/USTC 收录实查、bochs/vbox 手册摘录、osdev 三页浏览器摘录。§2 新增 [检索:] 标记：检索摘要只作线索，结论必须过 [spec:]/[src:]/[实测:]。</li>
     <li><b>2026-10-31</b> P09 L2 qtest 落地：tests/qtest_client.py（qtest tcp 行客户端，PCI 扫描不硬编码 BDF、BAR 自适应——运行中的 SeaBIOS 已代配 0xfebfc000、ICS verb 路径与内核 hda_send_verb 同款）+ 根 Makefile qtest 目标（uv 直调，无 watcher/bat，D10）。U-L2-01：BDL/CBL/LVI/BDP/tag 写读回 + RUN 置清，9 断言全绿；U-L2-02：LPIB 推进、环绕回 1 次、停流冻结。U1 定论：本地 3.1.50 w 构建未编 qtest accelerator（"No accelerator found"），clock_step 不可用——机器不冻结、真实时间驱动（上游 ich6_test 同模式），已回写 tech-plan-qtest.md §5.1/§8/§10。codec 绑定实测：清洁 verb 绑定（tag=1）不推进，tag=0（无 verb 时 codec 默认 st->stream=0，intel_hda_xfer 按 ctl&gt;&gt;20 匹配）实测 300ms 推进 ~62KB，客户端内置组合回退留痕。make qtest 15 PASS/0 FAIL；make test 36 条不退化。证据：qtest-run.log（PS 捕获中文曾按 GBK 解码乱码，OutputEncoding=UTF8 修复重落）+ refs-check-p09 全 PASS。BCIS 中断用例后置。</li>
     <li><b>2026-10-31</b> 调研轮（不改代码）：新立长期约定「每项工作动代码前先上 Gitee/osdev wiki 调研」，已写入外层 AGENTS.md 规则表。本轮产出：①新建 docs/tech-plan-qtest.md（P09 方案）——「不启 OS 操作 BDL」前提三路互证成立：[Gitee: tests/qtest/intel-hda-test.c] test_issue542_ich6 先例（0xcf8/0xcfc 使能+自配 BAR+bufwrite 直访 MMIO）、本地 QEMU 3.1.50 qtest tcp 探针 23 条命令全 PASS（PCI 扫描命中 00:02.0、BAR0 自配 0xE0000000、GCAP 读回 0x4401）、GCAP 三方一致（Gitee intel-hda.c:614 .reset=0x4401 / 探针 / 10-28 串口 ：31，行号 Select-String 裁决）；客户端定 Python stdlib + make qtest（D10），不确定项 6 条单列。②tech-plan-hda.md 增 §4.7 取证补充（intel-hda.c:579 output=stream>=4 一手行号；intel-hda-defs.h:19-20 VMIN@0x02/VMAJ@0x03 与内核同序，与规范常见表述的出入列 U3 待真机核对）并订正两处行号漂移（struct hda_dev 172-196）。③证据落 docs/evidence/2026-10-31/：gitee 摘录三份、qemu-capability-probe.log（含 v1 教训：inl 是 PIO 语义，读 MMIO 会崩连接，必须用 read/write 系列）、refs-check-research.log 27/27 PASS。本轮零代码改动；P09/P07-a 实现均下轮排期。</li>
     <li><b>2026-10-31</b> P06 BDL 合规断言落地：新建 <code>kernel/hda_bdl.c</code>（<code>hda_bdl_validate</code> 六类负码，检查序=码序，O(n) 只读，ok/reject 各打一行串口），两条 start 路径在 SRST 脉冲前接入（拒绝返回 <code>HDA_CONT_ERR_BDL(-4)</code> / <code>HDA_CAP_ERR_BDL(-13)</code>；validate 自身 0..-6 不上抛，避免与既有 -1..-3 撞车）；<code>_Static_assert(sizeof==16)</code> 进 hda.h；§5.6 的 LVI 注释订正落 hda.h 与 hda_stream.c 各一处。L1 新增第 5 段 <code>tests/test_bdl.c</code> 十条向量（OK+六负码+双侧边界，含原表漏掉的 ERR_ADDR），make test 36 条 5/5/8/8/10 全绿。两处已声明偏差：①tech-plan §5.5 的 T1–T4（GCAP 解码）属 P07-a，随 P07 落地，本次以十条纯 BDL 向量替代；②调用方错误码 tech-plan 未规定，补定为 -4/-13。串口证据（docs/evidence/2026-10-31/）：整曲 220s <code>BDL ok</code> 且 underruns=0；故意改坏段长打出 <code>BDL reject rc=-4</code> 后回退复绿；采集路径 A/B/C 三场景 BDL ok 且 [CAP-C] 契约 0/0/-2/0 不变。hda_tests --suite fast 的 QEMU 五用例（Q-SINE/Q-IMPULSE/Q-STEP/S-XRUN/D-TRACE）全 PASS；static 套件两处存量 FAIL（ST-ENUM-TABLE 缺 3 个 CAP trace case、ST-SYSCALL-NR 明细自相矛盾）经 stash 对照证实早于本次改动存在，suite 退出码 1 系其所致。另：run_all.bat 的中文 rem 行在部分 cmd 环境下解析即崩，证据日志按其实质命令（同一 uv 行）直调取得。</li>

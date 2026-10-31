@@ -1,0 +1,53 @@
+WebSearch 检索快照存证（2026-10-31 计划阶段，Bochs 差分方案备选对比矩阵的事实来源）
+工具: ZCode 内置 WebSearch（只读）
+日期: 2026-10-31
+说明: 计划模式下百度 MCP 被权限拦截（"Plan mode only allows read-only, non-destructive tools"），改用内置 WebSearch 取证；执行轮已用百度 MCP 复核 Bochs 关键事实（见 baidu-bochs-hdaudio.log / baidu-bochs-download-cn.log）。本文件按检索轮次存快照。
+
+---- 检索 1: Bochs HDA 支持 ----
+query: Bochs HDA audio device emulation version 2.7 changelog intel high definition audio
+事实:
+- Bochs 2.7（2021-09 发布）CHANGES: "Added Intel HD Audio device emulation"——新设备 hdaudio + 构建选项 --enable-hdaudio。
+- 2.6.x 只有 SB16/ES1370/扬声器；HDA 是 2.7 新增。
+- 同版重写底层声音接口 soundlow，驱动含 Windows(win)/ALSA/OSS/纯文件(file) 输出；各声音驱动独立插件化。
+- 来源: bochs-2.7 CHANGES（sourceforge.net/p/bochs/news/ 2.7 发布公告；github.com/gmh5225/bochs-2.7-msvc 镜像可查同一 CHANGES）。
+
+---- 检索 2: VirtualBox Intel HD Audio ----
+query: VirtualBox 7.0 changelog Intel HD Audio device emulation added audio
+事实:
+- Oracle 官方 7.0 变更日志（docs.oracle.com/en/virtualization/virtualbox/7.0/relnotes/ChangeLog.html）含 "Audio: Fixed recording with HDA emulation after newer Windows 10/11 guests got rebooted" 等 HDA 条目。
+- HDA 仿真自 VBox 4.2 时代（实验性）即存在，7.0 继续完善（录音/宿主后端）。
+- 社区工单（virtualbox.org ticket #15925、forums）显示 HDA 设备在部分场景有声卡问题——第三参考实现的成熟度低于 QEMU/Bochs 主线。
+
+---- 检索 3: TUNA 镜像 ----
+query: 清华大学 TUNA 镜像 VirtualBox 下载 mirrors.tuna.tsinghua.edu.cn/virtualbox
+事实:
+- TUNA 镜像 VirtualBox：https://mirrors.tuna.tsinghua.edu.cn/virtualbox/（帮助页 /help/virtualbox），按版本号分目录（7.0.x/7.1.x…），含 Win.exe 与扩展包。
+- TUNA 首页 https://mirrors.tuna.tsinghua.edu.cn（状态页 /status）。
+
+---- 检索 4: Bochs 国内下载与 Gitee ----
+query: Bochs 下载 国内镜像 gitee 源码 windows 编译
+事实:
+- SourceForge 官方 files 页有 Bochs-win64-3.0.exe / Bochs-win64-3.1.exe（约 8MB）Windows 安装包。
+- GitHub 官方镜像仓库 github.com/bochs-emu/Bochs（官方 SVN→GIT 镜像）。
+- 未找到 Gitee 官方 bochs 镜像；mirrors.gitee.com 未收录 Bochs。
+- 国内访问 SourceForge 通常可达。
+
+---- 检索 5: QEMU 国内镜像 ----
+query: QEMU Windows 新版 下载 国内镜像 中科大 USTC 网易 华为云
+事实:
+- QEMU 官方 Windows 安装包推荐源 qemu.weilnetz.de/w64/（德国，qemu.org 官方页引用）。
+- 中科大/网易/华为云/阿里/腾讯镜像站主要镜像 Linux 发行版与代码仓，未托管 QEMU 官方 Windows 发行版。
+- 结论：QEMU 升级路线无国内源——违反用户"下载走国内源"硬约束，是主动否掉该选项的依据之一。
+
+---- 检索 6: Gitee Go CI ----
+query: Gitee Go 流水线 CI Windows 环境 支持 免费 额度
+事实:
+- 免费额度：开通赠每仓库 200 分钟构建时长（永久有效）+ 每月 500~1000 分钟赠送（help.gitee.com/gitee-go/get-started-in-3-steps、gitee.com/pricing）。
+- 环境：云端构建默认 Linux；Windows 需自建/自有构建机接入为构建节点（help.gitee.com/gitee-go/intro）。
+
+---- 检索 7: osdev wiki 模拟器对比 ----
+query: osdev wiki Bochs QEMU emulator testing driver development comparison accuracy
+事实:
+- wiki.osdev.org/Emulator_Comparison：Bochs 逐指令模拟最慢但精度最高；没有谁绝对更好，是速度与保真度的权衡。
+- wiki.osdev.org/Testing：OSDev 测试最推荐的两大模拟器即 Bochs 与 QEMU。
+- 论坛（forum.osdev.org, 2024-08）：Bochs 逐指令执行→中断可落在任意指令边界；QEMU 块翻译→快但对时序/并发 bug 精度低。

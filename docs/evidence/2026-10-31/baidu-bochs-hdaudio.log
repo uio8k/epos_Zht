@@ -1,0 +1,49 @@
+百度搜索 MCP 检索存证（Bochs hdaudio 设备能力）
+工具: mcp__baidu-search__chatCompletions（用户点名通道）
+日期: 2026-10-31
+query: Bochs hdaudio Intel HD Audio 设备仿真 bochsrc 配置 output wav
+instruction: 输出格式：按来源列出标题、URL、与 Bochs hdaudio 设备相关的关键事实（引入版本、bochsrc 配置语法、wav 落盘参数）。只要事实，不要评论。
+model: 未指定（返回原始检索结果，不经 LLM 总结）
+
+---- 检索原文 BEGIN ----
+[1] 标题: 高清音频(HDAUDIO) 设备的标识符 - Windows drivers | Microsoft Learn
+    URL: https://learn.microsoft.com/zh-cn/windows-hardware/drivers/install/identifiers-for-hdaudio-devices
+    摘要: HDAUDIO\FUNC_01&VEN_vvvv&DEV_dddd&SUBSYS_ssssssss&REV_rrrr 设备标识语法；SUBSYS 各位段含义（规范主/次修订号 23:20/19:16）。（与本轮 Bochs 方案无直接关系，仅记录）
+
+[2] 标题: Windows下用Bochs编译运行Linux-0.11
+    URL: https://cloud.tencent.com/developer/article/1434859
+    摘要: Bochs-2.1.1.exe + bochsrc-hd.bxrc 双击配置文件即可启动；bochsrc 同目录 .bxrc 双击运行是 Windows 下的惯用法。
+
+[3] 标题: HD AUDIO排线接法详解（硬件排线科普）
+    URL: https://blog.csdn.net/weixin_29185167/article/details/168932218
+    摘要: 与 Bochs 无关（物理排线），仅记录。
+
+[4] 标题: 使用Bochs 进行平台仿真（IBM developerWorks 转载）
+    URL: https://www.cnblogs.com/seebro/articles/2549962.html
+    摘要: Bochs 是 GPL x86 PC 仿真器（非虚拟化，指令级模拟）；"仿真更容易暂停整个机器来检查状态"，以性能为代价；适合 OS 开发与故障注入。
+
+[5] 标题: HD AUDIO排线原理与接线避坑指南（硬件排线科普）
+    URL: https://blog.csdn.net/weixin_34194829/article/details/168864418
+    摘要: 与 Bochs 无关（物理排线），仅记录。
+
+[6] 标题: 【操作系统】Bochs安装和配置
+    URL: https://blog.csdn.net/qq_41884002/article/details/134574193
+    摘要: 官网下载地址 sourceforge.net/projects/bochs/files/bochs/；./configure 编译选项表（--enable-debugger-gui/--enable-disasm/--enable-iodebug/--enable-x86-debugger）。
+
+[7] 标题: Windows下,bochs配置虚拟机及疑难杂症解决指南
+    URL: https://zhangcoder.blog.csdn.net/article/details/159120000
+    摘要: Windows 下获得 Bochs 两法：下载发布版本 或 VS2022 编译源码；bochsrc 图形化配置流程；IPS 过低的解决（release 编译/提高 IPS/提高进程优先级）——佐证 Bochs 慢、需 release 版跑测试。
+
+[8] 标题: 自己动手写简易操作系统之bochs的配置
+    URL: https://blog.csdn.net/m0_63686543/article/details/140080862
+    摘要: Bochs LGPL x86/x86-64 模拟器；优点可模拟异构机种、崩溃不伤宿主；缺点速度慢得多；实践者提到 2.8 段错误、旧版更稳的口碑分歧。
+
+[9] 标题: Bochs安卓系统虚拟机配置与使用指南.zip
+    URL: https://blog.csdn.net/weixin_31715353/article/details/143263866
+    摘要: bochsrc.txt 自定义虚拟机配置；Windows 下 Bochs 以 DLL 插件形式提供设备模型。
+---- 检索原文 END ----
+
+检索人读结论（仅列与方案相关、可被其他证据互证的事实）:
+- 本轮 baidu 检索未直接命中 hdaudio 的 bochsrc 语法（以 bochs 官方手册摘录为准，见 spec-bochs-manual-excerpt.txt）。
+- Bochs 慢是指令级仿真的公认代价（[4][8][7] 三源一致），方案文档的速度预算段引用。
+- Windows 下 Bochs 发布版 + .bxrc 双击/命令行均可启动，DLL 插件制（[2][7][9]）。

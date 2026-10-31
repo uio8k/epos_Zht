@@ -1,0 +1,31 @@
+VirtualBox 官方手册摘录（HDA 差分候选能力核查）——tech-plan 的 [spec: VBox 手册] 出处
+抓取日期: 2026-10-31；URL: https://www.virtualbox.org/manual/topics/working-with-vms.html（现行版手册，Oracle 官网）
+
+==============================================================
+摘录 A: Audio Settings——音频控制器可选 Intel HD Audio
+--------------------------------------------------------------
+原文: "Audio Controller: You can choose between the emulation of an Intel AC'97 controller,
+an Intel HD Audio controller, or a SoundBlaster 16 card."
+
+==============================================================
+摘录 B: Serial Ports——16550A UART 与 Port Mode 全部选项
+--------------------------------------------------------------
+原文要点:
+- "If a virtual serial port is enabled, the guest OS sees a standard 16550A compatible UART device."
+- Port Mode 选项: Disconnected / Host Device / Host Pipe / Raw File / (TCP socket 等由 VBoxManage 提供)
+- Raw File 原文: "Raw File: Send the virtual serial port output to a file. This option is very
+  useful for capturing diagnostic output from a guest."
+
+==============================================================
+摘录 C: Recording——音视频采集
+--------------------------------------------------------------
+原文: "Settings for video and audio recording."（VM 录制含音频轨；容器为 WebM，需后处理提取音轨）
+
+==============================================================
+补充: VBox 7.0 变更日志含 HDA 录音修复（"Audio: Fixed recording with HDA emulation after
+newer Windows 10/11 guests got rebooted"），来源:
+https://docs.oracle.com/en/virtualization/virtualbox/7.0/relnotes/ChangeLog.html（检索快照见 websearch-snapshot-20261031.log 检索 2）
+
+下载渠道: 清华 TUNA 镜像直供 https://mirrors.tuna.tsinghua.edu.cn/virtualbox/（本日实测 /virtualbox/ -> HTTP 200，见 bochs-sf-reachability.log D2 节）——满足『下载走国内源』约束
+
+结论: VBox 官方支持 Intel HD Audio 控制器仿真 + 串口 Raw File 落盘 + 音频录制，三项能力覆盖 QEMU 差分所需通道，且国内源可下载。

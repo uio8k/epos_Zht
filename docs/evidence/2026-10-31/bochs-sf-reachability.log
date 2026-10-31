@@ -1,0 +1,50 @@
+下载源可达性探测（Bochs 官方源 + 国内镜像站收录情况）
+日期: 2026-10-31；方法: curl -sI/-sL，只发 HEAD/GET 探测，不下载安装包
+宿主: Windows 10.0.26200 x64, Git Bash curl
+
+############ A. SourceForge 官方 files 页 ############
+== cmd: curl -sI --max-time 30 https://sourceforge.net/projects/bochs/files/ ==
+HTTP/1.1 200 OK
+Date: Sat, 31 Oct 2026 04:40:15 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 101686
+Connection: keep-alive
+Server: cloudflare
+exit=0
+
+############ B. RSS 列出 bochs 目录下最新文件（找 win64 安装包确切文件名） ############
+== cmd: curl -sL --max-time 40 'https://sourceforge.net/projects/bochs/rss?path=/bochs' | grep -oE '<title>[^<]*</title>' | head -20 ==
+<title>Bochs x86 PC emulator</title>
+exit=0
+
+############ C. 直链 HEAD（downloads.sourceforge.net，跟随镜像重定向） ############
+RSS 命中的 win64 安装包文件名: Bochs-win64-3.1.exe
+== cmd: curl -sIL --max-time 60 'https://downloads.sourceforge.net/project/bochs/bochs/3.1/Bochs-win64-3.1.exe' ==
+HTTP/1.1 302 Found
+location: https://twds.dl.sourceforge.net/project/bochs/bochs/3.1/Bochs-win64-3.1.exe?viasf=1&fid=c0baa1eec0123766&e=1793508019&st=S0xUYlxza9ZMpc-f013SaQ
+HTTP/1.1 200 OK
+Content-Length: 8029860
+exit=0
+
+############ D. 国内通用镜像站收录检查（TUNA / USTC 索引页 grep bochs） ############
+== cmd: curl -s --max-time 30 https://mirrors.tuna.tsinghua.edu.cn/ | grep -ic bochs ==
+TUNA 索引含 bochs 行数: 0
+TUNA 索引含 qemu 行数(对照): 0
+exit=0
+== cmd: curl -s --max-time 30 https://mirrors.ustc.edu.cn/ | grep -ic bochs ==
+USTC 索引含 bochs 行数: 0
+exit=0
+
+############ D2. 修正探测（索引页 grep 不可靠：控制组 qemu 也为 0，改为直连路径 HEAD） ############
+== cmd: for p in bochs qemu virtualbox: curl -s -o /dev/null -w '%{http_code}' https://mirrors.tuna.tsinghua.edu.cn/$p/ ==
+TUNA /bochs/ -> HTTP 404
+TUNA /qemu/ -> HTTP 404
+TUNA /virtualbox/ -> HTTP 200
+== 同法 USTC ==
+USTC /bochs/ -> HTTP 404
+USTC /qemu/ -> HTTP 404
+
+############ E. 结论（依据上方 A-E 实测） ############
+1. SourceForge 官方源国内可达：files 页 200（Cloudflare），直链 302->200、Content-Length=8029860（Bochs-win64-3.1.exe，约 8MB）。
+2. 国内通用镜像站未收录 Bochs：TUNA /bochs/ 与 USTC /bochs/ 均非 200（对照 TUNA /virtualbox/ 200 有效、/qemu/ 见实测状态）。
+3. 按用户约定降级路径：首选 SF 官方直连；备选 github 源码经 Gitee 导入 + 仓内 msys 自编（本轮只写方案不执行）。

@@ -1,0 +1,50 @@
+osdev wiki 摘录（Bochs / Emulator_Comparison / Testing 三页）
+抓取日期: 2026-10-31
+方法: curl 直读被 Cloudflare 反爬拦截（"Just a moment..."，原始响应存 /tmp 探测目录）；改用真实浏览器通道（ZCode 内置浏览器）读取，下列文字为页面正文摘录。
+说明: 三页均为页面当前版（无 oldid 快照），引用时标注 [wiki: 页名 + 2026-10-31 浏览器摘录]。
+
+==============================================================
+页 1: https://wiki.osdev.org/Emulator_Comparison
+==============================================================
+General 表（Cost/License | Method | Debugging | Configuration）:
+  Bochs        Free / LGPL | Full emulation (slow) | Yes, built-in | Command line, script file, interactive menus
+  QEMU         Free / GPL  | Emulation/dynamic translation | Yes, via GDB stub | Command line (optional GUI)
+  VirtualBox   Free / mixed | Virtualization | Yes, built-in | GUI, command line (optional)
+
+正文: "Overall, VirtualBox offers the richest set of features, along with very fast performance.
+Bochs is by far the slowest, but that is because of its full emulation, which gives it the
+highest accuracy."
+正文: "None of them are necessarily \"better\" than the others. This comparison is just to point out
+their differences. It can't hurt to use more than one emulator (or several), in order to test
+your OS on a variety of platforms without using real hardware."   ← 多模拟器差分的 wiki 依据
+
+Supported Hardware 表（SMP | Graphics | Sound | Network | USB）——Sound 列:
+  Bochs        SB-16            ← osdev 硬件表中 Bochs 无 HDA（与本轮一手源码核查一致）
+  QEMU         SB-16, ES1370
+  VirtualBox   SB-16 and AC'97  ← 本表较旧（VBox 7 已加 HD Audio，见 spec-vbox-manual-excerpt.txt），仅证 Bochs 侧
+
+==============================================================
+页 2: https://wiki.osdev.org/Testing
+==============================================================
+- "Emulators usually win here, because you can set up your makefile to build a disk image,
+  ready to run in the emulator."
+- "Closeness to the real thing. It is considered to be a good thing if your testing machine is
+  as close to real as you can possibly manage. Of course, a physical machine is best for this,
+  followed by Bochs."
+- "if you test using an emulator, it might not work on the real thing."   ← 模拟器差分不等于真机验证的 wiki 依据
+- "Perhaps the two most recommended for OSDev are Bochs and QEMU."
+
+==============================================================
+页 3: https://wiki.osdev.org/Bochs
+==============================================================
+- "Bochs is a steadily improving emulator for the x86 platform. It greatly improves OS
+  development because the virtual machine restarts much quicker than real hardware, plus it
+  offers detailed debugging functionality that can help greatly during kernel development."
+- 建议装两份 Bochs：发行版 + 自编内置调试器版交叉排查；含 "Differences between Bochs and real
+  hardware" 专节（模拟器与真机差异被官方文档承认并单列）。
+
+==============================================================
+人读结论（供 tech-plan 引用）:
+1. osdev wiki 把 Bochs+QEMU 并列为 OSDev 两大推荐模拟器；Bochs 定位=精度最高/最慢/调试最强。
+2. osdev wiki 明文支持"用多个模拟器在无真机时测 OS"（多模拟器差分），也明文警告"模拟器能跑不等于真机能跑"。
+3. osdev 硬件表中 Bochs 的声卡仿真仅 SB-16，无 Intel HD Audio——与一手源码核查（spec-bochs-manual-excerpt.txt）互证。
