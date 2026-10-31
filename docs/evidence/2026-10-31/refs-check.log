@@ -1,0 +1,34 @@
+﻿refs-check @ 2026-10-31  (Select-String 复核，供 progress.html 引用)
+PASS  kernel\hda_bdl.c:16  /int hda_bdl_validate/
+PASS  kernel\hda.h:138  /_Static_assert\(sizeof\(struct hda_bdl_entry\) == 16/
+PASS  kernel\hda.h:143  /define HDA_BDL_ERR_ALIGN/
+PASS  kernel\hda.h:147  /define HDA_BDL_ERR_ADDR/
+PASS  kernel\hda.h:148  /define HDA_BDL_ERR_CBL/
+PASS  kernel\hda.h:332  /define HDA_CONT_ERR_BDL/
+PASS  kernel\hda.h:333  /define HDA_CAP_ERR_BDL/
+PASS  kernel\hda.h:122  /LVI 本身是/
+PASS  kernel\hda_stream.c:515  /hda_bdl_validate\(g_hda\.bdl/
+PASS  kernel\hda_stream.c:494  /LVI 是 16 位字段/
+PASS  kernel\hda_capture.c:311  /hda_bdl_validate\(g_cap_bdl/
+PASS  kernel\Makefile:29  /hda_bdl\.o/
+PASS  tests\test_bdl.c:154,155,156,157,158,159,160,161,162,163  /RUN_TEST\(test_bdl_/
+PASS  tests\run_tests.bat:64,67  /test_bdl_fresh/
+PASS  docs\evidence\2026-10-31\test.log:164  /10 Tests 0 Failures/
+PASS  docs\evidence\2026-10-31\test.log:166  /ALL PASS/
+PASS  docs\evidence\2026-10-31\baseline-test.log:101  /ALL PASS/
+PASS  docs\tech-plan-hda.md:125  /## 5 P06/
+checked=18 fail=0
+--- 第二段：串口/suite 证据行号（写入 progress.html 前 Select-String 复核） ---
+PASS  docs\evidence\2026-10-31\qemu-bdl-ok.log:218  /HDA: BDL ok entries=256/
+PASS  docs\evidence\2026-10-31\qemu-bdl-ok.log:224,230  /underruns=0/
+PASS  docs\evidence\2026-10-31\qemu-bdl-reject.log:218  /HDA: BDL reject rc=-4/
+PASS  docs\evidence\2026-10-31\qemu-bdl-ok-after-revert.log:218  /HDA: BDL ok entries=256/
+PASS  docs\evidence\2026-10-31\qemu-bdl-ok-capture.log:196,442  /HDA: BDL ok entries=64/
+PASS  docs\evidence\2026-10-31\qemu-bdl-ok-capture.log:220,294  /HDA: BDL ok entries=128/
+PASS  docs\evidence\2026-10-31\qemu-bdl-ok-capture.log:460  /first=0 same=0 diff=-2 stop=0/
+PASS  docs\evidence\2026-10-31\suite-fast.log:32  /\[PASS\] Q-SINE/
+PASS  docs\evidence\2026-10-31\suite-fast.log:43  /\[PASS\] Q-IMPULSE/
+PASS  docs\evidence\2026-10-31\suite-fast.log:52  /\[PASS\] Q-STEP/
+PASS  docs\evidence\2026-10-31\suite-fast.log:60  /\[PASS\] S-XRUN/
+PASS  docs\evidence\2026-10-31\suite-fast.log:67  /\[PASS\] D-TRACE/
+second-pass checked=12 fail=0

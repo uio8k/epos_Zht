@@ -18,6 +18,7 @@ if not exist build mkdir build
 copy /Y "%REPO%\kernel\hda_capture.c"   build\hda_capture_under_test.c >nul
 copy /Y "%REPO%\kernel\hda_topo.c"      build\hda_topo_under_test.c >nul
 copy /Y "%REPO%\kernel\hda_profile.c"   build\hda_profile_under_test.c >nul
+copy /Y "%REPO%\kernel\hda_bdl.c"       build\hda_bdl_under_test.c >nul
 copy /Y "%REPO%\kernel\hda_internal.h"  build\hda_internal.h >nul
 copy /Y "%REPO%\include\audio_capture.h" build\audio_capture.h >nul
 copy /Y host\kernel.h                   build\kernel.h >nul
@@ -26,7 +27,8 @@ copy /Y host\machdep.h                  build\machdep.h >nul
 
 rem ---------- 1) codec 配置层（U-L1-01..03 所在文件） ----------
 "%CC%" -std=gnu11 -Wall -Wextra -O0 -pipe -I. -Iunity -Ibuild -I"%REPO%\kernel" ^
-       -o build\test_capture_probe_fresh.exe test_capture_probe.c unity\unity.c
+       -o build\test_capture_probe_fresh.exe test_capture_probe.c ^
+          build\hda_bdl_under_test.c unity\unity.c
 if errorlevel 1 (echo [tests] BUILD FAILED: test_capture_probe & exit /b 1)
 
 build\test_capture_probe_fresh.exe
@@ -57,7 +59,15 @@ if errorlevel 1 (echo [tests] BUILD FAILED: test_segment & exit /b 1)
 build\test_segment_fresh.exe
 if errorlevel 1 set "RC=1"
 
-rem ---------- 5) 测试计划自洽性（已停用） ----------
+rem ---------- 5) BDL 合规断言（P06：hda_bdl_validate 六类负码 + 边界） ----------
+"%CC%" -std=gnu11 -Wall -Wextra -O0 -pipe -I. -Iunity -Ibuild -I"%REPO%\kernel" ^
+       -o build\test_bdl_fresh.exe test_bdl.c unity\unity.c
+if errorlevel 1 (echo [tests] BUILD FAILED: test_bdl & exit /b 1)
+
+build\test_bdl_fresh.exe
+if errorlevel 1 set "RC=1"
+
+rem ---------- 6) 测试计划自洽性（已停用） ----------
 rem docs/test-plan-audio.md 已于 2026-10-28 删除，校验脚本随之停用；
 rem 脚本本体留在 tests\tools\check_plan.py，计划若恢复（同名同结构）即可接回。
 

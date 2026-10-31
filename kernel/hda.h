@@ -119,7 +119,8 @@
 #define HDA_RIRB_SIZE       256
 
 /* ========== BDL (Buffer Descriptor List) ========== */
-/* 条目上限：LVI 为 8 位（0-255），即最多 256 条目。连续流按 4KB 分段，
+/* 条目上限 256 来自规范的 BDL 条目数上限，不是字段位宽——LVI 本身是
+   16 位字段（订正见 tech-plan-hda.md §5.6）。连续流按 4KB 分段，
    512KB 缓冲需 128 条 —— 留足余量。 */
 #define HDA_BDL_ENTRIES     256
 #define HDA_FIFO_SIZE       0x00FF  /* 最大 FIFO 大小 */
@@ -130,6 +131,28 @@ struct hda_bdl_entry {
     uint32_t length;       /* 每段最大 0x10000 字节 */
     uint32_t flags;        /* bit 0 = IOC (中断) */
 } __attribute__((packed));
+
+/* 16 字节布局是规范硬要求（[wiki: Create Buffer Descriptor List]：
+   8B 地址 + 4B 长度 + 4B 属性），用编译期断言钉死，不再只靠注释
+   （tech-plan-hda.md §5.3）。 */
+_Static_assert(sizeof(struct hda_bdl_entry) == 16, "BDL entry must be 16 bytes");
+
+/* ========== BDL 合规断言（hda_bdl.c，tech-plan-hda.md §5） ========== */
+#define HDA_BDL_SEG_MAX     0x10000 /* 单条目长度上限 64KB */
+#define HDA_BDL_OK              0
+#define HDA_BDL_ERR_ALIGN      -1   /* bdl_pa 未 1KB 对齐 */
+#define HDA_BDL_ERR_TOO_FEW    -2   /* 条目数 < 2 */
+#define HDA_BDL_ERR_TOO_MANY   -3   /* 条目数 > 256 */
+#define HDA_BDL_ERR_SEG        -4   /* 某条长度 0 或 > 64KB */
+#define HDA_BDL_ERR_ADDR       -5   /* 某条地址为 0（未初始化） */
+#define HDA_BDL_ERR_CBL        -6   /* 长度为和 ≠ cbl */
+
+/* 只读遍历 O(n)，n ≤ 256，只在 start 前调一次；失败打印
+   "HDA: BDL reject rc=..." 并返回负码，调用方据此放弃启动流，
+   不降级、不「尽量跑」——错对齐/错 CBL 在 QEMU 上是爆音，
+   真机上是 DMA 越界。 */
+int hda_bdl_validate(const struct hda_bdl_entry *bdl, uint16_t entries,
+                     uint32_t cbl, uint32_t bdl_pa);
 
 /* ========== PCM 格式位定义 (SDnFMT) ========== */
 #define HDA_FMT_BITS_8      0x0000  /* 8-bit */
@@ -301,5 +324,12 @@ struct hda_topo_path {
 
 #define HDA_TOPO_ERR_NO_PIN     (-11)  /* 没有可输出的 Pin Complex */
 #define HDA_TOPO_ERR_NO_RESULT  (-12)  /* 三级来源都没给出可用拓扑 */
+
+/* ========== BDL 校验拒绝（tech-plan-hda.md §5.4，两条 start 路径） ==========
+   hda_bdl_validate 自身返回 HDA_BDL_ERR_*（0..-6），不上抛；两条 start
+   路径换成各自的命名码，避免与既有 -1..-3 语义撞车。-1..-12 已被
+   上面的家族占用，采集侧顺延取 -13。 */
+#define HDA_CONT_ERR_BDL   (-4)   /* hda_cont_start：BDL 校验拒绝 */
+#define HDA_CAP_ERR_BDL    (-13)  /* hda_capture_start：BDL 校验拒绝 */
 
 #endif /* _HDA_H */

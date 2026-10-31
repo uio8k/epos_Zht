@@ -306,6 +306,12 @@ int hda_capture_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t ms)
     for (uint32_t i = entries; i < HDA_BDL_ENTRIES; i++)
         memset(&g_cap_bdl[i], 0, sizeof(g_cap_bdl[i]));
 
+    /* BDL 合规断言（tech-plan-hda.md §5.4）：任一负码都放弃启动流，
+       不降级；校验在 SRST 脉冲之前，拒绝时硬件分文未动。 */
+    if (hda_bdl_validate(g_cap_bdl, (uint16_t)entries,
+                         g_cap_size, g_cap_bdl_pa) != HDA_BDL_OK)
+        return HDA_CAP_ERR_BDL;
+
     cap_stream_reset();
 
     hda_writel(HDA_SD_BDPL(HDA_INPUT_STREAM), g_cap_bdl_pa);

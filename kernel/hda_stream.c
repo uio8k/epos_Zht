@@ -490,7 +490,8 @@ int hda_cont_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t buf_size)
 
     /* BDL 指向环形缓冲，按当前缓冲大小选段长（见 hda_cont_seg_bytes）并
        **全条目使能 IOC**：每段消费完触发一次 BCIS 中断，中断等待的唤醒
-       精度由此决定；段数 ≤ HDA_BDL_ENTRIES（LVI 8 位上限 256）。 */
+       精度由此决定；段数 ≤ HDA_BDL_ENTRIES（256 是规范 BDL 条目数上限，
+       LVI 是 16 位字段，订正见 tech-plan-hda.md §5.6）。 */
     uint32_t seg = hda_cont_seg_bytes();
     uint32_t buf_phys = vtop((uint32_t)g_hda.sample_buf);
     uint32_t remaining = g_cont_size;
@@ -508,6 +509,12 @@ int hda_cont_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t buf_size)
     }
     for (int i = bdl_entries; i < HDA_BDL_ENTRIES; i++)
         memset(&g_hda.bdl[i], 0, sizeof(g_hda.bdl[i]));
+
+    /* BDL 合规断言（tech-plan-hda.md §5.4）：任一负码都放弃启动流，
+       不降级；校验在 SRST 脉冲之前，拒绝时硬件分文未动。 */
+    if (hda_bdl_validate(g_hda.bdl, (uint16_t)bdl_entries,
+                         g_cont_size, bdl_phys) != HDA_BDL_OK)
+        return HDA_CONT_ERR_BDL;
 
     /* Stream Reset */
     hda_writeb(HDA_SD_CTL(HDA_OUTPUT_STREAM), HDA_SDCTL_SRST);

@@ -26,7 +26,7 @@ LDFLAGS+=-Wl,-melf_i386
 endif
 LDFLAGS+=-Wl,--build-id=none
 
-COBJS=	ide.o floppy.o e1000.o hda.o hda_stream.o hda_audio.o hda_capture.o hda_trace.o \
+COBJS=	ide.o floppy.o e1000.o hda.o hda_stream.o hda_audio.o hda_capture.o hda_bdl.o hda_trace.o \
 	hda_topo.o hda_profile.o pci.o vm86.o \
 	kbd.o timer.o machdep.o task.o mktime.o sem.o \
 	page.o startup.o frame.o kmalloc.o dosfs.o pe.o \
