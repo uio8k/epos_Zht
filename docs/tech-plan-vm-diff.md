@@ -21,7 +21,9 @@
 ## 1 范围
 
 只覆盖 P13：L3 层之上的第二实现差分（整机串口行为 + 音频内容）。L1（make test）、
-L2（make qtest）不动；QEMU 3.1.50 不动（D8）；真机相关 L4/L5 排期不变（§10 局限）。
+L2（make qtest）不动；QEMU 3.1.50 不动（D8）。**2026-11-10 QEMU-only 修订**
+（`docs/decisions-qemu-only.md`）：QEMU 3.1.50 为唯一与最终验证平台，本差分维持
+提交前可选档、不升格；原「真机 L4/L5 排期」随真机路线废弃（§10 改写）。
 
 ## 2 依据等级与采信规则
 
@@ -67,10 +69,12 @@ Bochs 残值（可选，不排期）：指令级仿真 + 内置调试器对**引
 - 判定行协议 `KEY=VALUE` 单行（decisions §6 定稿），宿主正则可抓，
   `tools/serial_parser.py` 为现成解析器（D11：`audio_metrics.py` 唯一指标源、shell/
   编排层留在 hda_tests）。
-- 缺口：QEMU 3.1.50 是唯一参照实现，「QEMU 上绿」只证明 QEMU 兼容；真机无排期
-  （decisions §5 治具四件未到位），怪癖风险无兜底。
+- 缺口：QEMU 3.1.50 是唯一参照实现，「QEMU 上绿」只证明 QEMU 兼容；单实现
+  怪癖风险无兜底（2026-11-10 QEMU-only 修订后，真机兜底路线已废弃，本差分为
+  唯一的第二实现交叉手段）。
 - osdev 依据：多模拟器互测 "It can't hurt to use more than one emulator…"；同时警告
-  "if you test using an emulator, it might not work on the real thing"（差分 ≠ 真机）
+  "if you test using an emulator, it might not work on the real thing"——QEMU-only
+  决策已显式接受该局限（`docs/decisions-qemu-only.md` D-Q1）
   `[wiki: Emulator_Comparison / Testing + 2026-10-31 浏览器摘录]`。
 
 ## 5 备选对比矩阵（结论表）
@@ -81,7 +85,7 @@ Bochs 残值（可选，不排期）：指令级仿真 + 内置调试器对**引
 | B. VBox HD Audio 差分 | **采纳** | 手册 Audio Controller 含 "Intel HD Audio controller" `[spec: VBox 手册]`；TUNA 国内源直供 `[实测: bochs-sf-reachability.log D2]` |
 | C. 升级 QEMU 新版 | 否掉 | 无国内镜像（官方推荐源 qemu.weilnetz.de 德国）`[检索: websearch-snapshot-20261031.log 检索 5]` + 违反 D8 |
 | D. Gitee Go CI | 缓做 | 免费额度足够 `[检索: 同上 检索 6]`；但 qtest/整机需自建 Windows 构建节点，等差分主线稳后再接 |
-| E. 维持现状 | 不采纳 | 判据 3（不依赖单一实现）继续裸奔，真机又无排期 |
+| E. 维持现状 | 不采纳 | 判据 3（不依赖单一实现）继续裸奔，单实现怪癖风险无兜底 |
 
 ## 6 VBox 差分方案设计（细化）
 
@@ -136,9 +140,10 @@ VBox 的 HDA codec 模型与 QEMU `hda-duplex` **不是同一拓扑**（两家�
 1. VM 录制开 `--recording`（含音轨，WebM 容器）`[spec: VBox 手册 Recording 节]`。
 2. 音轨提取：`uv run --no-project --with imageio-ffmpeg python ...`（ffmpeg 由 PyPI
    wheel 携带，uv 走清华 PyPI 镜像，满足国内源约束）；`ffprobe` 核采样率/声道。
-3. 提取出的 PCM 喂 `tools/audio_metrics.py`（D11 唯一指标源）出 RMS/峰值/时长；
-   第一版验收线 = 「音轨非零、时长与播放样本匹配」；SNR/相关性等真值指标**仍归
-   真机**（§10），模拟器值只做趋势参考。
+3. 提取出的 PCM 喂 `tools/audio_metrics.py`（D11 唯一指标源）出行为指标（峰值/时长/
+   过零样本）；第一版验收线 = 「音轨非零、时长与播放样本匹配」。**SNR/THD 真值指标
+   已随 QEMU-only 修订删除**（`docs/decisions-qemu-only.md` D-Q5：模拟器值非真值，
+   真值档位原靠真机回环定档，无真值通道即无判据意义）。
 
 ### 6.5 落点表
 
@@ -191,11 +196,11 @@ D2 的 60s 全套预算。设计为**提交前可选第三档**：不进 `make f
 5. 证据目录含双侧原始日志 + 命令原文 + 退出码；refs-check 全 PASS。
 6. 下载只走国内源（TUNA；PyPI 走清华镜像），如失败按用户约定提出替换方案并留痕。
 
-## 10 局限性（不许被差分掩盖的部分）
+## 10 局限性（2026-11-10 QEMU-only 修订后口径）
 
 - **差分 ≠ 真机验证**：osdev 明言 "if you test using an emulator, it might not work on
-  the real thing" `[wiki: Testing]`。Realtek 真实拓扑发现、EAPD/VrefEn/Unsol 三初始化、
-  SNR/THD 真值，仍只能等 P01 治具机（decisions §5 阶段 1 排期不变）。
+  the real thing" `[wiki: Testing]`。本项目已于 2026-11-10 显式接受该局限并废弃真机
+  路线（`docs/decisions-qemu-only.md` D-Q1）——不再有「等真机」的兜底排期。
 - VBox HDA codec 模型 ≠ QEMU hda-duplex：拓扑级差异可能来自模拟器建模而非驱动 bug，
   判读规则必须先收敛再下结论（6.3）。
 - 模拟器差分只能证明「驱动不依赖单一实现的行为怪癖」，不能证明「符合 Intel 规范

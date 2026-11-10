@@ -36,7 +36,7 @@
 - **连跑放开**（一次指令多个 P 项）：信任建立后再评估。
 - **不做真跑验证**：用户 2026-11-10 追加要求，交付即止，/autodev 的实际触发由用户自己执行。
 - progress.html 不加 autodev 条目：流程基建不是 P 项（与 P13 的基建项处理同理，但 autodev 与项目进度无关，连条目都不占）。
-- 真机 L4/L5、治具相关（decisions-audio-test.md §5 治具四件）不在本指令覆盖范围，仍等硬件到位。
+- 真机 L4/L5、治具相关（原 decisions-audio-test.md §5 治具四件）不在本指令覆盖范围——2026-11-10 QEMU-only 修订后真机路线已整体废弃（`docs/decisions-qemu-only.md` D-Q1），队列中不再有真机项。
 
 ## 5. 落点与验证
 

@@ -29,7 +29,7 @@
 
 1. wiki 与规范冲突时以规范为准，并在文中标出，不静默改口径。
 2. wiki 没有原文的条目，写「wiki 无原文」，改标规范依据与置信度（高/中/低）。
-3. 只信能落到 QEMU 或真机上的说法；测不出来的写进「不确定项」，不写成结论。
+3. 只信能落到 QEMU 上的说法；测不出来的写进「不确定项」，不写成结论。（2026-11-10 QEMU-only 修订：真机验证路线废弃，见 `docs/decisions-qemu-only.md`）
 4. 每条结论后附出处，格式 `[wiki: 段落名]`、`[spec: 表号/章节]`、`[实测: 文件:行号]`。
 
 ### 2.1 wiki 的问题清单
@@ -49,12 +49,12 @@
 | 项 | 依据口径 | 代码现状 | 判定 |
 |---|---|---|---|
 | GCAP 解码 | OSS=bits15:12、ISS=11:8、BSS=7:3、64OK=bit0 | `hda.c:165-167` 用 `gcap&0xF`、`>>4`、`>>8` | 解码错。QEMU 实测 GCAP=0x4401，串口打成 `OSS=1 ISS=0 BSS=4`，正确是 OSS=4/ISS=4/BSS=0 |
-| 流描述符基址 | `0x80 + 0x20×n`，输入在前、输出在后、双向最后 | `hda.h:58` 公式通用；`hda.h:66` 把播放写死在第 4 号 | 仅当 ISS=4 成立。真机 ISS≠4 时第 4 号不是输出流 |
+| 流描述符基址 | `0x80 + 0x20×n`，输入在前、输出在后、双向最后 | `hda.h:58` 公式通用；`hda.h:66` 把播放写死在第 4 号 | 仅当 ISS=4 成立。ISS≠4 的控制器上第 4 号不是输出流 |
 | BDL 对齐 | 1KB 对齐 | `hda_alloc_dma`（`hda.c:33-45`，起始地址 `hda.c:28` 的 `HDA_DMA_BASE 0x400000`）走页分配 | 事实合规（4KB 对齐），零断言 |
 | 条目数与 LVI | ≥2 条、≤256 条、LVI=n-1 | 播放 128/256 条（`hda_stream.c:494-508`），采集 64/128 条（`hda_capture.c:299-305`），LVI 均 n-1 | 合规，零断言 |
 | LVI 注释 | LVI 是 16 位字段，256 上限来自条目数上限 | `hda.h:122-124` 写「LVI 为 8 位（0-255）」 | 注释错，需订正 |
 | wbinvd | BDL 写完刷缓存再 RUN | `hda_stream.c:536`、`hda_capture.c:381` | 合规 |
-| INTCTL | bit31 GIE + bits29:0 逐流使能（位号 = 绝对索引） | `hda.c:185` 只写 `0x80000000` | 真机可能不上报流中断 |
+| INTCTL | bit31 GIE + bits29:0 逐流使能（位号 = 绝对索引） | `hda.c:185` 只写 `0x80000000` | 只开 GIE 不开逐流位的实现可能不上报流中断 |
 | EAPD | verb `0x70C`，payload bit1 | 全仓无该 verb | 缺 |
 | VrefEn | pin ctrl `0x707`，bits2:0 | `hda.h:232-234` 注释写「bits 4:2 是 VREF」，播放只写 `0x707 \| 0x40` | 位段注释错，且没有 mic 侧处理 |
 | Unsol | GCTL bit8 + per-widget verb，响应经 RIRB 回送 | `hda.c:178` 把 GCTL bit8 置上了（实测 GCTL=0x101），驱动全走 ICW/IRR，无 RIRB | 开了也收不到 |
@@ -75,7 +75,7 @@ wiki GCAP 表（`[wiki: 0x00 (4 bytes) Global Capabilities]`）：bits15:12 = OS
            gcap & 0xF, (gcap >> 4) & 0xF, (gcap >> 8) & 0xF);
 ```
 
-三个字段整体错位 8 位。目前这段只用于打印，没有参与基址计算，所以 QEMU 播放没受影响；一旦在真机上按这个值推 SD 基址，会直接写到不存在的流描述符上。
+三个字段整体错位 8 位。目前这段只用于打印，没有参与基址计算，所以 QEMU 播放没受影响；一旦按这个错位值推 SD 基址，会直接写到不存在的流描述符上。
 
 ### 4.3 索引公式
 
@@ -134,7 +134,7 @@ uint8_t hda_sd_index_out(const struct hda_gcap *c, uint8_t k);
 - 版本寄存器偏移（顺带发现）：`[Gitee: hw/audio/intel-hda-defs.h:19-20]` QEMU 定义
   VMIN=0x02、VMAJ=0x03，内核 `hda.h:13-14` 同序；本仓 wiki 摘录未含此二寄存器，
   与 Intel 规范常见表述（VMaj@0x02）的出入列入 `docs/tech-plan-qtest.md` §8 U3，
-  真机轮核对。影响仅版本打印，无数据通路。
+  原真机轮核对随真机路线废弃（2026-11-10 QEMU-only）。影响仅版本打印，无数据通路。
 - 本仓 wiki 摘录（oldid=30627）已覆盖本节全部位段依据；qtest 层的协议与可行性
   取证见 `docs/tech-plan-qtest.md`。
 - 证据：`docs/evidence/2026-10-31/` 下 `gitee-qemu-intelhda-excerpt.txt`、
@@ -179,7 +179,7 @@ int hda_bdl_validate(const struct hda_bdl_entry *bdl, uint16_t entries,
 行为约定：
 
 - 只读遍历，O(n)，n ≤ 256，µs 级，只在 start 前调一次，不进热路径。
-- 失败时打印 `HDA: BDL reject rc=%d entries=%u cbl=%u pa=0x%x` 并返回负码，调用方据此放弃启动流。不降级、不「尽量跑」，因为错的对齐或错的 CBL 在 QEMU 上表现为爆音，在真机上表现为 DMA 越界。
+- 失败时打印 `HDA: BDL reject rc=%d entries=%u cbl=%u pa=0x%x` 并返回负码，调用方据此放弃启动流。不降级、不「尽量跑」，因为错的对齐或错的 CBL 在 QEMU 上表现为爆音，按 Intel 规范即 DMA 越界风险。
 - 编译期再加一条 `_Static_assert(sizeof(struct hda_bdl_entry) == 16, "BDL entry must be 16 bytes")`，放在 `hda.h` 结构体后面，把「16 字节」这件事从注释变成编译约束。
 
 ### 5.4 调用点
@@ -220,10 +220,10 @@ wiki 只在 verb 表里留了 `70C Set EAPD/BTL` 一行，第 (11) 条写「Set 
 
 ### 6.2 策略
 
-QEMU 的 hda-duplex 没有外部功放，EAPD 位大概率读回 0 或不实现，这里能验的只有「verb 发出去了、回读值打出来了」。所以策略按真机可用性设计，QEMU 侧只保证不破坏现有链路。
+QEMU 的 hda-duplex 没有外部功放，EAPD 位大概率读回 0 或不实现，这里能验的只有「verb 发出去了、回读值打出来了」。所以策略按规范步骤设计（真机效果验证已随 QEMU-only 修订废弃，2026-11-10），QEMU 侧只保证不破坏现有链路。
 
 - 只在拓扑解析出的输出 pin（`g_hda.output_pin`）上发，不发到 DAC 和 mixer。
-- 门控两条，满足其一才发：widget 能力 `09h` 的 bit16 为 1；或 `hda_profile.c` 的条目显式标了 `eapd = 1`（真机 dump 到位后按机型补）。
+- 门控两条，满足其一才发：widget 能力 `09h` 的 bit16 为 1；或 `hda_profile.c` 的条目显式标了 `eapd = 1`（机型 dump 随真机路线废弃，QEMU profile 为唯一事实源）。
 - 载荷固定 `0x02`（EAPD=1、BTL=0）。先读 `0xF0C`，已经置位就跳过，避免每轮重复写。
 - 回读不一致只告警，不进 `HDA_CAP_ERR_*` 那套致命分级。理由与 `docs/decisions-adc.md` 的 D3 相同：能力位不支持的项做成致命，会把可用通路判死。
 
@@ -235,7 +235,7 @@ QEMU 的 hda-duplex 没有外部功放，EAPD 位大概率读回 0 或不实现�
 | `hda.c:220-246`（配置输出路径处） | pin 使能、amp 取消静音之后，按门控发 EAPD 并回读 |
 | `hda_profile.c` | 条目结构增 `uint8_t eapd, vref`，QEMU 条目填 `eapd=0, vref=0`（保持现状） |
 
-串口行：`HDA: EAPD pin=0x07 req=0x02 rd=0x02 (cap=1 profile=0)`。真机无声时这行是第一个要看的东西。
+串口行：`HDA: EAPD pin=0x07 req=0x02 rd=0x02 (cap=1 profile=0)`。采集无声时这行是第一个要看的东西。
 
 ## 7 P07-c：VrefEn
 
@@ -258,7 +258,7 @@ VREFEN 取值：0 = Hi-Z（关）、1 = 50% Vdd、2 = Gnd（0V）、4 = 80%、5 
 - 写的时候与 IN_EN 合成一次写：`0x20 | (vref & 0x7)`，不单独发一次 verb，避免中间态无偏置。
 - 回读 `0x707` 比对 bits2:0，不符告警一行。
 
-不做「1→4→5 自动扫描」。自动扫会把麦克风偏置电平来回改，测出来的电平变化分不清是偏置还是音源，反而污染排查。逐级试写进真机排查手册（EAPD → VrefEn 1/4/5 → GCAP → pin sense）。
+不做「1→4→5 自动扫描」。自动扫会把麦克风偏置电平来回改，测出来的电平变化分不清是偏置还是音源，反而污染排查。逐级试写进排查手册（EAPD → VrefEn 1/4/5 → GCAP → pin sense）。
 
 ## 8 P07-d：Unsol 不做
 
@@ -305,7 +305,7 @@ VREFEN 取值：0 = Hi-Z（关）、1 = 50% Vdd、2 = Gnd（0V）、4 = 80%、5 
 | L1 | 新增 10 条（5.5 表）全绿；原 18 条不退化；`make test` <2s |
 | 串口 | 出现 `HDA: GCAP=0x4401 v1.0 OSS=4 ISS=4 BSS=0 64OK=1 in_sd=0 out_sd=4`、`HDA: INTCTL set to 0x80000011`、`HDA: EAPD ...`、`HDA: BDL ok entries=... cbl=...` |
 | 回归 | `hda_tests\run_all.bat --suite fast` 全绿；`run_capture_all.bat` 两轮 4/4 PASS；播放 LPIB 推进与 underrun 计数不劣于 209a1a6 基线 |
-| 真机（受 P01 阻塞） | EAPD 回读一致；VrefEn 按 profile 生效；无声排查按 EAPD → VrefEn → GCAP → pin sense 顺序 |
+| EAPD/VrefEn 行为 | EAPD 回读一致；VrefEn 按 profile 生效（QEMU 侧验 verb 发送与回读打印；原真机行随真机路线废弃，2026-11-10 QEMU-only） |
 
 `INTCTL=0x80000011` 的算法：bit31 GIE，bit4 = 输出流绝对索引 4，bit0 = 输入流绝对索引 0。
 
@@ -318,7 +318,7 @@ VREFEN 取值：0 = Hi-Z（关）、1 = 50% Vdd、2 = Gnd（0V）、4 = 80%、5 
 | 运行时流索引 | 唯一可能影响 QEMU 基线的地方 | 恢复 `HDA_OUTPUT_STREAM 4` 常量，一处宏 |
 | INTCTL 逐流位 | 若 QEMU 因某些未明原因开始丢 BCIS 中断 | 回到只写 `0x80000000` |
 | 去掉 GCTL.UNSOL | 无功能影响（本来收不到） | 重新置 bit8，但要在注释里写明无效 |
-| EAPD / VrefEn | 真机上写错偏置会把 line-in 电平拉偏 | profile 里 `eapd=0, vref=0` 即可全关 |
+| EAPD / VrefEn | 写错偏置按规范会把 line-in 电平拉偏 | profile 里 `eapd=0, vref=0` 即可全关 |
 
 不确定项（实施前用规范原文复核，别按本文推断）：
 
@@ -327,8 +327,8 @@ VREFEN 取值：0 = Hi-Z（关）、1 = 50% Vdd、2 = Gnd（0V）、4 = 80%、5 
 | U1 | 条目指向的 PCM 缓冲区是否另有对齐要求（BDL 自身 1KB 是确定的） | 未做要求 | 低，wiki 未提 |
 | U2 | BSS 字段位宽 5 位还是 3 位（wiki 7:3 与规范常见 5:3 不一致） | 只用来算双向流基址，本机不涉及 | 中 |
 | U3 | `70C` payload 的 EAPD/BTL 位序 | bit1=EAPD、bit0=BTL | 中高 |
-| U4 | VREFEN 在真机上该选哪一档（编码 bits2:0 与能力掩码 `(0x37<<8)` 已定） | 0/1/2/4/5 五档，默认 0 | 编码 高 / 选档 待真机 |
+| U4 | VREFEN 选哪一档（编码 bits2:0 与能力掩码 `(0x37<<8)` 已定；原「待真机」选档随真机路线废弃，2026-11-10 QEMU-only） | 0/1/2/4/5 五档，默认 0 | 编码 高 / 选档维持默认 |
 | U5 | per-widget unsolicited 的 verb 号与 tag 字段布局 | 不实现，未取值 | 低 |
 
-本机无法验证的项：EAPD 的实际功放效果、VrefEn 的偏置效果、真机 ISS≠4 的索引路径。这三项只能等 P01 治具到位，因此代码里只做「门控 + 回读 + 打印」，不做自动调参。
+QEMU 上无法验证效果、只能验证「发出去+回读」的项：EAPD 的实际功放效果、VrefEn 的偏置效果、ISS≠4 的索引路径。原「等 P01 治具」路线已废弃（2026-11-10 QEMU-only，`docs/decisions-qemu-only.md`），因此代码里只做「门控 + 回读 + 打印」，不做自动调参。
 

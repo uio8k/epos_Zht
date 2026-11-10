@@ -171,8 +171,10 @@ hda_tests（外层）不接 qtest：它测的是整机行为，L2 归内层 `mak
 - **U3 VMaj/VMIN 偏移**：`[Gitee: hw/audio/intel-hda-defs.h:19-20]` VMIN@0x02、
   VMAJ@0x03，内核 `hda.h:13-14` 同序，探针实测 0x02=0、0x03=1 三方一致；但本仓
   wiki 摘录未含这两个寄存器，Intel 规范常见表述为 VMaj@0x02——QEMU 与内核可能是
-  「同错互配」。影响仅串口版本打印（v1.0），无数据通路。验证方法：真机轮 dump
-  0x02/0x03 两字节核对；下轮若改 §4.2 的打印，按实测定序，不按记忆。
+  「同错互配」。影响仅串口版本打印（v1.0），无数据通路。原验证方法（真机轮 dump
+  0x02/0x03 两字节核对）随真机路线废弃（2026-11-10 QEMU-only，
+  `docs/decisions-qemu-only.md`）——维持三方一致现状，若改 §4.2 的打印，按实测定序，
+  不按记忆。
 - **U4 qtest 无 quit 命令**：协议无优雅退出命令，客户端收尾用外部 `taskkill`（探针
   已验证 Stop-Process 可行）。L2 不写 wav 文件，无「优雅退出 flush」诉求，风险低。
 - **U5 端口与单实例**：monitor 4444 的单实例约束（env.py docstring）扩展到 qtest

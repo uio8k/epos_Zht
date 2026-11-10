@@ -25,3 +25,5 @@ PASS | decisions-autodev.md 有 D-A1..D-A10 机制/结论条目 | Select-String:
 PASS | decisions-autodev.md 有不做真跑验证条款(用户追加要求) | Select-String: E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-autodev.md:37
 
 SUMMARY: 21 PASS / 0 FAIL
+
+REVISION NOTE 2026-11-10: line 9 (PASS \| decisions-audio-test.md 有 §5 治具四件段) 的检查对象 §5 已随 QEMU-only 修订删除（decisions-qemu-only.md D-Q2/D-Q3）；该日志为当时事实记录，保留存档。

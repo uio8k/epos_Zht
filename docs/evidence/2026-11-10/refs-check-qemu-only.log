@@ -1,0 +1,33 @@
+﻿refs-check qemu-only 2026-11-10
+对象: docs/decisions-qemu-only.md 引用的文件/段落 + progress.html 修订结构断言
+方法: Select-String 逐条 (AGENTS.md 规则)
+PASS | decisions-qemu-only.md 有 D-Q1(QEMU 唯一最终平台) | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-qemu-only.md:9
+PASS | decisions-qemu-only.md 有 D-Q4(P11 改 QEMU 版) | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-qemu-only.md:12
+PASS | decisions-qemu-only.md 有 D-Q5(SNR/THD 删) | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-qemu-only.md:13
+PASS | decisions-qemu-only.md 有 D-Q9(L5 删) | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-qemu-only.md:17
+PASS | progress.html 阶段区改为唯一 QEMU 阶段 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\progress.html:231
+PASS | progress.html P01 已删(无 data-id="P01") | NEG | E:\ComputerScience\epos_Zht\epos_Zht\progress.html -> no match
+PASS | progress.html 治具四件节已删(无标题) | NEG | E:\ComputerScience\epos_Zht\epos_Zht\progress.html -> no match
+PASS | progress.html P05b 改造为删指标项 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\progress.html:277
+PASS | progress.html P11 改 QEMU 版 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\progress.html:355
+PASS | progress.html L4 表行改 QEMU 整机自检 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\progress.html:326
+PASS | progress.html L5 表行已删 | NEG | E:\ComputerScience\epos_Zht\epos_Zht\progress.html -> no match
+PASS | progress.html U-L1-05 行已删 | NEG | E:\ComputerScience\epos_Zht\epos_Zht\progress.html -> no match
+PASS | progress.html U-L5-02 行已删 | NEG | E:\ComputerScience\epos_Zht\epos_Zht\progress.html -> no match
+PASS | progress.html U-L4-01 改 QEMU 口径 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\progress.html:389
+PASS | progress.html 计数改 12/14 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\progress.html:395
+PASS | progress.html changelog 有 2026-11-10 修订条目 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\progress.html:405
+PASS | decisions-audio-test.md 文首有废弃指针 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-audio-test.md:5
+PASS | decisions-audio-test.md §5 改 QEMU-only 口径 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-audio-test.md:47
+PASS | decisions-audio-test.md §6 改两段式 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-audio-test.md:57
+PASS | decisions-audio-test.md 无治具四件残留段 | NEG | E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-audio-test.md -> no match
+PASS | tech-plan-vm-diff.md §1 有 QEMU-only 修订声明 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\tech-plan-vm-diff.md:24
+PASS | tech-plan-vm-diff.md §10 改写为 QEMU-only 口径 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\tech-plan-vm-diff.md:199
+PASS | tech-plan-qtest.md U3 已加废弃注记 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\tech-plan-qtest.md:175
+PASS | tech-plan-hda.md U4 已关闭待真机 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\tech-plan-hda.md:330
+PASS | tech-plan-hda.md 末段已改 QEMU 口径 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\tech-plan-hda.md:333
+PASS | evidence osdev 摘录保留(QEMU-only 依据) | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-10-31\osdev-bochs-emulator-comparison-excerpt.txt:34
+PASS | refs-check-autodev.log 有修订说明追加 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-11-10\refs-check-autodev.log:29
+PASS | decisions-autodev.md 真机范围行已更新 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-autodev.md:39
+
+SUMMARY: 28 PASS / 0 FAIL
