@@ -19,6 +19,8 @@ copy /Y "%REPO%\kernel\hda_capture.c"   build\hda_capture_under_test.c >nul
 copy /Y "%REPO%\kernel\hda_topo.c"      build\hda_topo_under_test.c >nul
 copy /Y "%REPO%\kernel\hda_profile.c"   build\hda_profile_under_test.c >nul
 copy /Y "%REPO%\kernel\hda_bdl.c"       build\hda_bdl_under_test.c >nul
+copy /Y "%REPO%\kernel\hda_regs.c"     build\hda_regs_under_test.c >nul
+copy /Y "%REPO%\kernel\hda_regs.h"     build\hda_regs.h >nul
 copy /Y "%REPO%\kernel\hda_internal.h"  build\hda_internal.h >nul
 copy /Y "%REPO%\include\audio_capture.h" build\audio_capture.h >nul
 copy /Y host\kernel.h                   build\kernel.h >nul
@@ -67,7 +69,15 @@ if errorlevel 1 (echo [tests] BUILD FAILED: test_bdl & exit /b 1)
 build\test_bdl_fresh.exe
 if errorlevel 1 set "RC=1"
 
-rem ---------- 6) 测试计划自洽性（已停用） ----------
+rem ---------- 6) GCAP 解码与流索引（P07-a：tech-plan-hda.md §4.5 向量 T1-T4） ----------
+"%CC%" -std=gnu11 -Wall -Wextra -O0 -pipe -I. -Iunity -Ibuild -I"%REPO%\kernel" ^
+       -o build\test_hda_regs_fresh.exe test_hda_regs.c unity\unity.c
+if errorlevel 1 (echo [tests] BUILD FAILED: test_hda_regs & exit /b 1)
+
+build\test_hda_regs_fresh.exe
+if errorlevel 1 set "RC=1"
+
+rem ---------- 7) 测试计划自洽性（已停用） ----------
 rem docs/test-plan-audio.md 已于 2026-10-28 删除，校验脚本随之停用；
 rem 脚本本体留在 tests\tools\check_plan.py，计划若恢复（同名同结构）即可接回。
 

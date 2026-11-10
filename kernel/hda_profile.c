@@ -20,26 +20,33 @@ struct hda_profile_entry {
     uint8_t  pin;
     uint8_t  mixer;
     uint8_t  mixer_idx;
+    uint8_t  eapd;       /* P07-b：输出 pin EAPD 请求（0=不发；QEMU 条目为 0） */
+    uint8_t  vref;       /* P07-c：输入 pin VREFEN 档（0=Hi-Z；QEMU 条目为 0） */
     const char *note;
 };
 
 static const struct hda_profile_entry g_profiles[] = {
     /* 2026-10 之前在 hda.c 里硬编码、并在 QEMU hda-duplex 上出声的同一形状：
-       DAC 0x02 -> Mixer 0x05（选连接 0）-> Pin 0x07。 */
-    { 0x8086, 0x2668, 0x02, 0x07, HDA_MIXER_NID, 0, "qemu hda-duplex (ICH6)" },
-    { 0x8086, 0x293e, 0x02, 0x07, HDA_MIXER_NID, 0, "qemu hda-duplex (ICH9)" },
+       DAC 0x02 -> Mixer 0x05（选连接 0）-> Pin 0x07。
+       eapd/vref 置 0 保持现状：QEMU hda-codec 无 0x70C/0xF0C case（2026-11-10
+       摘录 4），门控不放行即不发，现有链路零扰动。 */
+    { 0x8086, 0x2668, 0x02, 0x07, HDA_MIXER_NID, 0, 0, 0, "qemu hda-duplex (ICH6)" },
+    { 0x8086, 0x293e, 0x02, 0x07, HDA_MIXER_NID, 0, 0, 0, "qemu hda-duplex (ICH9)" },
 };
 
 #define HDA_PROFILE_COUNT (sizeof(g_profiles) / sizeof(g_profiles[0]))
 
 static void profile_fill(struct hda_topo_path *out, uint8_t dac, uint8_t pin,
-                         uint8_t mixer, uint8_t mixer_idx)
+                         uint8_t mixer, uint8_t mixer_idx,
+                         uint8_t eapd, uint8_t vref)
 {
     memset(out, 0, sizeof(*out));
     out->dac = dac;
     out->pin = pin;
     out->mixer = mixer;
     out->mixer_idx = mixer_idx;
+    out->eapd = eapd;
+    out->vref = vref;
     out->chain[0] = pin;
     if (mixer) {
         out->chain[1] = mixer;
@@ -59,7 +66,8 @@ int hda_profile_lookup(uint16_t vendor, uint16_t device, struct hda_topo_path *o
     for (unsigned i = 0; i < HDA_PROFILE_COUNT; i++) {
         if (g_profiles[i].vendor == vendor && g_profiles[i].device == device) {
             profile_fill(out, g_profiles[i].dac, g_profiles[i].pin,
-                         g_profiles[i].mixer, g_profiles[i].mixer_idx);
+                         g_profiles[i].mixer, g_profiles[i].mixer_idx,
+                         g_profiles[i].eapd, g_profiles[i].vref);
             printk("HDA: profile hit %04x:%04x -> %s\r\n",
                    vendor, device, g_profiles[i].note);
             return 1;
@@ -72,5 +80,5 @@ void hda_profile_fallback(struct hda_topo_path *out)
 {
     if (!out)
         return;
-    profile_fill(out, 0x02, 0x07, HDA_MIXER_NID, 0);
+    profile_fill(out, 0x02, 0x07, HDA_MIXER_NID, 0, 0, 0);
 }

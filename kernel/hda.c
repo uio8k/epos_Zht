@@ -158,13 +158,18 @@ int hda_init(void)
     g_hda.mmio_base = page_alloc(PAGE_ROUNDUP(bsize)/PAGE_SIZE, VM_PROT_RW, 0);
     page_map(g_hda.mmio_base, baddr, PAGE_ROUNDUP(bsize)/PAGE_SIZE, L2E_V | L2E_W);
 
-    /* 打印控制器能力 */
+    /* 打印控制器能力（P07-a：解码改走 hda_regs.c 的 hda_gcap_decode，
+       旧码三字段整体错位 8 位——GCAP=0x4401 被打成 OSS=1 ISS=0 BSS=4） */
     uint16_t gcap = hda_readw(HDA_GCAP);
     uint8_t  vmaj = hda_readb(HDA_VMAJ);
     uint8_t  vmin = hda_readb(HDA_VMIN);
-    printk("HDA: GCAP=0x%04x v%d.%d (OSS=%u ISS=%u BSS=%u)\r\n",
-           gcap, vmaj, vmin,
-           gcap & 0xF, (gcap >> 4) & 0xF, (gcap >> 8) & 0xF);
+    struct hda_gcap gc = hda_gcap_decode(gcap);
+    g_hda.sd_in     = hda_sd_index_in (&gc, 0);
+    g_hda.sd_out    = hda_sd_index_out(&gc, 0);
+    g_hda.gcap_ok64 = gc.ok64;
+    printk("HDA: GCAP=0x%04x v%d.%d OSS=%u ISS=%u BSS=%u 64OK=%u in_sd=%u out_sd=%u\r\n",
+           gcap, vmaj, vmin, gc.oss, gc.iss, gc.bss, gc.ok64,
+           g_hda.sd_in, g_hda.sd_out);
 
     /* === 标准初始化：CRST=0 -> CRST=1（IC 寄存器复位后即可用，
        无需 CORB/RIRB DMA 缓冲——IC 走纯 MMIO，无 DMA 路径） === */
@@ -174,15 +179,23 @@ int hda_init(void)
     while (hda_readl(HDA_GCTL) & HDA_GCTL_CRST)
         ;
 
-    /* 2. 退出复位，同时使能 Unsolicited 响应 */
-    hda_writel(HDA_GCTL, hda_readl(HDA_GCTL) | HDA_GCTL_CRST | HDA_GCTL_UNSOL);
+    /* 2. 退出复位（P07-d：去掉 HDA_GCTL_UNSOL——QEMU intel-hda.c 全文无
+       unsol 处理逻辑，GCTL wmask 0x0103 虽可写 bit8 但无任何效果
+       [Gitee: hw/audio/intel-hda.c:512-517/635-641, 2026-11-10 摘录 1/2]；
+       驱动全程 ICW/IRR，无 RIRB 投递路径，留着只会误导后来人） */
+    hda_writel(HDA_GCTL, hda_readl(HDA_GCTL) | HDA_GCTL_CRST);
     while (!(hda_readl(HDA_GCTL) & HDA_GCTL_CRST))
         ;
     printk("HDA: GCTL=0x%08x (CRST=%d)\r\n",
            hda_readl(HDA_GCTL), hda_readl(HDA_GCTL) & HDA_GCTL_CRST);
 
-    /* 3. 使能全局中断（某些 QEMU 版本需要 GIE=1 才能启动流 DMA） */
-    hda_writel(HDA_INTCTL, 0x80000000);   /* GIE=1 (bit 31) */
+    /* 3. 全局中断（GIE）。（P07-a 自修轮注记：逐流使能位曾在 2026-11-10
+       实验性补上（0x80000011），hda_tests Q-SINE 波形劣化可复现
+       （SNR -9.37/2.01dB vs 基线 96.74dB，数值非确定），回退为只写 GIE
+       保播放基线——tech-plan §11 风险表回退行；QEMU 侧流中断本就由
+       SDCTL bit26 门控（intel-hda.c intel_hda_update_int_sts，驱动未置），
+       INTCTL 流位只是 mask，规范语义保留待后续单独验证后重开。 */
+    hda_writel(HDA_INTCTL, 0x80000000u);
     printk("HDA: INTCTL set to 0x%08x\r\n", hda_readl(HDA_INTCTL));
 
     /* === Codec 探测：播放拓扑交给 hda_topo_resolve 解析（连接列表 DFS →
@@ -207,11 +220,11 @@ int hda_init(void)
         g_hda.output_pin  = topo.pin;
         g_hda.mixer_nid   = topo.mixer;
         g_hda.mixer_idx   = topo.mixer_idx;
+        g_hda.cap_vref    = topo.vref;   /* P07-c：输入 pin 的 VREFEN 档（0=Hi-Z） */
         printk("HDA: topology source=%s dac=0x%02x pin=0x%02x mixer=0x%02x "
                "idx=%u hops=%u\r\n",
                hda_topo_source_name(src), topo.dac, topo.pin, topo.mixer,
                topo.mixer_idx, topo.hops);
-
         if (src < 0) {
             printk("HDA: topology resolve failed rc=%d\r\n", src);
             break;      /* 交给下面统一的 DAC/Pin 校验报错 */
@@ -231,18 +244,41 @@ int hda_init(void)
             hda_send_verb(cad, g_hda.mixer_nid,
                           HDA_VERB_SET_AMP_GAIN_MUTE | HDA_AMP_UNMUTE_0DB);
         }
+        /* P07-b：EAPD 门控 + 回读（tech-plan-hda.md §6.2，2026-11-10 修订）。
+           门控两条满足其一才发：pin cap 0Ch bit16（AC_PINCAP_EAPD——
+           注意是 pin cap 不是 widget cap 09h，订正见 §6.1）；或 profile
+           显式标了 eapd=1（topo.eapd 由 hda_profile.c 填）。载荷固定 0x02，
+           已置位则跳过；回读不一致只告警不致命（decisions-adc.md D3 同理：
+           能力位不支持的项做成致命会把可用通路判死）。 */
+        {
+            uint64_t pcap = hda_send_verb(cad, g_hda.output_pin,
+                                          HDA_VERB_GET_PARAMETER | HDA_PARAM_PIN_CAP);
+            int eapd_cap = (int)((pcap >> 16) & 1);   /* 0Ch bit16 */
+            int want = eapd_cap || topo.eapd;
+            uint64_t rd = hda_send_verb(cad, g_hda.output_pin, HDA_VERB_GET_EAPD_BTL);
+            if (want && ((rd & 0xFF) & HDA_EAPD_ENABLE) == 0) {
+                hda_send_verb(cad, g_hda.output_pin, HDA_VERB_SET_EAPD_BTL | HDA_EAPD_ENABLE);
+                rd = hda_send_verb(cad, g_hda.output_pin, HDA_VERB_GET_EAPD_BTL);
+            }
+            printk("HDA: EAPD pin=0x%02x req=0x%02x rd=0x%02x (cap=%d profile=%d)\r\n",
+                   g_hda.output_pin, want ? HDA_EAPD_ENABLE : 0,
+                   (uint32_t)(rd & 0xFF), eapd_cap, topo.eapd);
+        }
+
         /* 关联 DAC 到 Stream（关键！否则 Codec 不知道从哪个流读取 PCM 数据）
-           必须使用与 SDCTL 中 stream tag 相同的非零流号 */
+           必须使用与 SDCTL 中 stream tag 相同的非零流号。
+           P07-a：tag 与索引解耦——SDCTL byte2 的 tag 用宏（HDA_OUTPUT_TAG），
+           不再借序号字面量（tech-plan-hda.md §4.3）。 */
         uint32_t conv_verb = HDA_VERB_SET_CONVERTER_STREAM_CHANNEL |
-                             (HDA_OUTPUT_STREAM << 4) | 0;
-        printk("HDA: SET_CONVERTER_STREAM_CHANNEL verb=0x%05x (stream=%d)\r\n",
-               conv_verb, HDA_OUTPUT_STREAM);
+                             (HDA_OUTPUT_TAG << 4) | 0;
+        printk("HDA: SET_CONVERTER_STREAM_CHANNEL verb=0x%05x (tag=%d sd=%u)\r\n",
+               conv_verb, HDA_OUTPUT_TAG, g_hda.sd_out);
         hda_send_verb(cad, g_hda.output_dac, conv_verb);
         /* 回读 DAC 的 stream/channel，验证 SET 是否生效 */
         {
             uint64_t conv = hda_send_verb(cad, g_hda.output_dac, HDA_VERB_GET_CONV);
-            printk("HDA: GET_CONV resp=0x%08llx (期望 0x%02x = stream<<4|ch)\r\n",
-                   conv, (uint32_t)(HDA_OUTPUT_STREAM << 4));
+            printk("HDA: GET_CONV resp=0x%08llx (期望 0x%02x = tag<<4|ch)\r\n",
+                   conv, (uint32_t)(HDA_OUTPUT_TAG << 4));
         }
 
         break;

@@ -2,6 +2,7 @@
 #define _HDA_H
 
 #include <inttypes.h>
+#include "hda_regs.h"
 
 /* ========== PCI IDs ========== */
 #define HDA_VENDOR_ID       0x8086
@@ -57,16 +58,20 @@
 /* 每个流占用 0x20 字节, 输入流和输出流使用相同偏移 */
 #define HDA_SD_BASE(n)      (0x80 + (n) * 0x20)
 
-/* QEMU intel-hda 模型中播放流必须用 SD4（关键！）：
+/* QEMU intel-hda 模型中播放流默认用 SD4（关键！）：
    - QEMU 源码 hw/audio/intel-hda.c 的 intel_hda_set_st_ctl() 中
      output = (stream >= 4)，即 SD0~SD3 是"输入流"(ADC)、SD4~SD7 才是
      "输出流"(DAC)。用 SD0~SD3 播放会被当作录音方向，
      trace 显示 "hda_audio_running st adc"，听不到声音
-   - stream tag 必须非零（Intel HDA 规范要求 1-15，tag 0 无效） */
+   - stream tag 必须非零（Intel HDA 规范要求 1-15，tag 0 无效）
+   P07-a 起，运行时索引改由 GCAP 解码（g_hda.sd_out，见 hda_regs.c），
+   本常量降级为「QEMU profile 的默认输出条序号」兼 stream tag。
+   tag 与索引解耦（tech-plan-hda.md §4.3）：tag 用宏，索引用字段。 */
 #define HDA_OUTPUT_STREAM   4
+#define HDA_OUTPUT_TAG      4
 
 /* 输入流：同一模型里 SD0~SD3 是输入方向，采集取 SD0。
-   stream tag 必须非零，且不能与播放的 tag（= HDA_OUTPUT_STREAM = 4）冲突，
+   stream tag 必须非零，且不能与播放的 tag（= HDA_OUTPUT_TAG = 4）冲突，
    否则 codec 侧转换器会串流。 */
 #define HDA_INPUT_STREAM    0
 #define HDA_INPUT_TAG       1
@@ -193,6 +198,16 @@ struct hda_dev {
     /* 输入侧（verb 探测得到，hda_capture.c 填写；0 表示未找到） */
     uint8_t  adc_nid;       /* Audio Input（ADC）widget NID */
     uint8_t  input_pin;     /* 具备 input-capable 的 Mic Pin NID */
+
+    /* 流描述符索引（P07-a，hda_regs.c 的 hda_gcap_decode 换算；
+       gcap_ok64 只是解码缓存，供需要 64 位寻址判断的地方用） */
+    uint8_t  sd_in;         /* 输入流绝对索引（QEMU: 0） */
+    uint8_t  sd_out;        /* 输出流绝对索引（QEMU: 4） */
+    uint8_t  gcap_ok64;
+
+    /* P07-c：输入 pin 的 VREFEN 请求档（0=Hi-Z 默认不动；非零档须落在
+       pin cap (0x37<<8) 掩码内，hda_capture.c 合成写并回读告警） */
+    uint8_t  cap_vref;
 };
 
 /* ========== 函数声明 ========== */
@@ -252,9 +267,28 @@ int sys_audio_capture_stop(void);
 #define HDA_CFG_DEVICE_SPDIF_OUT  0x4       /* SPDIF Out */
 #define HDA_CFG_DEVICE_MIC_IN     0xA       /* Mic In */
 
-/* PIN_WIDGET_CTRL 位：输出使能是 bit6（见 hda.c 播放路径用 0x40），
-   输入使能是 bit5；bits 4:2 是 VREF，本轮置 0（Hi-Z）。 */
+/* PIN_WIDGET_CTRL 位：输出使能 bit6、输入使能 bit5、HP bit7（与 QEMU
+   intel-hda-defs.h AC_PINCTL_* 一致，2026-11-10 摘录核对）。
+   VREFEN 是 bits2:0（订正：旧注释写「bits 4:2 是 VREF」，高了一位——
+   见 tech-plan-hda.md §7.1 订正记录）。VREFEN 编码：0=Hi-Z、1=50%、
+   2=Gnd、4=80%、5=100%。 */
 #define HDA_PIN_CTRL_IN_EN        (1 << 5)
+#define HDA_PIN_CTRL_VREFEN       (0x7 << 0)
+
+/* Pin Capabilities（GET_PARAMETER 0x0C）补位：EAPD 能力位是 bit16
+ * （AC_PINCAP_EAPD，QEMU intel-hda-defs.h:442，2026-11-10 订正——
+ *  tech-plan-hda.md §6.1 初版误写 widget cap 09h）；VREF 掩码
+ *  (0x37<<8) 每一位对应一档可用偏置（与 Linux AC_PINCAP_VREF 一致）。 */
+#define HDA_PINCAP_EAPD           (1 << 16)
+#define HDA_PINCAP_VREF           (0x37 << 8)
+
+/* ========== EAPD（P07-b，tech-plan-hda.md §6）==========
+   verb 0x70C 置 / 0xF0C 回读；载荷 bit1=EAPD、bit0=BTL。
+   QEMU hda-codec.c 无此 case（default: goto fail，回 sol=1/response=0，
+   2026-11-10 摘录 4），profile 门控 eapd=0 时根本不发，QEMU 链路零扰动。 */
+#define HDA_VERB_SET_EAPD_BTL     0x70C00
+#define HDA_VERB_GET_EAPD_BTL     0xF0C00
+#define HDA_EAPD_ENABLE           0x02   /* EAPD=1、BTL=0 */
 
 /* SET_AMP_GAIN_MUTE 的输入方向位（bits 15:0 载荷内）：
    播放路径用 HDA_AMP_UNMUTE_0DB(0xB000) 已实测有效，这里只额外置输入位。 */
@@ -313,6 +347,8 @@ struct hda_topo_path {
     uint8_t mixer;                        /* 路径上的 mixer/selector，0 = 直连 */
     uint8_t mixer_idx;                    /* mixer 连接列表里指向 DAC 的索引 */
     uint8_t hops;                         /* 路径长度（含两端） */
+    uint8_t eapd;                         /* P07-b：输出 pin 的 EAPD 请求（0=不发，门控见 hda.c） */
+    uint8_t vref;                         /* P07-c：输入 pin 的 VREFEN 请求（0=Hi-Z，默认不动） */
     uint8_t chain[HDA_TOPO_MAX_PATH];     /* pin -> ... -> dac，调试与日志用 */
 };
 

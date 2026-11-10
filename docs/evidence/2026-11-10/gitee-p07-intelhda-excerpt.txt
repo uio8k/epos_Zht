@@ -1,0 +1,86 @@
+P07 实施前 Gitee 一手源码摘录（autodev 轮）
+日期: 2026-11-10; 渠道: gitee.com/mirrors/qemu raw 直连（curl -L，AGENTS 规则）
+
+== 摘录 1: hw/audio/intel-hda.c — GCTL/UNSOL 相关 ==
+URL: https://gitee.com/mirrors/qemu/raw/master/hw/audio/intel-hda.c
+514:    if ((d->g_ctl & ICH6_GCTL_RESET) == 0) {
+635:    [ ICH6_REG_GCTL ] = {
+636:        .name     = "GCTL",
+---(hda.c GCTL 复位值上下文)---
+609:static const struct IntelHDAReg regtab[] = {
+610-    /* global */
+611-    [ ICH6_REG_GCAP ] = {
+514:    if ((d->g_ctl & ICH6_GCTL_RESET) == 0) {
+635:    [ ICH6_REG_GCTL ] = {
+636:        .name     = "GCTL",
+
+== 摘录 1 结论: GCTL 定义（gitee raw master intel-hda.c，行号为本文件 grep 计数）==
+intel_hda_set_g_ctl() 全体（:512-517）:
+static void intel_hda_set_g_ctl(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old)
+{
+    if ((d->g_ctl & ICH6_GCTL_RESET) == 0) {
+        device_cold_reset(DEVICE(d));
+    }
+}
+regtab GCTL 条目（:635-641）:
+    [ ICH6_REG_GCTL ] = {
+        .name     = "GCTL",
+        .size     = 4,
+        .wmask    = 0x0103,
+        .offset   = offsetof(IntelHDAState, g_ctl),
+        .whandler = intel_hda_set_g_ctl,
+    },
+
+== 摘录 2: 全文 unsol 检索 ==
+grep -in unsol intel-hda.c -> 0 命中（QEMU 控制器不实现 UNSOL 位任何逻辑）
+
+== 摘录 3: hw/audio/hda-codec.c — EAPD/VREF 相关 ==
+URL: https://gitee.com/mirrors/qemu/raw/master/hw/audio/hda-codec.c
+711:        param = hda_codec_find_param(node, AC_PAR_AUDIO_WIDGET_CAP);
+
+== 摘录 4: hda-codec.c 未知 verb 行为（:659-667）==
+    default:
+        goto fail;
+    }
+    return;
+
+fail:
+    dprint(a, 1, "%s: not handled: nid %d (%s), verb 0x%x, payload 0x%x\n",
+           __func__, nid, node ? node->name : "?", verb, payload);
+    hda_codec_response(hda, true, 0);
+
+== 摘录 5: SET_PIN_WIDGET_CONTROL 接受不生效（:566-575）==
+    case AC_VERB_GET_PIN_WIDGET_CONTROL:
+        hda_codec_response(hda, true, node->pinctl);
+        break;
+    case AC_VERB_SET_PIN_WIDGET_CONTROL:
+        if (node->pinctl != payload) {
+            dprint(a, 1, "unhandled pin control bit\n");
+        }
+        hda_codec_response(hda, true, 0);
+        break;
+
+
+== 摘录 6: intel-hda-defs.h 位段（与 tech-plan §6/§7 核对）==
+#define AC_PINCAP_VREF			(0x37<<8)
+#define AC_PINCAP_VREF_SHIFT		8
+#define AC_PINCAP_EAPD			(1<<16)	/* EAPD capable */
+#define AC_PINCTL_VREFEN		(0x7<<0)
+#define AC_PINCTL_VREF_HIZ		0	/* Hi-Z */
+#define AC_PINCTL_VREF_50		1	/* 50% */
+#define AC_PINCTL_VREF_GRD		2	/* ground */
+#define AC_PINCTL_VREF_80		4	/* 80% */
+#define AC_PINCTL_VREF_100		5	/* 100% */
+#define AC_PINCTL_IN_EN			(1<<5)
+#define AC_PINCTL_OUT_EN		(1<<6)
+/* EAPD/BTL enable - 32bit */
+#define AC_EAPDBTL_BALANCED		(1<<0)
+#define AC_EAPDBTL_EAPD			(1<<1)
+#define AC_EAPDBTL_LR_SWAP		(1<<2)
+
+== 人读结论（供 tech-plan 修订）==
+1. EAPD 能力位在 pin cap 参数 0Ch 的 bit16（AC_PINCAP_EAPD, defs.h:442），不是 widget cap 09h——tech-plan-hda.md §6.1 原写「widget 能力 09h bit16」需订正。
+2. QEMU hda-codec.c 无 0x70C/0xF0C 处理（default: goto fail，:659）→ SET/GET EAPD 回 sol=1/response=0，即「发出去、回读 0」在 QEMU 上可观测（tech-plan §6.2 门控：profile eapd=0 时根本不发，QEMU 行为不变）。
+3. 0x707 SET_PIN_WIDGET_CONTROL 在 QEMU 中接受但不更新 pinctl（:566-575）→ VrefEn 合成写在 QEMU 上回读为旧值，回读不一致告警为预期行为（不进致命分级，§7.2 已定）。
+4. GCTL wmask=0x0103 含 bit8 可写，但 intel-hda.c 全文无 unsol 处理逻辑（摘录 2）→ 「开了也收不到」一手坐实，§8.3 去掉 GCTL.UNSOL 依据补强。
+5. VREFEN 位段（defs.h:549-556）与 tech-plan §7.1 完全一致；AC_PINCAP_VREF (0x37<<8)（defs.h:440）与 §7.1 一致；EAPD bit1（defs.h:566）与 §6.1 一致。

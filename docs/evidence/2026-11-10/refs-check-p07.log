@@ -1,0 +1,32 @@
+﻿refs-check P07 2026-11-10（autodev 轮）
+对象: tech-plan-hda.md P07 修订引用 + 实施代码断言 + 串口/测试证据行号
+方法: Select-String 逐条 (AGENTS.md 规则: 串口行号以 Select-String 为准)
+PASS | hda_regs.c 存在且含 decode/index 三函数 | E:\ComputerScience\epos_Zht\epos_Zht\kernel\hda_regs.c:11
+PASS | hda.h 含 sd_in/sd_out/gcap_ok64/cap_vref 字段 | E:\ComputerScience\epos_Zht\epos_Zht\kernel\hda.h:204
+PASS | hda.h EAPD 宏三件 | E:\ComputerScience\epos_Zht\epos_Zht\kernel\hda.h:289
+PASS | hda.h VREFEN 位段订正(bits2:0) | E:\ComputerScience\epos_Zht\epos_Zht\kernel\hda.h:276
+PASS | hda.h tag 解耦宏 HDA_OUTPUT_TAG | E:\ComputerScience\epos_Zht\epos_Zht\kernel\hda.h:71
+PASS | hda.c GCAP 打印新格式(in_sd/out_sd) | E:\ComputerScience\epos_Zht\epos_Zht\kernel\hda.c:170
+PASS | hda.c INTCTL 已回退只写 GIE(自修轮) | E:\ComputerScience\epos_Zht\epos_Zht\kernel\hda.c:198
+PASS | hda.c GCTL 无 UNSOL | E:\ComputerScience\epos_Zht\epos_Zht\kernel\hda.c:178
+PASS | hda.c EAPD 门控块(pin cap 0Ch bit16) | E:\ComputerScience\epos_Zht\epos_Zht\kernel\hda.c:256
+PASS | hda_profile.c 条目含 eapd/vref 字段 | E:\ComputerScience\epos_Zht\epos_Zht\kernel\hda_profile.c:23
+PASS | hda_capture.c VrefEn 合成写 | E:\ComputerScience\epos_Zht\epos_Zht\kernel\hda_capture.c:235
+PASS | kernel/Makefile 含 hda_regs.o | E:\ComputerScience\epos_Zht\epos_Zht\kernel\Makefile:30
+PASS | run_tests.bat 含 test_hda_regs 段 | E:\ComputerScience\epos_Zht\epos_Zht\tests\run_tests.bat:74
+PASS | 串口: GCAP 行(Select-String 行号) | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-11-10\p07-serial.log:31
+PASS | 串口: GCTL=0x00000001(UNSOL 已去) | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-11-10\p07-serial.log:33
+PASS | 串口: EAPD 门控不放行行 | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-11-10\p07-serial.log:61
+PASS | 串口: BDL ok 行 | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-11-10\p07-serial.log:225
+PASS | L1 证据: 4 Tests(新向量)全绿 | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-11-10\p07-make-test.log:171
+PASS | qtest 证据: 15 PASS 0 FAIL | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-11-10\p07-qtest.log:28
+PASS | fast 证据: 14/16 唯二失败=存量 | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-11-10\p07-hda-tests-fast-final.log:74
+PASS | 回归证据: Q-SINE 单跑红(SNR 崩) | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-11-10\p07-hda-qsine-rerun.log:12
+PASS | 修复证据: Q-SINE 回退后绿 | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-11-10\p07-hda-qsine-fix1.log:20
+PASS | tech-plan §4.4 修订(回退注记) | E:\ComputerScience\epos_Zht\epos_Zht\docs\tech-plan-hda.md:99
+PASS | tech-plan §6.1 订正(EAPD pin cap 0Ch bit16) | E:\ComputerScience\epos_Zht\epos_Zht\docs\tech-plan-hda.md:219
+PASS | 调研证据: GCTL wmask 摘录 | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-11-10\gitee-p07-intelhda-excerpt.txt:29
+PASS | 调研证据: unsol 0 命中 | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-11-10\gitee-p07-intelhda-excerpt.txt:35
+PASS | progress.html P07 条目仍在队列(勾选前) | E:\ComputerScience\epos_Zht\epos_Zht\progress.html:306
+
+SUMMARY: 27 PASS / 0 FAIL

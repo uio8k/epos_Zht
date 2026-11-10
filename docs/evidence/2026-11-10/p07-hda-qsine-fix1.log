@@ -1,0 +1,22 @@
+== epos_Zht HDA 驱动测试集 ==
+   仓库: e:\ComputerScience\epos_Zht\epos_Zht
+   套件: fast  仅: Q-SINE
+
+-- 静态断言（只读源码） --
+
+-- 测试信号用例（构建 + 无头运行） --
+      [host-quiet] 运行期间请勿执行并发命令（会污染录音）
+  [PASS] Q-SINE         440Hz 纯音 SNR/THD+N/爆音/削波
+        ok   无头运行退出码: rc=0（日志 e:\ComputerScience\epos_Zht\hda_tests\reports\run_tone_sine.log）
+        ok   录音指纹 = sine（防跑成旧二进制）: sine（peak=29999 mean=0.0 rms=20100.1 hi%=0.5986 过零/s=790.1）
+        ok   SNR: 96.74 dB ≥ 90.0（16-bit 理论上限 96.33 dB；项目基线 96.74 dB）
+        ok   THD+N: 0.00170% ≤ 0.01%（项目基线 0.001695%）
+        ok   频率偏差: 0.00000% ≤ 0.50%（440.000 Hz / 目标 440 Hz）
+        ok   高置信 click 数: 0（多方法投票）
+        ok   削波样本数: 0
+        ok   直流偏置: 0.00 ≤ 50
+        ok   动态范围（信息性阈值）: 99.75 dB ≥ 60
+
+== 汇总：1 个用例，1 通过，0 失败，用时 15.9s ==
+   报告：e:\ComputerScience\epos_Zht\hda_tests\reports\report.json
+          e:\ComputerScience\epos_Zht\hda_tests\reports\report.md

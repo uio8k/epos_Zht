@@ -215,8 +215,30 @@ int hda_capture_probe(uint8_t cad)
         return HDA_CAP_ERR_CONN;
     }
 
-    /* 2. Pin 输入使能 + 回读 */
-    cap_verb(cad, pin, HDA_VERB_SET_PIN_WIDGET_CTRL | HDA_PIN_CTRL_IN_EN);
+    /* 2. Pin 输入使能 + VrefEn 合成一次写（P07-c，tech-plan-hda.md §7.2）：
+       默认 Hi-Z（0）与旧码逐位相同；只有 profile 显式给了 vref 档且该档
+       落在 pin cap (0x37<<8) 掩码内才合成 IN_EN|vref 一次写，不单独发
+       verb 避免中间态无偏置。回读 bits2:0 不符只告警一行，不进致命分级。 */
+    {
+        uint8_t vref = g_hda.cap_vref;   /* hda.c 从 topo/profile 带出，默认 0 */
+        if (vref) {
+            uint64_t pcap = cap_verb(cad, pin,
+                                     HDA_VERB_GET_PARAMETER | HDA_PARAM_PIN_CAP);
+            uint32_t mask = (uint32_t)(pcap & HDA_PINCAP_VREF);
+            if ((mask & (1u << (vref - 1))) == 0) {
+                printk("HDA-CAP: vref=%u not in pin cap mask 0x%x, using Hi-Z\r\n",
+                       vref, mask);
+                vref = 0;
+            }
+        }
+        cap_verb(cad, pin, HDA_VERB_SET_PIN_WIDGET_CTRL |
+                           (HDA_PIN_CTRL_IN_EN | (vref & HDA_PIN_CTRL_VREFEN)));
+        uint64_t rb = cap_verb(cad, pin, HDA_VERB_GET_PIN_WIDGET_CTRL);
+        if ((uint32_t)(rb & HDA_PIN_CTRL_VREFEN) != (uint32_t)(vref & HDA_PIN_CTRL_VREFEN))
+            printk("HDA-CAP: VREF rb=0x%02x want=%u (QEMU 0x707 写接受不生效，"
+                   "2026-11-10 摘录 5——告警为预期)\r\n",
+                   (uint32_t)(rb & HDA_PIN_CTRL_VREFEN), vref);
+    }
     int rc = cap_verify(cad, pin, HDA_VERB_GET_PIN_WIDGET_CTRL,
                         HDA_PIN_CTRL_IN_EN, HDA_PIN_CTRL_IN_EN,
                         1, HDA_CAP_ERR_PINCTL, "pin ctrl IN_EN");
@@ -248,11 +270,11 @@ int hda_capture_probe(uint8_t cad)
 /* 复位并停止输入流（SRST 脉冲），可在 start 前/stop 时调用 */
 static void cap_stream_reset(void)
 {
-    hda_writeb(HDA_SD_CTL(HDA_INPUT_STREAM), 0);
-    hda_writeb(HDA_SD_CTL(HDA_INPUT_STREAM), HDA_SDCTL_SRST);
-    while (hda_readb(HDA_SD_CTL(HDA_INPUT_STREAM)) & HDA_SDCTL_SRST)
+    hda_writeb(HDA_SD_CTL(g_hda.sd_in), 0);
+    hda_writeb(HDA_SD_CTL(g_hda.sd_in), HDA_SDCTL_SRST);
+    while (hda_readb(HDA_SD_CTL(g_hda.sd_in)) & HDA_SDCTL_SRST)
         ;
-    hda_writeb(HDA_SD_CTL(HDA_INPUT_STREAM), 0);
+    hda_writeb(HDA_SD_CTL(g_hda.sd_in), 0);
 }
 
 int hda_capture_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t ms)
@@ -314,10 +336,10 @@ int hda_capture_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t ms)
 
     cap_stream_reset();
 
-    hda_writel(HDA_SD_BDPL(HDA_INPUT_STREAM), g_cap_bdl_pa);
-    hda_writel(HDA_SD_BDPU(HDA_INPUT_STREAM), 0);
-    hda_writel(HDA_SD_CBL(HDA_INPUT_STREAM), g_cap_size);
-    hda_writew(HDA_SD_LVI(HDA_INPUT_STREAM), (uint16_t)(entries - 1));
+    hda_writel(HDA_SD_BDPL(g_hda.sd_in), g_cap_bdl_pa);
+    hda_writel(HDA_SD_BDPU(g_hda.sd_in), 0);
+    hda_writel(HDA_SD_CBL(g_hda.sd_in), g_cap_size);
+    hda_writew(HDA_SD_LVI(g_hda.sd_in), (uint16_t)(entries - 1));
 
     /* ---- ADC 绑定：converter format + stream tag，逐条回读校验 ----
        放在任何一方 RUN 之前，失败可以干净回滚（SRST 复位输入流）。
@@ -354,7 +376,7 @@ int hda_capture_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t ms)
         }
     }
     /* 控制器侧用生效格式，避免 codec 与流描述符各说一套（重采样时采样率会错） */
-    hda_writew(HDA_SD_FMT(HDA_INPUT_STREAM), fmt);
+    hda_writew(HDA_SD_FMT(g_hda.sd_in), fmt);
 
 #ifdef CAP_REVERSE_SKIP_ADC_BIND
     /* 反向门（验收专用，-DCAP_REVERSE_SKIP_ADC_BIND）：故意不把 ADC 绑到输入流，
@@ -385,9 +407,9 @@ int hda_capture_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t ms)
 
     /* 启动：先写 tag（CTL+2），再置 RUN；与播放路径同一时序 */
     hda_flush_cache();
-    hda_writeb(HDA_SD_CTL(HDA_INPUT_STREAM) + 1, 0);
-    hda_writeb(HDA_SD_CTL(HDA_INPUT_STREAM) + 2, (uint8_t)(HDA_INPUT_TAG << 4));
-    hda_writeb(HDA_SD_CTL(HDA_INPUT_STREAM),
+    hda_writeb(HDA_SD_CTL(g_hda.sd_in) + 1, 0);
+    hda_writeb(HDA_SD_CTL(g_hda.sd_in) + 2, (uint8_t)(HDA_INPUT_TAG << 4));
+    hda_writeb(HDA_SD_CTL(g_hda.sd_in),
                HDA_SDCTL_FEIE | HDA_SDCTL_DEIE | HDA_SDCTL_RUN);
 
     g_cap_on      = 1;
@@ -404,7 +426,7 @@ int hda_capture_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t ms)
     g_cap_bits    = eff_bits;
 
     printk("HDA-CAP: stream started (SD%d tag=%d CBL=%u, %uHz %uch %ubit fmt=0x%04x)\r\n",
-           HDA_INPUT_STREAM, HDA_INPUT_TAG, g_cap_size, eff_rate, eff_ch, eff_bits, fmt);
+           g_hda.sd_in, HDA_INPUT_TAG, g_cap_size, eff_rate, eff_ch, eff_bits, fmt);
     hda_trace_log(HTEV_CAP_START, 0, g_cap_size, 0);
     return 0;
 }
@@ -416,7 +438,7 @@ int hda_capture_read(void *ubuf, uint32_t len, struct audio_capture_stats *ust)
     if (!g_cap_on)
         return -1;
 
-    uint32_t lpib = hda_readl(HDA_SD_LPIB(HDA_INPUT_STREAM));
+    uint32_t lpib = hda_readl(HDA_SD_LPIB(g_hda.sd_in));
     if (lpib < g_cap_lpib)
         g_cap_wraps++;
     g_cap_lpib = lpib;
@@ -515,15 +537,15 @@ int hda_capture_dump_state(void)
                           HDA_VERB_GET_AMP_GAIN_MUTE | HDA_AMP_GET_IN_BOTH));
     uint32_t pamp = CAP_RB(cap_verb(cad, pin,
                           HDA_VERB_GET_AMP_GAIN_MUTE | HDA_AMP_GET_IN_BOTH));
-    uint32_t sdc  = (uint32_t)hda_readb(HDA_SD_CTL(HDA_INPUT_STREAM))
-                    | ((uint32_t)hda_readb(HDA_SD_CTL(HDA_INPUT_STREAM) + 1) << 8)
-                    | ((uint32_t)hda_readb(HDA_SD_CTL(HDA_INPUT_STREAM) + 2) << 16);
+    uint32_t sdc  = (uint32_t)hda_readb(HDA_SD_CTL(g_hda.sd_in))
+                    | ((uint32_t)hda_readb(HDA_SD_CTL(g_hda.sd_in) + 1) << 8)
+                    | ((uint32_t)hda_readb(HDA_SD_CTL(g_hda.sd_in) + 2) << 16);
 
     /* 0xFFFFFFFF = 回读超时；未实现回读的 widget 返回 0（QEMU 常见） */
     printk("HDA-CAP: state adc=0x%02x pin=0x%02x pinctrl=0x%02x conn=%u fmt=0x%04x "
            "conv=0x%02x amp_adc=0x%04x amp_pin=0x%04x sd%u_ctl=0x%06x\r\n",
            adc, pin, pctl & 0xFF, sel & 0x7F, fmt & 0xFFFF, conv & 0xFF,
-           aamp & 0xFFFF, pamp & 0xFFFF, HDA_INPUT_STREAM, sdc);
+           aamp & 0xFFFF, pamp & 0xFFFF, g_hda.sd_in, sdc);
 
     if (pctl == 0xFFFFFFFFu) return HDA_CAP_ERR_PINCTL;
     if (sel  == 0xFFFFFFFFu) return HDA_CAP_ERR_CONVSEL;

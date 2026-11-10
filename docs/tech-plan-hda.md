@@ -96,7 +96,7 @@ wiki GCAP 表（`[wiki: 0x00 (4 bytes) Global Capabilities]`）：bits15:12 = OS
 
 wiki（`[wiki: 0x20 (4 bytes) Interrupt Control]`）：bit31 = GIE，bits29:0 每流一位，位序按输入流、输出流、双向流排，位号即绝对索引。现码只写 bit31。
 
-补法：`INTCTL = (1u<<31) | (1u<<sd_in) | (1u<<sd_out)`，其中 sd_in/sd_out 由 GCAP 算出。QEMU 下现在只写 GIE 也能跑通播放，但中断模式与轮询回退共用同一套指针逻辑，日志里分不出走的是哪条，所以「补上逐流位后 QEMU 行为不变」只能靠回归确认，不能靠推断。
+补法：`INTCTL = (1u<<31) | (1u<<sd_in) | (1u<<sd_out)`，其中 sd_in/sd_out 由 GCAP 算出。**2026-11-10 实施结果：已实测回退**——补上（0x80000011）后 hda_tests Q-SINE 波形劣化可复现（SNR -9.37/2.01dB vs 基线 96.74dB，数值非确定；证据 `docs/evidence/2026-11-10/p07-hda-qsine-rerun.log`），回退为只写 GIE 后单用例与全套 fast 立即回基线（THD+N 0.0017%、`p07-hda-qsine-fix1.log`、`p07-hda-tests-fast-final.log` 14/16——唯二失败为两处存量 static FAIL）。即 §4.4 原预判「补上逐流位后 QEMU 行为不变只能靠回归确认」的回归判定结果为**不等价**，按 §11 回退行执行；QEMU 侧流中断本由 SDCTL bit26 门控（`intel_hda_update_int_sts`，`[Gitee: hw/audio/intel-hda.c:246-258, 2026-11-10 摘录]`，驱动未置该位），INTCTL 流位仅作 mask，劣化的确切路径待后续单独验证后再评估重开。
 
 ### 4.5 接口
 
@@ -216,14 +216,15 @@ int hda_bdl_validate(const struct hda_bdl_entry *bdl, uint16_t entries,
 
 wiki 只在 verb 表里留了 `70C Set EAPD/BTL` 一行，第 (11) 条写「Set EAPD to enable the external amp for the speakers」，没有 payload 位定义（`[wiki: Node Commands]`、`[wiki: Setting up the AFG codec]`）。
 
-规范口径（`[spec: SET_EAPD_BTL_ENABLE 0x70C]`，置信度 中高）：data 的 bit1 = EAPD 使能、bit0 = BTL。回读用 `0xF0C`（GET_EAPD_BTL_ENABLE）。能力位在 widget 能力参数 `09h` 的 bit16（EAPD 支持，置信度 中）。
+规范口径（`[spec: SET_EAPD_BTL_ENABLE 0x70C]`，置信度 中高）：data 的 bit1 = EAPD 使能、bit0 = BTL。回读用 `0xF0C`（GET_EAPD_BTL_ENABLE）。~~能力位在 widget 能力参数 `09h` 的 bit16~~ **2026-11-10 实施前订正**：能力位在 **pin cap 参数 `0Ch` 的 bit16**（`AC_PINCAP_EAPD`，`[Gitee: hw/audio/intel-hda-defs.h:442, 2026-11-10 摘录]`，`docs/evidence/2026-11-10/gitee-p07-intelhda-excerpt.txt` 摘录 6）——初版「09h bit16」为推断错误，按 QEMU 头文件与 Linux 同名常量订正。
 
 ### 6.2 策略
 
 QEMU 的 hda-duplex 没有外部功放，EAPD 位大概率读回 0 或不实现，这里能验的只有「verb 发出去了、回读值打出来了」。所以策略按规范步骤设计（真机效果验证已随 QEMU-only 修订废弃，2026-11-10），QEMU 侧只保证不破坏现有链路。
 
 - 只在拓扑解析出的输出 pin（`g_hda.output_pin`）上发，不发到 DAC 和 mixer。
-- 门控两条，满足其一才发：widget 能力 `09h` 的 bit16 为 1；或 `hda_profile.c` 的条目显式标了 `eapd = 1`（机型 dump 随真机路线废弃，QEMU profile 为唯一事实源）。
+- 门控两条，满足其一才发：pin 能力 `0Ch` 的 bit16 为 1（2026-11-10 订正，见 §6.1）；或 `hda_profile.c` 的条目显式标了 `eapd = 1`（机型 dump 随真机路线废弃，QEMU profile 为唯一事实源）。
+- QEMU 侧行为一手确认（2026-11-10 摘录 4/5）：`hda-codec.c` 无 0x70C/0xF0C case（`default: goto fail`，回 sol=1/response=0），0x707 写接受但 `pinctl` 不更新——「发出去、回读 0」可观测；profile 门控 `eapd=0` 时根本不发，QEMU 现有链路零扰动。
 - 载荷固定 `0x02`（EAPD=1、BTL=0）。先读 `0xF0C`，已经置位就跳过，避免每轮重复写。
 - 回读不一致只告警，不进 `HDA_CAP_ERR_*` 那套致命分级。理由与 `docs/decisions-adc.md` 的 D3 相同：能力位不支持的项做成致命，会把可用通路判死。
 
@@ -303,7 +304,7 @@ VREFEN 取值：0 = Hi-Z（关）、1 = 50% Vdd、2 = Gnd（0V）、4 = 80%、5 
 | 文档 | 每个结论都有出处标记；不确定项单列在第 11 章，不混进结论 |
 | 引用一致性 | 文内所有 `文件:行号` 对 HEAD 209a1a6 逐个 grep 核对，核对记录附在提交说明里 |
 | L1 | 新增 10 条（5.5 表）全绿；原 18 条不退化；`make test` <2s |
-| 串口 | 出现 `HDA: GCAP=0x4401 v1.0 OSS=4 ISS=4 BSS=0 64OK=1 in_sd=0 out_sd=4`、`HDA: INTCTL set to 0x80000011`、`HDA: EAPD ...`、`HDA: BDL ok entries=... cbl=...` |
+| 串口 | 出现 `HDA: GCAP=0x4401 v1.0 OSS=4 ISS=4 BSS=0 64OK=1 in_sd=0 out_sd=4`、`HDA: INTCTL set to 0x80000000`（2026-11-10 修订：逐流位实测不等价已回退，见 §4.4）、`HDA: EAPD ...`、`HDA: BDL ok entries=... cbl=...` |
 | 回归 | `hda_tests\run_all.bat --suite fast` 全绿；`run_capture_all.bat` 两轮 4/4 PASS；播放 LPIB 推进与 underrun 计数不劣于 209a1a6 基线 |
 | EAPD/VrefEn 行为 | EAPD 回读一致；VrefEn 按 profile 生效（QEMU 侧验 verb 发送与回读打印；原真机行随真机路线废弃，2026-11-10 QEMU-only） |
 

@@ -137,16 +137,16 @@ static uint32_t g_cont_underruns = 0;
    覆盖播放全程；QEMU TCG 下 underrun 极少但留检测以防万一 */
 static void hda_cont_check_errors(void)
 {
-    uint8_t sts = hda_readb(HDA_SD_STS(HDA_OUTPUT_STREAM));
+    uint8_t sts = hda_readb(HDA_SD_STS(g_hda.sd_out));
     if (sts & HDA_SDSTS_FIFOE) {
         g_cont_fifo_errors++;
         printk("HDA: FIFO error (#%u)\r\n", g_cont_fifo_errors);
-        hda_writeb(HDA_SD_STS(HDA_OUTPUT_STREAM), HDA_SDSTS_FIFOE);  /* W1C */
+        hda_writeb(HDA_SD_STS(g_hda.sd_out), HDA_SDSTS_FIFOE);  /* W1C */
     }
     if (sts & HDA_SDSTS_DESE) {
         g_cont_desc_errors++;
         printk("HDA: Desc error (#%u)\r\n", g_cont_desc_errors);
-        hda_writeb(HDA_SD_STS(HDA_OUTPUT_STREAM), HDA_SDSTS_DESE);   /* W1C */
+        hda_writeb(HDA_SD_STS(g_hda.sd_out), HDA_SDSTS_DESE);   /* W1C */
     }
 }
 
@@ -157,7 +157,7 @@ static void hda_cont_check_errors(void)
    （hda_cont_check_errors 会打印），错误检查只在任务上下文轮询路径调用。 */
 static void hda_cont_refresh_rd(void)
 {
-    uint32_t lpib = hda_readl(HDA_SD_LPIB(HDA_OUTPUT_STREAM));
+    uint32_t lpib = hda_readl(HDA_SD_LPIB(g_hda.sd_out));
     uint32_t step = (lpib >= g_cont_lpib) ? (lpib - g_cont_lpib)
                                           : (g_cont_size - g_cont_lpib + lpib);
     if (lpib < g_cont_lpib)
@@ -188,11 +188,11 @@ void isr_hda(uint32_t irq, struct context *ctx)
     (void)irq;
     (void)ctx;
 
-    uint8_t sts = hda_readb(HDA_SD_STS(HDA_OUTPUT_STREAM));
+    uint8_t sts = hda_readb(HDA_SD_STS(g_hda.sd_out));
     if (!(sts & HDA_SDSTS_BCIS))
         return;                      /* 不是本设备的完成中断 */
 
-    hda_writeb(HDA_SD_STS(HDA_OUTPUT_STREAM), HDA_SDSTS_BCIS);  /* W1C */
+    hda_writeb(HDA_SD_STS(g_hda.sd_out), HDA_SDSTS_BCIS);  /* W1C */
     g_hda_irq_count++;
     hda_cont_refresh_rd();           /* 推进 rdpos（MMIO 读，允许） */
     wake_up(&wq_hda, -1);            /* 唤醒全部等待者（ISR 内可用，有先例） */
@@ -517,16 +517,16 @@ int hda_cont_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t buf_size)
         return HDA_CONT_ERR_BDL;
 
     /* Stream Reset */
-    hda_writeb(HDA_SD_CTL(HDA_OUTPUT_STREAM), HDA_SDCTL_SRST);
-    while (hda_readb(HDA_SD_CTL(HDA_OUTPUT_STREAM)) & HDA_SDCTL_SRST)
+    hda_writeb(HDA_SD_CTL(g_hda.sd_out), HDA_SDCTL_SRST);
+    while (hda_readb(HDA_SD_CTL(g_hda.sd_out)) & HDA_SDCTL_SRST)
         ;
-    hda_writeb(HDA_SD_CTL(HDA_OUTPUT_STREAM), 0);
+    hda_writeb(HDA_SD_CTL(g_hda.sd_out), 0);
 
     /* 配置流（RUN=0 状态下写入，QEMU 在 RUN 0→1 时锁存） */
-    hda_writel(HDA_SD_BDPL(HDA_OUTPUT_STREAM), bdl_phys);
-    hda_writel(HDA_SD_BDPU(HDA_OUTPUT_STREAM), 0);
-    hda_writel(HDA_SD_CBL(HDA_OUTPUT_STREAM), g_cont_size);
-    hda_writew(HDA_SD_LVI(HDA_OUTPUT_STREAM), bdl_entries - 1);
+    hda_writel(HDA_SD_BDPL(g_hda.sd_out), bdl_phys);
+    hda_writel(HDA_SD_BDPU(g_hda.sd_out), 0);
+    hda_writel(HDA_SD_CBL(g_hda.sd_out), g_cont_size);
+    hda_writew(HDA_SD_LVI(g_hda.sd_out), bdl_entries - 1);
 
     uint16_t fmt = HDA_FMT_BITS_16;
     if (rate == 44100) fmt |= HDA_FMT_BASE_44;
@@ -534,16 +534,16 @@ int hda_cont_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t buf_size)
     fmt |= HDA_FMT_MULT_1X | HDA_FMT_DIV_1X;
     if (ch == 2) fmt |= HDA_FMT_CHAN_STEREO;
     else         fmt |= HDA_FMT_CHAN_MONO;
-    hda_writew(HDA_SD_FMT(HDA_OUTPUT_STREAM), fmt);
+    hda_writew(HDA_SD_FMT(g_hda.sd_out), fmt);
     hda_send_verb(g_hda.codec_cad, g_hda.output_dac,
                   HDA_VERB_SET_CONVERTER_FMT |
-                  hda_readw(HDA_SD_FMT(HDA_OUTPUT_STREAM)));
+                  hda_readw(HDA_SD_FMT(g_hda.sd_out)));
 
     /* 启动流（先 tag 后 RUN） */
     hda_flush_cache();
-    hda_writeb(HDA_SD_CTL(HDA_OUTPUT_STREAM) + 1, 0);
-    hda_writeb(HDA_SD_CTL(HDA_OUTPUT_STREAM) + 2, (uint8_t)(HDA_OUTPUT_STREAM << 4));
-    hda_writeb(HDA_SD_CTL(HDA_OUTPUT_STREAM) + 0,
+    hda_writeb(HDA_SD_CTL(g_hda.sd_out) + 1, 0);
+    hda_writeb(HDA_SD_CTL(g_hda.sd_out) + 2, (uint8_t)(HDA_OUTPUT_TAG << 4));
+    hda_writeb(HDA_SD_CTL(g_hda.sd_out) + 0,
                HDA_SDCTL_IOCE | HDA_SDCTL_FEIE | HDA_SDCTL_DEIE | HDA_SDCTL_RUN);
 
     printk("HDA: continuous stream started (CBL=%u, %uHz %uch %ubit)\r\n",
@@ -699,7 +699,7 @@ int sys_audio_stop(void)
 
     uint32_t bps = (g_cont_bits / 8) * g_cont_ch;
     if (bps == 0) {
-        hda_writeb(HDA_SD_CTL(HDA_OUTPUT_STREAM), 0);
+        hda_writeb(HDA_SD_CTL(g_hda.sd_out), 0);
         g_cont_on = 0;
         return 0;
     }
@@ -745,7 +745,7 @@ int sys_audio_stop(void)
         }
     }
 
-    hda_writeb(HDA_SD_CTL(HDA_OUTPUT_STREAM), 0);
+    hda_writeb(HDA_SD_CTL(g_hda.sd_out), 0);
     g_cont_on = 0;
     hda_trace_log(HTEV_STREAM_STOP, 0, start, g_cont_data_end);
     /* 补排量单列一行（不改动既有 stopped 行格式，避免 serial_parser.py 失配）：
