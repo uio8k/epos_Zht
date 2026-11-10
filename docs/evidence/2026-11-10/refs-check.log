@@ -1,0 +1,25 @@
+﻿refs-check 2026-11-10 (Select-String, cwd=E:\ComputerScience\epos_Zht\epos_Zht)
+
+--- kernel/hda.c  pattern=gcap & 0xF, \(gcap >> 4\) & 0xF, \(gcap >> 8\)
+  :167: gcap & 0xF, (gcap >> 4) & 0xF, (gcap >> 8) & 0xF);
+--- kernel/hda.h  pattern=#define HDA_OUTPUT_STREAM   4
+  :66: #define HDA_OUTPUT_STREAM   4
+--- kernel/hda_trace.c  pattern=HTEV_STOP_STALLED
+  :45: case HTEV_STOP_STALLED:  return "STOP_STALLED";
+--- kernel/hda_internal.h  pattern=HTEV_CAP_STOP
+  :146: HTEV_CAP_STOP,        /* 采集流停止（end 字段 = 累计交付字节数） */
+--- include/syscall-nr.h  pattern=SYSCALL_audio_capture_stop
+  :55: #define SYSCALL_audio_capture_stop  201
+--- README.md  pattern=运行环境
+  :5: 模型、用户态接口、trace 事件、验证基线与已知限制；构建与运行环境细节另见
+  :6: `docs/运行环境.md`。**全部结论来自实测**（LPIB 行为与标准 QEMU/真硬件不同，见
+  :106: `docs/运行环境.md` 的缓冲模型与踩坑表——别按"标准 QEMU 行为"推断。
+--- progress.html  pattern=/13 完成
+  :227: <div class="num"><b id="doneN">0</b>/13 完成</div>
+--- kernel/hda_bdl.c  pattern=hda_bdl_validate
+  :16: int hda_bdl_validate(const struct hda_bdl_entry *bdl, uint16_t entries,
+--- Makefile  pattern=\.local/bin/uv.exe
+  :35: "$${HOME:-$${USERPROFILE}}/.local/bin/uv.exe" run --no-project python tests/qtest_client.py
+--- tests/run_tests.bat  pattern=test_bdl_fresh
+  :64: -o build\test_bdl_fresh.exe test_bdl.c unity\unity.c
+  :67: build\test_bdl_fresh.exe

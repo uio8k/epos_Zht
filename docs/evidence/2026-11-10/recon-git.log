@@ -1,0 +1,12 @@
+﻿recon: git state @ 2026-11-10T22:27:12.9035600+08:00
+## x86
+?? docs/evidence/2026-11-10/
+98c435b P13 调研轮：Bochs 无 HDA 证伪 + VBox HD Audio × QEMU 差分细化方案（tech-plan-vm-diff.md）
+f874c2a P09: L2 qtest 落地（qtest tcp 客户端 + U-L2-01/02，15 断言全绿）
+c0bf9f7 P06: BDL 合规断言落地（hda_bdl_validate + 10 条 L1 向量）
+045610c 完成图形化判定结果（Success/Fail）输出
+209a1a6 播放侧设备探测改为DFS，取消了硬编码
+unpushed:
+98c435b P13 调研轮：Bochs 无 HDA 证伪 + VBox HD Audio × QEMU 差分细化方案（tech-plan-vm-diff.md）
+f874c2a P09: L2 qtest 落地（qtest tcp 客户端 + U-L2-01/02，15 断言全绿）
+c0bf9f7 P06: BDL 合规断言落地（hda_bdl_validate + 10 条 L1 向量）

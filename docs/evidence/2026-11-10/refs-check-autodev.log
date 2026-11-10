@@ -1,0 +1,27 @@
+﻿refs-check autodev 2026-11-10
+对象: docs/decisions-autodev.md + 外层 .zcode\skills\autodev\SKILL.md 中引用的文件/章节断言
+方法: Select-String 逐条 (AGENTS.md 规则: 文件:行号/章节引用一律 Select-String 复核)
+
+PASS | decisions-audio-test.md 有 D8(不动 QEMU 3.1.50) | Select-String: E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-audio-test.md:17
+PASS | decisions-audio-test.md 有 D9(禁改宿主默认音频设备) | Select-String: E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-audio-test.md:18
+PASS | decisions-audio-test.md 有 D10(入口统一 make) | Select-String: E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-audio-test.md:19
+PASS | decisions-audio-test.md 有 D11(指标唯一源 audio_metrics.py) | Select-String: E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-audio-test.md:20
+PASS | decisions-audio-test.md 有 §5 治具四件段 | Select-String: E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-audio-test.md:46
+PASS | tech-plan-vm-diff.md 有 §3 证伪记录(Bochs 教训出处) | Select-String: E:\ComputerScience\epos_Zht\epos_Zht\docs\tech-plan-vm-diff.md:40
+PASS | AGENTS.md 有调研前置硬规则行 | Select-String: E:\ComputerScience\epos_Zht\AGENTS.md:13
+PASS | AGENTS.md 有 Out-File/禁 Tee-Object 规则 | Select-String: E:\ComputerScience\epos_Zht\AGENTS.md:9
+PASS | AGENTS.md 有 Select-String 行号规则 | Select-String: E:\ComputerScience\epos_Zht\AGENTS.md:10
+PASS | AGENTS.md 有出处标记规则 | Select-String: E:\ComputerScience\epos_Zht\AGENTS.md:12
+PASS | AGENTS.md 有 doc-only 不碰 kernel 规则 | Select-String: E:\ComputerScience\epos_Zht\AGENTS.md:14
+PASS | progress.html 有 P13 条目且未完成(data-done="0") | Select-String: E:\ComputerScience\epos_Zht\epos_Zht\progress.html:409
+PASS | 外层 .zcode\plans 目录存在(机制证据) | ExistsCheck: E:\ComputerScience\epos_Zht\.zcode\plans
+PASS | 外层 .zcode\skills\autodev\SKILL.md 存在(交付物1) | ExistsCheck: E:\ComputerScience\epos_Zht\.zcode\skills\autodev\SKILL.md
+PASS | SKILL.md frontmatter name=autodev | Select-String: E:\ComputerScience\epos_Zht\.zcode\skills\autodev\SKILL.md:2
+PASS | SKILL.md description 齐全且含触发语义 | Select-String: E:\ComputerScience\epos_Zht\.zcode\skills\autodev\SKILL.md:3
+PASS | SKILL.md 有四类硬干预点章节 §9 | Select-String: E:\ComputerScience\epos_Zht\.zcode\skills\autodev\SKILL.md:67
+PASS | SKILL.md 有自修≤2轮边界(§6) | Select-String: E:\ComputerScience\epos_Zht\.zcode\skills\autodev\SKILL.md:52
+PASS | SKILL.md 有落盘即继续+重大路线变更停(§4) | Select-String: E:\ComputerScience\epos_Zht\.zcode\skills\autodev\SKILL.md:39
+PASS | decisions-autodev.md 有 D-A1..D-A10 机制/结论条目 | Select-String: E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-autodev.md:24
+PASS | decisions-autodev.md 有不做真跑验证条款(用户追加要求) | Select-String: E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-autodev.md:37
+
+SUMMARY: 21 PASS / 0 FAIL
