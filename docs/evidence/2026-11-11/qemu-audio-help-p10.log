@@ -1,0 +1,31 @@
+﻿P10：本机 QEMU 3.1.50 -audio-help 实测输出（驱动能力一手证据）
+日期: 2026-11-11; 命令: Qemu\qemu-system-i386w.exe --version; Qemu\qemu-system-i386w.exe -audio-help
+采集方式: cmd 重定向到临时文件后逐行读取（PowerShell 直接 & 调用拿不到该程序的标准输出）
+
+== 版本 ==
+QEMU emulator version 3.1.50 (v3.1.0-13607-geb2db0f7ba-dirty)
+
+== 可用驱动（逐字）==
+  Name: none
+    Description: Timer based audio emulation
+    Theoretically supports many playback voices
+    Theoretically supports many capture voices
+    No options
+  Name: wav
+    Description: WAV renderer http://wikipedia.org/wiki/WAV
+    One playback voice
+    Does not support capture
+    Options:
+  Name: dsound
+    Description: DirectSound http://wikipedia.org/wiki/DirectSound
+    Theoretically supports many playback voices
+    One capture voice
+    Options:
+    Options are settable through environment variables.
+
+== 结论 ==
+1. 本机构建有 3 个驱动：none / wav / dsound（无 sdl、pa、alsa）。
+2. none: Theoretically supports many capture voices -> 采集可用（P10 前提）。
+3. wav: Does not support capture -> wav 后端只能录播放侧，不能做采集回归。
+4. dsound: One capture voice，但要碰宿主默认音频设备（违反 D9）。
+=> 同时满足「不动宿主声卡（D9）」+「采集链路可跑」的只有 none。

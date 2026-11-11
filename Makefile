@@ -13,6 +13,13 @@ all: subdirs
 MODE = run
 SUBDIRS = kernel userapp
 
+# uv 定位（qtest / full-l3 共用）。优先级必须是 USERPROFILE 在前：
+# make 的 SHELL 是 MSYS bash，它把 HOME 覆盖成 /home/<user>（本仓 MSYS 安装无
+# 此目录），只写 ${HOME:-...} 会永远命中错误值、uv.exe 找不到（实测见
+# docs/evidence/2026-11-11/p10-uv-path-bug.log）。Linux 上 USERPROFILE 未定义，
+# 自然退回 HOME，两边都正确。
+UV = "$${USERPROFILE:-$${HOME}}/.local/bin/uv.exe"
+
 .PHONY: subdirs $(SUBDIRS)
 subdirs: $(SUBDIRS)
 $(SUBDIRS):
@@ -32,7 +39,21 @@ test:
 # D10：入口统一 make qtest，不用 watcher、不用独立 bat；uv 管理解释器。
 .PHONY: qtest
 qtest:
-	"$${HOME:-$${USERPROFILE}}/.local/bin/uv.exe" run --no-project python tests/qtest_client.py
+	$(UV) run --no-project python tests/qtest_client.py
+
+# L3 整机回归：none 后端跑完整条音频栈（D10 的提交前档，tests/full_run.py）。
+# 全程 QEMU_AUDIO_DRV=none —— 不碰宿主声卡（D9）、不动 QEMU 3.1.50（D8）。
+# 不用 watcher、不用独立 bat（D10）：编排在 Python 侧轮询串口文件，QEMU 到点即 kill。
+.PHONY: full-l3
+full-l3:
+	$(UV) run --no-project python tests/full_run.py
+
+# 提交前全套：L1 -> L2 -> L3。
+# 保持串行（不写 -j）是保守取舍：串行实测 29.6-30.6s、make clean 后 35.7s，均已满足
+# D2 的 60s 全套预算，没有为省几秒去引入并行不确定性的收益。若将来要并行，先用
+# docs/evidence/2026-11-11/p10-build-parallel-check.log 的方法实测再下结论。
+.PHONY: full
+full: test qtest full-l3
 
 .PHONY: qemu
 qemu: hd.img

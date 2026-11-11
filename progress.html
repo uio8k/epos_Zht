@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -343,12 +343,12 @@ footer p{max-width:none}
       </label>
       <span class="state">已完成</span>
     </li>
-    <li class="item" data-id="P10" data-stage="0" data-done="0">
-      <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-P10"></span>
+    <li class="item" data-id="P10" data-stage="0" data-done="1">
+      <span class="check" role="checkbox" aria-checked="true" tabindex="0" aria-labelledby="l-P10"></span>
       <label class="label" id="l-P10">L3 整机 <code>none</code> 后端：不依赖宿主声卡的全流程回归
-        <span class="ev">依据：无 —— 需先确认 none 后端下采集返回静音但管线照跑</span>
+        <span class="ev">依据：gitee-p10-noaudio-excerpt.txt（QEMU noaudio.c 逐字——no_read/no_run_in 按虚拟时钟推进并把缓冲清零，坐实「管线照跑、样本恒静音」）+ qemu-audio-help-p10.log（本机 3 驱动：none 双路/ wav 不支持采集 / dsound 违反 D9，唯一解是 none）。落地：新 tests/full_run.py 三腿（PLAY 走 TEST_MODE 验音量/BDL/流启动/停流/状态 syscall；WAV 走 SORT_DEMO 验盘上 wav 读取与 3 路混音；CAPTURE 走 CAPTURE_TEST 验 1s 采集 + 3s 环绕 + API 契约），全程 QEMU_AUDIO_DRV=none、无 monitor/watcher；make 新增 full / full-l3；顺带修好 make qtest 的 uv 定位（USERPROFILE 优先，见 p10-uv-path-bug.log）。实测 make full 29.6s 退出码 0（p10-make-full.log），L1 37/37、L2 15/15、L3 3/3；fast 仍 14/16 唯二存量（p10-hda-fast.log）。方案 docs/tech-plan-full-none.md，refs-check-p10.log 24/24 PASS</span>
       </label>
-      <span class="state">待做</span>
+      <span class="state">已完成</span>
     </li>
     <li class="item" data-id="P11" data-stage="0" data-done="0">
       <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-P11"></span>
@@ -402,6 +402,7 @@ footer p{max-width:none}
   <p>另一台设备 <code>git pull</code> 后直接打开即看到同一状态。约定：勾选集中在主力机，另一台只读；若两边都改，冲突时按条目并集手工保留。</p>
   <h2 style="font-size:13px;margin-top:20px">变更记录</h2>
   <ul class="list">
+    <li><b>2026-11-11</b> P10 L3 整机 none 后端回归落地（autodev 轮 3，方案 docs/tech-plan-full-none.md）：D10 早已写定但仓库里根本不存在的 <code>make full</code> 补齐——新 tests/full_run.py 用 Python 标准库编排三条腿，全程 <code>QEMU_AUDIO_DRV=none</code>、无 monitor/watcher（D10）、不碰宿主声卡（D9）、不动 QEMU 3.1.50（D8）：①L3-A PLAY（TEST_MODE=1 TEST_SIGNAL=sine）断音量 syscall→BDL 128x4KB→流启动→停流 underruns=0→状态 syscall；②L3-B WAV（SORT_DEMO=1）断盘上 wav 读取与 3 路混音提交（song.wav 不在 git，改用 tracked 的 s*.wav）；③L3-C CAPTURE（CAPTURE_TEST=1）断 1s 采集 len/path=OK + 3s 采集 wraps=1 overruns=0 + API 契约 0/0/-2/0 + AUDIO_VERDICT v=2。可行性由一手源码坐实：noaudio.c 的 no_read/no_run_in 按 QEMU_CLOCK_VIRTUAL 推进并把缓冲清零（gitee-p10-noaudio-excerpt.txt），故「管线照跑、样本恒静音」，L3 只断行为不断样本——与 P05b「模拟器值非真值」口径一致。后端选择被 D8/D9 夹死：-audio-help 实测本机 only none(双路)/wav(不支持采集)/dsound(碰宿主设备)。顺带修 make qtest：原 <code>"${HOME:-${USERPROFILE}}/.local/bin/uv.exe"</code> 在 MSYS bash 下 HOME 恒为 /home/Administrator，命令根本跑不起来（p10-uv-path-bug.log），改成 USERPROFILE 优先后不再依赖调用方手工导 HOME。实测 make full 墙钟 29.2-29.6s、make clean 后冷起点 35.7s（D2 预算 60s 内）、退出码均 0：L1 37/37、L2 15/15、L3 3/3；hda_tests fast 仍 14/16（唯二存量 ST-ENUM-TABLE/ST-SYSCALL-NR）。**自修 1 轮**：L3-A 首跑两条断言写错（音量行实为 100 非 80；position 后多了冒号），按实跑串口改正后全绿——未放宽任何断言。另：初稿引用的 docs/evidence/2026-11-10/build-j4.log 实际不存在，据此「-j 必现 file truncated」的说法本轮实测 6/6 无法复现（p10-build-parallel-check.log），已从 tech-plan 与 Makefile 注释删除该依据，串行改为成本取舍而非硬约束。refs-check-p10 24/24 PASS。</li>
     <li><b>2026-11-11</b> P05b 删 SNR/THD 真值指标落地（autodev 轮 2，方案 docs/tech-plan-metrics-purge.md）：guest 侧真值指标链整体删除——metrics.h/.c 删 thd_pct/thd_n_pct/snr_db 字段、MET_THD_N_MAX_PCT/MET_SNR_MIN_DB 常量与谐波剥离计算（fit_strip 剥离分支随之清为 fit_power），met_verdict 改 met_verdict(rms)（非静音即 PASS，判据降为通路活性，真值门线随真机路线废弃 decisions-qemu-only.md D-Q5）；AUDIO_VERDICT 行 v=1→v=2（删 thd_n=/snr= 字段，升版本防旧脚本误读；实跑 CAPTURE_TEST=1 验证出行）。调研先行：套件与 serial_parser 对串口行 0 依赖（Q-* 的 SNR/THD 判定来自宿主 wav 分析），删字段零破坏（p05b-recon.log）。L1：metrics 段 5→2 条（U-L1-07/08/09 随指标删除），40→37 全绿（p05b-make-test.log）；fixture 删 sine_1k_plus_h2_h3/noise_white_seed1234/dc_offset_100 三个仅被删用例消费的 case，gen_vectors.py 同步、重生成与手改值逐位一致；hda_tests fast 14/16 不退化（唯二存量，p05b-hda-fast.log）；宿主 tools/audio_metrics.py 不动（D11 唯一指标源强化——SNR/THD 现仅存宿主一处）。refs-check-p05b 24/24 PASS（2026-11-11 目录）。</li>
     <li><b>2026-11-10</b> P07 初始化三项落地（autodev 首轮，QEMU-only 后第一个代码轮）：①GCAP 解码——新 kernel/hda_regs.c/.h（hda_gcap_decode 纯函数 + sd_index 换算），hda.c 打印改新格式，旧码三字段整体错位 8 位修正；②流索引运行时化——struct hda_dev 增 sd_in/sd_out/gcap_ok64/cap_vref，hda_stream.c/hda_capture.c 全部流寄存器访问由常量改 g_hda 字段（QEMU 下值等价 0/4），tag 与索引解耦（HDA_OUTPUT_TAG 宏，byte2 不再借序号字面量）；③EAPD——门控两条（pin cap 0Ch bit16 ← 2026-11-10 一手订正：AC_PINCAP_EAPD 在 pin cap 不在 widget cap，tech-plan §6.1；或 profile eapd=1）+ 0x70C 发送 + 0xF0C 回读打印，QEMU profile 置 0 不发、链路零扰动（QEMU hda-codec 无此 case、default fail 回 0，摘录 4）；④VrefEn——hda_capture pin ctrl 合成写 IN_EN|vref（默认 Hi-Z 与旧码逐位同，profile vref 档须落 (0x37&lt;&lt;8) 掩码内）+ 回读告警；⑤Unsol 处置——GCTL 去 UNSOL（QEMU 全文无 unsol 逻辑 + wmask 0x0103 一手证据，摘录 1/2）。**自修 1 轮**：INTCTL 逐流位（0x80000011）实测使 Q-SINE 劣化（SNR -9.37/2.01dB vs 基线 96.74，非确定值、单跑可复现），按 tech-plan §11 回退行只写 GIE——回退后单用例立即回基线（THD+N 0.0017%）、fast 套件 14/16（唯二失败=存量 ST-ENUM-TABLE/ST-SYSCALL-NR）。L1 新增 tests/test_hda_regs.c T1–T4（40 条全绿）；qtest 15 PASS/0 FAIL。证据 docs/evidence/2026-11-10/：p07-serial.log（串口 Select-String 复核）、p07-make-test/qtest/hda-tests-fast-final/qsine-rerun/qsine-fix1.log、gitee-p07-intelhda-excerpt.txt（Gitee mirrors/qemu 一手摘录 6 段+人读结论）、refs-check-p07.log 27/27 PASS。调研与方案订正均落 tech-plan-hda.md（§4.4 回退注记/§6.1 EAPD 位订正/§6.2 QEMU 行为一手确认）。</li>
     <li><b>2026-11-10</b> QEMU-only 修订（只改文档，不改代码）：去掉治具机实机验证，QEMU 3.1.50 成为唯一与最终验证平台（docs/decisions-qemu-only.md，grill 三轮收敛）。删除：阶段 1/2、治具四件节（含 P01，编号留空洞）、L5 层（手动 3.5mm 回环）、U-L1-05/U-L5-02（真机受阻用例）、decisions-audio-test.md §5（治具四件/目标平台）及各处真机语义。改造：P05b「真机阈值定稿」→「删除 SNR/THD 真值指标代码」（真值档位原靠真机回环定档，真机废弃后无定档通道，模拟器值非真值，只留 overruns/过零样本/峰值行为指标；代码清理立 P 项先调研再动）；P11「目标机自检」→「QEMU 整机自检（并入 make full）」；P07 去真机化（QEMU 侧仅验 verb 发送与回读）。P13 差分不升格，维持提交前可选档（QEMU 单档为最高验证档）。决策依据：osdev wiki「模拟器能跑不等于真机能跑」警告（docs/evidence/2026-10-31/osdev-bochs-emulator-comparison-excerpt.txt）——该局限已知并接受。evidence 目录实查无真机路线专属文件，仅 refs-check-autodev.log 一行检查对象（§5）已删、追加修订说明。git 历史可回溯全部被删内容。</li>
@@ -516,3 +517,5 @@ footer p{max-width:none}
 </script>
 </body>
 </html>
+
+

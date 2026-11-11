@@ -1,0 +1,82 @@
+﻿P10 证据：外层 hda_tests fast 套件（不退化核对）
+日期: 2026-11-11
+命令: cd E:\ComputerScience\epos_Zht\hda_tests && run_all.bat --suite fast
+退出码: 1（唯二存量 ST-ENUM-TABLE / ST-SYSCALL-NR，非本轮回归）
+
+--- 原始输出 ---
+== epos_Zht HDA 驱动测试集 ==
+   仓库: e:\ComputerScience\epos_Zht\epos_Zht
+   套件: fast
+
+-- 静态断言（只读源码） --
+  [FAIL] ST-ENUM-TABLE  trace 事件枚举 ↔ 事件名表一一对应
+        FAIL assert: 枚举 15 项：HTEV_STREAM_START, HTEV_STREAM_STOP, HTEV_NOTE_SUBMIT, HTEV_NOTE_WRITTEN, HTEV_NOTE_DONE, HTEV_UNDERRUN, HTEV_REALIGN, HTEV_BCIS_IRQ, HTEV_IRQ_FALLBACK, HTEV_WAIT_TIMEOUT, HTEV_STREAM_REJECT, HTEV_STOP_STALLED, HTEV_CAP_START, HTEV_CAP_OVERFLOW, HTEV_CAP_STOP；缺少 case：HTEV_CAP_START, HTEV_CAP_OVERFLOW, HTEV_CAP_STOP
+  [PASS] ST-PARAM-REJECT P1-1：启动参数不一致必须拒绝(-3)+trace
+        ok   assert: hda_cont_start 内 STREAM_REJECT=True / return -3=True
+  [PASS] ST-STOP-GUARD  P2-2：停流等待有界 + 独立停摆事件
+        ok   assert: HDA_STOP_STALL_LIMIT=3；sys_audio_stop 内引用=True；STOP_STALLED=True
+  [PASS] ST-RESERVE-WAIT P3-5：reserve 空间等待有界重试 + 停摆上限
+        ok   assert: HDA_RESERVE_STALL_LIMIT=3；reserve 内引用=True；仍调用 wait_until=True；WAIT_TIMEOUT 仅在未达成时记录=True
+  [PASS] ST-DRAIN-SCALED P2-1：停流补排按播放时长推导（旧常量已移除）
+        ok   assert: 按时长推导=True；旧常量 HDA_STOP_DRAIN_EXTRA 残留=False
+  [PASS] ST-NO-FLOAT    内核音频路径无 float/double
+        ok   assert: 四个音频源文件均无 float/double
+  [PASS] ST-DMA         DMA >1MB 物理地址约束 + 写后 wbinvd 刷缓存
+        ok   assert: wbinvd=True；hda_flush_cache 调用 5 次；HDA_DMA_BASE=0x400000(≥1MB=True) 高地址分配=True
+  [PASS] ST-MARGIN      MARGIN 前瞻延迟 ≤100ms(立体声)/≤200ms(单声道)
+        ok   assert: MARGIN=16384 B → 单声道 185.8 ms / 立体声 92.9 ms
+  [PASS] ST-BDL-LVI     BDL 条目数 ≤ LVI 8 位上限 256 且段长自洽
+        ok   assert: 流式 256×16384=4194304（条目 256≤256）；音符 128×4096=524288（条目 128≤256）
+  [PASS] ST-SAFETY      写入安全余量 = 环缓冲−单块−1MB 在途目标
+        ok   assert: ring−chunk−1MB = 2883584，源码 safety=2883584（一致）
+  [FAIL] ST-SYSCALL-NR  audio syscall 189..198 连续且两侧头文件一致
+        FAIL assert: 内核侧 13 项（189..201），连续=True；用户侧缺失=无
+
+-- 测试信号用例（构建 + 无头运行） --
+      [host-quiet] 运行期间请勿执行并发命令（会污染录音）
+  [PASS] Q-SINE         440Hz 纯音 SNR/THD+N/爆音/削波
+        ok   无头运行退出码: rc=0（日志 e:\ComputerScience\epos_Zht\hda_tests\reports\run_tone_sine.log）
+        ok   录音指纹 = sine（防跑成旧二进制）: sine（peak=29999 mean=0.0 rms=20115.9 hi%=0.5995 过零/s=791.3）
+        ok   SNR: 96.74 dB ≥ 90.0（16-bit 理论上限 96.33 dB；项目基线 96.74 dB）
+        ok   THD+N: 0.00170% ≤ 0.01%（项目基线 0.001695%）
+        ok   频率偏差: 0.00000% ≤ 0.50%（440.000 Hz / 目标 440 Hz）
+        ok   高置信 click 数: 0（多方法投票）
+        ok   削波样本数: 0
+        ok   直流偏置: 0.00 ≤ 50
+        ok   动态范围（信息性阈值）: 99.75 dB ≥ 60
+      [host-quiet] 运行期间请勿执行并发命令（会污染录音）
+  [PASS] Q-IMPULSE      冲激 信号完整性（指纹/波形/无欠载）
+        ok   无头运行退出码: rc=0（日志 e:\ComputerScience\epos_Zht\hda_tests\reports\run_tone_impulse.log）
+        ok   录音指纹 = impulse（防跑成旧二进制）: impulse（peak=30000 mean=0.3 rms=96.8 hi%=0.0000 过零/s=0.0）
+        ok   全部 underrun 提及值为 0: [0]
+        ok   冲激峰值（参考信号 30000）: 30000
+        ok   冲激稳定后高置信 click: 0（settle 50ms 之后；缓冲边界伪迹会出现在这里）
+        ok   整体 RMS（应接近静音）: 96.8
+        ok   非零样本占比（应仅冲激本身）: 0.00001
+      [host-quiet] 运行期间请勿执行并发命令（会污染录音）
+  [PASS] Q-STEP         阶跃 信号完整性（指纹/波形/无欠载）
+        ok   无头运行退出码: rc=0（日志 e:\ComputerScience\epos_Zht\hda_tests\reports\run_tone_step.log）
+        ok   录音指纹 = step（防跑成旧二进制）: step（peak=16000 mean=4750.9 rms=8707.6 hi%=0.2950 过零/s=0.0）
+        ok   全部 underrun 提及值为 0: [0]
+        ok   削波样本数: 0
+        ok   平台值准确度（参考 16000）: 16000.0（偏差 0.000%）
+        ok   过冲/振铃: 0.000% ≤ 20%（峰值/平台）
+        ok   边沿高置信 click: 0（边沿带 5ms 斜坡，参考信号本身不含阶跃）
+  [PASS] S-XRUN         测试信号 运行无丢帧、停流正常收尾
+        ok   存在 underrun 证据: errors=None mentions=[0] stop={'tail_ms': 250, 'lpib_max_step': 1036, 'wait': 'poll', 'bcis': 0, 'underruns': 0}
+        ok   全部 underrun 提及值 = 0: [0]
+        ok   FIFO 错误（该模式打印时为 0）: 未打印
+        ok   Descriptor 错误（该模式打印时为 0）: 未打印
+        ok   停流行存在（有界收尾）: {'tail_ms': 250, 'lpib_max_step': 1036, 'wait': 'poll', 'bcis': 0, 'underruns': 0}
+        ok   停流行 underrun 计数: 0
+  [PASS] D-TRACE        测试信号 的 trace 完备性与事件集合
+        ok   [TRACE] begin/end 成对: paired=True
+        ok   trace 条目数: recs=7 lost=0
+        ok   trace 溢出丢失: lost=0
+        ok   含 STREAM_START 事件: ['NOTE_DONE', 'NOTE_SUBMIT', 'NOTE_WRITTEN', 'REALIGN', 'STREAM_START', 'STREAM_STOP']
+        ok   无 UNDERRUN 事件: 0 次
+
+== 汇总：16 个用例，14 通过，2 失败，用时 44.8s ==
+   失败：ST-ENUM-TABLE, ST-SYSCALL-NR
+   报告：e:\ComputerScience\epos_Zht\hda_tests\reports\report.json
+          e:\ComputerScience\epos_Zht\hda_tests\reports\report.md

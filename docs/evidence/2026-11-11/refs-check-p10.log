@@ -1,0 +1,36 @@
+﻿P10 refs-check：tech-plan-full-none.md / progress.html / Makefile 注释里所有「文件:行号」逐条复核
+日期: 2026-11-11; 方式: 逐行读取文件后比对期望内容
+
+PASS | Makefile.inc:7 | SHELL=		/bin/bash | make 的 SHELL 是 bash（uv 定位根因前提）
+PASS | Makefile:21 | UV = "$${USERPROFILE:-$${HOME}}/.local/bin/uv.exe" | UV 变量：USERPROFILE 优先（本轮新增）
+PASS | Makefile:42 | $(UV) run --no-project python tests/qtest_client.py | qtest 改用 $(UV)（修复前为 :35）
+PASS | Makefile:49 | $(UV) run --no-project python tests/full_run.py | full-l3 调 tests/full_run.py
+PASS | Makefile:56 | full: test qtest full-l3 | full 三档入口
+PASS | Makefile:60 | -qemu-system-i386$(W) -m 48 -boot order=c -vga std -drive format=raw,fil | 生产配置 HDA 设备行（各腿沿用）
+PASS | .gitignore:4 | samples/song*.wav | song.wav 不入 git（腿 B 不用整曲的依据）
+PASS | tests/qtest_client.py:60 | # 残留检测：端口已被占说明有 QEMU（或别的进程）在监听 | qtest 客户端残留实例检测（§6.3 参照）
+PASS | tests/qtest_client.py:112 | def stop(self): | QemuProc.stop
+PASS | tests/qtest_client.py:114 | self.proc.kill()          # qtest 协议无 quit 命令（U4），外部强杀 | kill 而非优雅退出（§6.3 同款）
+PASS | kernel/Makefile:46 | ../lib/tlsf/tlsf.o: .FORCE | ../lib/*.o 的 .FORCE 规则（起点一）
+PASS | kernel/Makefile:51 | ../lib/string.o: .FORCE | ../lib/*.o 的 .FORCE 规则（终点一）
+PASS | userapp/Makefile:46 | MODE_STAMP = .testmode_$(TEST_MODE)_$(TEST_SIGNAL)_$(SORT_DEMO)_$(CAPTUR | 构建模式标记含 CAPTURE_TEST（U5 依据）
+PASS | userapp/Makefile:74 | ../lib/tlsf/tlsf.o: .FORCE | ../lib/*.o 的 .FORCE 规则（起点二）
+PASS | userapp/Makefile:79 | ../lib/string.o: .FORCE | ../lib/*.o 的 .FORCE 规则（终点二）
+PASS | docs/decisions-audio-test.md:20 | | D10 | 入口统一为 **`make test` / `make qtest` / `make full`**；不用 watcher，不用 | D10 入口统一 make full
+PASS | docs/decisions-audio-test.md:30 | | `make full`（整机，`none` 后端） | 全流程、syscall 往返、用户态 API 契约、WAV 读取 | 整机单次 ~1 | L3 层定义与预算
+PASS | docs/decisions-qemu-only.md:12 | | D-Q4 | P11（原 L4 目标机自检）**改 QEMU 版保留**：SELFTEST 段并入 make full 整机链路；L4 层表 | SELFTEST 并入 make full（P11 依赖）
+PASS | docs/tech-plan-qtest.md:16 | `docs/tech-plan-hda.md` §4.7，本轮不改它的实现排期。L3（make full）与 L4/L5 不在本文。 | qtest plan 明确排除 L3
+PASS | docs/tech-plan-qtest.md:99 | `uv run --no-project python tests/qtest_client.py` 调用。选 Python 不选 C 的理由： | 选 Python 不选 C 的权衡（§1 依据）
+PASS | docs/evidence/2026-11-11/p10-uv-path-bug.log:6 | "${HOME:-${USERPROFILE}}/.local/bin/uv.exe" run --no-project python test | uv 缺陷复现：修复前命令原文
+PASS | docs/evidence/2026-11-11/p10-uv-path-bug.log:8 | make: *** [Makefile:35: qtest] Error 127 | uv 缺陷复现：原始报错行
+PASS | docs/evidence/2026-11-11/p10-make-full.log:4 | 墙钟: 约 29.6 秒 | make full 墙钟记录
+PASS | docs/evidence/2026-11-11/p10-make-full.log:5 | 退出码: 0 | make full 退出码记录
+PASS | docs/evidence/2026-11-11/p10-make-full-clean.log:4 | 墙钟: 约 35.7 秒（含 hd.img 从 hd.img.bz2.txt 重建） | 冷起点墙钟记录
+PASS | docs/evidence/2026-11-11/p10-make-full-clean.log:5 | 退出码: 0 | 冷起点退出码记录
+PASS | docs/evidence/2026-11-11/p10-build-parallel-check.log:12 | make -j4: 3/3 退出码 0，无 file truncated / file not recognized / Error 1 | 并行实测：-j4 结果行
+PASS | docs/evidence/2026-11-11/p10-build-parallel-check.log:13 | make -j8: 3/3 退出码 0，无 file truncated / file not recognized / Error 1 | 并行实测：-j8 结果行
+PASS | docs/evidence/2026-11-11/gitee-p10-noaudio-excerpt.txt:7 | == 摘录 1: audio/noaudio.c (v3.1.0) — none 驱动体（逐字）== | Gitee 摘录锚点（v3.1.0）
+PASS | docs/evidence/2026-11-11/qemu-audio-help-p10.log:9 | Name: none | audio-help 摘录：none 行
+PASS | progress.html:346 | <li class="item" data-id="P10" data-stage="0" data-done="1"> | progress.html P10 条目已勾选
+
+SUMMARY: 31 PASS / 0 FAIL

@@ -1,0 +1,21 @@
+﻿P10：并行构建（make -j）实测复核 —— 纠正「-j 必现 file truncated」的旧说法
+日期: 2026-11-11
+
+背景: 本轮 tech-plan 初稿曾引用 docs/evidence/2026-11-10/build-j4.log 作为「-j 必然
+      链接失败、必须串行」的依据。复核发现该文件在仓库与工作区均不存在（git 历史也
+      无此路径），属于不可引用的一手证据 —— 故本轮重新实测。
+
+命令: make clean && make -j4   （连跑 3 次，每次先 clean）
+      make clean && make -j8   （连跑 3 次，每次先 clean）
+
+--- 结果 ---
+make -j4: 3/3 退出码 0，无 file truncated / file not recognized / Error 1
+make -j8: 3/3 退出码 0，无 file truncated / file not recognized / Error 1
+
+== 结论（供 tech-plan 修订）==
+1. 「-j 必现 file truncated」在本轮无法复现，原依据不成立，已从 tech-plan 与本轮
+   Makefile 注释中删除引用。
+2. make full 仍写成串行（不写 -j）：这是保守取舍而非硬约束 —— 串行总耗时已达标
+   （实测 30.3s vs D2 的 60s 预算），没有为了省几秒去引入并行不确定性、让提交前档
+   变得时好时坏的收益。
+3. 若将来确需并行，应先用本日志的方法重测并补证据，不得凭旧印象断言。

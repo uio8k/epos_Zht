@@ -1,0 +1,175 @@
+﻿P10 证据：L1 单测回归（P10 改动后）
+日期: 2026-11-11
+命令: cmd /c "call ..\setvars.bat /ni && make test"
+退出码: 0
+
+--- 原始输出 ---
+make -C tests test
+make[1]: Entering directory '/e/ComputerScience/epos_Zht/epos_Zht/tests'
+cmd //c run_tests.bat
+In file included from build/hda_capture_under_test.c:6,
+                 from test_capture_probe.c:19:
+build/hda_internal.h: In function 'hda_readl':
+build/hda_internal.h:21:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   21 |     return *(volatile uint32_t *)(g_hda.mmio_base + reg);
+      |             ^
+build/hda_internal.h: In function 'hda_readw':
+build/hda_internal.h:26:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   26 |     return *(volatile uint16_t *)(g_hda.mmio_base + reg);
+      |             ^
+build/hda_internal.h: In function 'hda_readb':
+build/hda_internal.h:31:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   31 |     return *(volatile uint8_t *)(g_hda.mmio_base + reg);
+      |             ^
+build/hda_internal.h: In function 'hda_writel':
+build/hda_internal.h:36:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   36 |     *(volatile uint32_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+build/hda_internal.h: In function 'hda_writew':
+build/hda_internal.h:41:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   41 |     *(volatile uint16_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+build/hda_internal.h: In function 'hda_writeb':
+build/hda_internal.h:46:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   46 |     *(volatile uint8_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+In file included from build\hda_bdl_under_test.c:14:
+build\hda_internal.h: In function 'hda_readl':
+build\hda_internal.h:21:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   21 |     return *(volatile uint32_t *)(g_hda.mmio_base + reg);
+      |             ^
+build\hda_internal.h: In function 'hda_readw':
+build\hda_internal.h:26:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   26 |     return *(volatile uint16_t *)(g_hda.mmio_base + reg);
+      |             ^
+build\hda_internal.h: In function 'hda_readb':
+build\hda_internal.h:31:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   31 |     return *(volatile uint8_t *)(g_hda.mmio_base + reg);
+      |             ^
+build\hda_internal.h: In function 'hda_writel':
+build\hda_internal.h:36:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   36 |     *(volatile uint32_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+build\hda_internal.h: In function 'hda_writew':
+build\hda_internal.h:41:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   41 |     *(volatile uint16_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+build\hda_internal.h: In function 'hda_writeb':
+build\hda_internal.h:46:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   46 |     *(volatile uint8_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+test_capture_probe.c:260:test_probe_qemu_profile:PASS
+test_capture_probe.c:261:test_amp_input_direction:PASS
+test_capture_probe.c:262:test_conn_index_long_form:PASS
+test_capture_probe.c:263:test_readback_mismatch_fails:PASS
+test_capture_probe.c:264:test_no_adc_fails:PASS
+
+-----------------------
+5 Tests 0 Failures 0 Ignored 
+OK
+test_metrics.c:87:test_metrics_sine_f0_rms:PASS
+test_metrics.c:88:test_bin_index_1k:PASS
+
+-----------------------
+2 Tests 0 Failures 0 Ignored 
+OK
+In file included from build/hda_topo_under_test.c:23,
+                 from test_topo.c:20:
+build/hda_internal.h: In function 'hda_readl':
+build/hda_internal.h:21:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   21 |     return *(volatile uint32_t *)(g_hda.mmio_base + reg);
+      |             ^
+build/hda_internal.h: In function 'hda_readw':
+build/hda_internal.h:26:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   26 |     return *(volatile uint16_t *)(g_hda.mmio_base + reg);
+      |             ^
+build/hda_internal.h: In function 'hda_readb':
+build/hda_internal.h:31:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   31 |     return *(volatile uint8_t *)(g_hda.mmio_base + reg);
+      |             ^
+build/hda_internal.h: In function 'hda_writel':
+build/hda_internal.h:36:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   36 |     *(volatile uint32_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+build/hda_internal.h: In function 'hda_writew':
+build/hda_internal.h:41:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   41 |     *(volatile uint16_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+build/hda_internal.h: In function 'hda_writeb':
+build/hda_internal.h:46:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   46 |     *(volatile uint8_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+test_topo.c:341:test_topo_profile_qemu:PASS
+test_topo.c:342:test_topo_profile_beats_dfs:PASS
+test_topo.c:343:test_topo_dfs_mixer_path:PASS
+test_topo.c:344:test_topo_dfs_mixer_index_not_zero:PASS
+test_topo.c:345:test_topo_dfs_direct_path:PASS
+test_topo.c:346:test_topo_unknown_codec_skips_profile:PASS
+test_topo.c:347:test_topo_depth_limit:PASS
+test_topo.c:348:test_topo_cycle_terminates:PASS
+
+-----------------------
+8 Tests 0 Failures 0 Ignored 
+OK
+test_segment.c:136:test_span_full:PASS
+test_segment.c:137:test_span_trims_silence:PASS
+test_segment.c:138:test_span_all_silent:PASS
+test_segment.c:139:test_span_too_short:PASS
+test_segment.c:140:test_span_thresh_zero:PASS
+test_segment.c:141:test_span_single_sample:PASS
+test_segment.c:142:test_loudest_middle:PASS
+test_segment.c:143:test_loudest_too_few:PASS
+
+-----------------------
+8 Tests 0 Failures 0 Ignored 
+OK
+In file included from build/hda_bdl_under_test.c:14,
+                 from test_bdl.c:20:
+build/hda_internal.h: In function 'hda_readl':
+build/hda_internal.h:21:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   21 |     return *(volatile uint32_t *)(g_hda.mmio_base + reg);
+      |             ^
+build/hda_internal.h: In function 'hda_readw':
+build/hda_internal.h:26:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   26 |     return *(volatile uint16_t *)(g_hda.mmio_base + reg);
+      |             ^
+build/hda_internal.h: In function 'hda_readb':
+build/hda_internal.h:31:13: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   31 |     return *(volatile uint8_t *)(g_hda.mmio_base + reg);
+      |             ^
+build/hda_internal.h: In function 'hda_writel':
+build/hda_internal.h:36:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   36 |     *(volatile uint32_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+build/hda_internal.h: In function 'hda_writew':
+build/hda_internal.h:41:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   41 |     *(volatile uint16_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+build/hda_internal.h: In function 'hda_writeb':
+build/hda_internal.h:46:6: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   46 |     *(volatile uint8_t *)(g_hda.mmio_base + reg) = val;
+      |      ^
+test_bdl.c:154:test_bdl_ok_128:PASS
+test_bdl.c:155:test_bdl_err_align:PASS
+test_bdl.c:156:test_bdl_err_too_few:PASS
+test_bdl.c:157:test_bdl_err_too_many:PASS
+test_bdl.c:158:test_bdl_err_seg_zero:PASS
+test_bdl.c:159:test_bdl_err_seg_over:PASS
+test_bdl.c:160:test_bdl_err_addr_zero:PASS
+test_bdl.c:161:test_bdl_err_cbl_short:PASS
+test_bdl.c:162:test_bdl_err_cbl_long:PASS
+test_bdl.c:163:test_bdl_boundary_max:PASS
+
+-----------------------
+10 Tests 0 Failures 0 Ignored 
+OK
+test_hda_regs.c:56:t1_decode_0x4401:PASS
+test_hda_regs.c:57:t2_decode_0x1801:PASS
+test_hda_regs.c:58:t3_index_0x4401:PASS
+test_hda_regs.c:59:t4_index_0x1801:PASS
+
+-----------------------
+4 Tests 0 Failures 0 Ignored 
+OK
+[tests] ALL PASS
+make[1]: Leaving directory '/e/ComputerScience/epos_Zht/epos_Zht/tests'

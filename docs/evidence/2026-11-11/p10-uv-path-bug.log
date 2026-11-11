@@ -1,0 +1,25 @@
+﻿P10 实施前现状核对：make qtest 的 uv 定位缺陷复现（本轮必须一并修）
+日期: 2026-11-11
+命令: cmd /c "call ..\setvars.bat /ni && make qtest"（不预设 HOME 覆盖）
+
+--- 命令原文与原始输出 ---
+"${HOME:-${USERPROFILE}}/.local/bin/uv.exe" run --no-project python tests/qtest_client.py
+/bin/bash: /home/Administrator/.local/bin/uv.exe: No such file or directory
+make: *** [Makefile:35: qtest] Error 127
+
+--- 退出码 ---
+make exit = 2（make 报 Error 127；实际失败点 /bin/bash: /home/Administrator/.local/bin/uv.exe: No such file）
+
+== 根因 ==
+Makefile 第 35 行写的是 "${HOME:-${USERPROFILE}}/.local/bin/uv.exe"。
+make 的 SHELL=/bin/bash 是 MSYS bash，它把 HOME 覆盖成 POSIX 家目录
+/home/Administrator（本仓 MSYS 安装无此目录），于是 ${HOME:-...} 永远命中错误值，
+uv.exe 找不到；USERPROFILE=C:\Users\Administrator 才是正确位置。
+修法：优先级反转成 ${USERPROFILE:-${HOME}} —— Windows 上取 USERPROFILE，
+Linux 上 USERPROFILE 未定义自然退回 HOME。
+
+== 环境实测（同一 shell 内）==
+cmd 层:   HOME=(空)                USERPROFILE=C:\Users\Administrator
+bash 层:  HOME=/home/Administrator USERPROFILE=C:\Users\Administrator
+test -x "$USERPROFILE/.local/bin/uv.exe" -> YES
+test -x "$HOME/.local/bin/uv.exe"        -> NO

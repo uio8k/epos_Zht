@@ -1,0 +1,25 @@
+﻿P10 探针 1：QEMU 3.1.50 + none 后端运行时串口文件可见性（U1 的验证）
+日期: 2026-11-11
+命令: Qemu\qemu-system-i386w.exe -m 48 -boot order=c -vga std -drive format=raw,file=<repo>/hd.img,index=0,media=disk
+      -device intel-hda -device hda-duplex -serial file:<repo>/userapp/serial.log -display none
+环境: QEMU_AUDIO_DRV=none   （无 -monitor，即 D10 的「不用 watcher」形态）
+镜像: make hd.img TEST_MODE=1 TEST_SIGNAL=sine
+轮询间隔: 500ms，标记串 "Test tone finished"
+
+--- 观测序列（size = serial.log 字节数）---
+t=  500ms  size=      0  marker=False
+t= 1000ms  size=      0  marker=False
+t= 1500ms  size=      0  marker=False
+t= 2000ms  size=      0  marker=False
+t= 2500ms  size=      0  marker=False
+t= 3000ms  size=   4515  marker=False
+t= 3500ms  size=   4515  marker=False
+t= 4000ms  size=   4515  marker=False
+t= 4500ms  size=   4515  marker=False
+t= 5000ms  size=   4515  marker=False
+t= 5500ms  size=   5354  marker=True
+
+== 结论 ==
+1. 串口文件在 QEMU 运行期间可被外部进程读到时序稳定：约 2.5s 首次落盘、约 5.5s 命中完成标记。
+2. 因此 L3 编排不需要 watcher / telnet monitor：轮询文件即可在运行中断言，D10 可满足。
+3. 无需依赖 QEMU 优雅退出（kill 即可），判定已在轮询阶段完成。

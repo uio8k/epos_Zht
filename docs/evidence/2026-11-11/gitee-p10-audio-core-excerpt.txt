@@ -1,0 +1,107 @@
+﻿P10 实施前 Gitee 一手源码摘录（第 2 份）：驱动选择与 codec 采集通路
+日期: 2026-11-11; 渠道: gitee.com/mirrors/qemu raw 直连（curl -L，AGENTS 规则）
+
+== 摘录 3: audio/audio.c (v3.1.0) — QEMU_AUDIO_DRV 选择与缺省回退 (逐字) ==
+URL: https://gitee.com/mirrors/qemu/raw/v3.1.0/audio/audio.c   (全文件 2120 行)
+--- audio_init() :1896-1925 ---
+  1896:     {
+  1897:         int def;
+  1898:         drvname = audio_get_conf_str ("QEMU_AUDIO_DRV", NULL, &def);
+  1899:     }
+  1900: 
+  1901:     if (drvname) {
+  1902:         driver = audio_driver_lookup(drvname);
+  1903:         if (driver) {
+  1904:             done = !audio_driver_init(s, driver);
+  1905:         } else {
+  1906:             dolog ("Unknown audio driver `%s'\n", drvname);
+  1907:             dolog ("Run with -audio-help to list available drivers\n");
+  1908:         }
+  1909:     }
+  1910: 
+  1911:     if (!done) {
+  1912:         for (i = 0; !done && i < ARRAY_SIZE(audio_prio_list); i++) {
+  1913:             driver = audio_driver_lookup(audio_prio_list[i]);
+  1914:             if (driver && driver->can_be_default) {
+  1915:                 done = !audio_driver_init(s, driver);
+  1916:             }
+  1917:         }
+  1918:     }
+  1919: 
+  1920:     if (!done) {
+  1921:         driver = audio_driver_lookup("none");
+  1922:         done = !audio_driver_init(s, driver);
+  1923:         assert(done);
+  1924:         dolog("warning: Using timer based audio emulation\n");
+  1925:     }
+
+== 摘录 3 结论 ==
+1) 驱动名由环境变量 QEMU_AUDIO_DRV 取（:1898 audio_get_conf_str），
+   故 3.1.x 上「切 none 后端」= 设 QEMU_AUDIO_DRV=none，与 -audio-help 输出一致。
+2) 即便不设该变量，代码最后也有硬兜底：audio_driver_lookup("none")（:1921-1924），
+   并打印 warning: Using timer based audio emulation。
+   => 本机无宿主音频设备时 QEMU 不会因音频初始化失败而退出，none 是天然兜底。
+
+== 摘录 4: hw/audio/hda-codec.c (v3.1.0) — 采集声音创建与数据搬运 ==
+URL: https://gitee.com/mirrors/qemu/raw/v3.1.0/hw/audio/hda-codec.c   (全文件 958 行)
+--- 输入侧回调 hda_audio_input_cb :257-276 ---
+  257: static void hda_audio_input_cb(void *opaque, int avail)
+  258: {
+  259:     HDAAudioStream *st = opaque;
+  260: 
+  261:     int64_t wpos = st->wpos;
+  262:     int64_t rpos = st->rpos;
+  263: 
+  264:     int64_t to_transfer = audio_MIN(B_SIZE - (wpos - rpos), avail);
+  265: 
+  266:     hda_timer_sync_adjust(st, -((wpos - rpos) + to_transfer - (B_SIZE >> 1)));
+  267: 
+  268:     while (to_transfer) {
+  269:         uint32_t start = (uint32_t) (wpos & B_MASK);
+  270:         uint32_t chunk = (uint32_t) audio_MIN(B_SIZE - start, to_transfer);
+  271:         uint32_t read = AUD_read(st->voice.in, st->buf + start, chunk);
+  272:         wpos += read;
+  273:         to_transfer -= read;
+  274:         st->wpos += read;
+  275:         if (chunk != read) {
+  276:             break;
+
+--- 输入侧定时器 hda_audio_input_timer :217-255（节选 :236-248）---
+  236:     int64_t to_transfer = audio_MIN(wpos - rpos, wanted_rpos - rpos);
+  237:     while (to_transfer) {
+  238:         uint32_t start = (rpos & B_MASK);
+  239:         uint32_t chunk = audio_MIN(B_SIZE - start, to_transfer);
+  240:         int rc = hda_codec_xfer(
+  241:                 &st->state->hda, st->stream, false, st->buf + start, chunk);
+  242:         if (!rc) {
+  243:             break;
+  244:         }
+  245:         rpos += chunk;
+  246:         to_transfer -= chunk;
+  247:         st->rpos += chunk;
+  248:     }
+
+--- 采集 voice 绑定 :484-486 ---
+  482:     } else {
+  483:         if (use_timer) {
+  484:             cb = hda_audio_input_cb;
+  485:             st->buft = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+  486:                                     hda_audio_input_timer, st);
+  487:         } else {
+  488:             cb = hda_audio_compat_input_cb;
+
+== 摘录 4 结论 ==
+采集侧数据源是 AUD_read(st->voice.in, ...)（:271），即 SWVoiceIn 从 HWVoiceIn 取数。
+在 none 后端下 HWVoiceIn 正是 noaudio.c 的 no_read()（摘录 1），返回清零缓冲。
+=> hda-duplex + QEMU_AUDIO_DRV=none 时，guest 的采集 DMA 会持续搬入全 0 样本：
+   采集字节数/中断/停流时序等【行为级】判据全部可测，仅【样本值】恒为静音。
+
+== 五条摘录的合并结论（P10 可行性）==
+1. none 后端 = 定时器模拟音频：播放和采集两边都按 QEMU_CLOCK_VIRTUAL 推进，
+   链路与 DMA 全跑，仅样本内容无真实声源（摘录 1/2）。
+2. 采集侧 no_read() 返回"清零过的 to_clear 字节"，长度与时间成正比 ——
+   可断言"采集字节数在合理区间""停流后不再增长"，但不能断言样本内容。
+3. hda-duplex 在 none 后端下照常创建 SWVoiceIn/HWVoiceIn（摘录 4），
+   故整机测试无需宿主声卡即可跑完整条采集链路。
+4. 环境变量是 3.1.x 唯一入口（无 -audiodev，那是 4.2+），Makefile 里用
+   QEMU_AUDIO_DRV=none 前缀即可，不改 QEMU（D8）。

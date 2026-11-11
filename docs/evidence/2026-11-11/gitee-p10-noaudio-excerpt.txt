@@ -1,0 +1,81 @@
+﻿P10 实施前 Gitee 一手源码摘录（autodev 轮 3：make full + none 后端整机回归）
+日期: 2026-11-11; 渠道: gitee.com/mirrors/qemu raw 直连（curl -L，AGENTS 规则）
+目标版本锚点: 本地 QEMU 为 3.1.50 (v3.1.0-13607-geb2db0f7ba-dirty)，故取 tag v3.1.0
+实测版本串:
+QEMU emulator version 3.1.50 (v3.1.0-13607-geb2db0f7ba-dirty)
+
+== 摘录 1: audio/noaudio.c (v3.1.0) — none 驱动体（逐字）==
+URL: https://gitee.com/mirrors/qemu/raw/v3.1.0/audio/noaudio.c
+本文件共 181 行（curl 落盘后按 LF 计数）。核心两段：
+
+--- 采集侧 no_run_in :99-118 ---
+  99: static int no_run_in (HWVoiceIn *hw)
+  100: {
+  101:     NoVoiceIn *no = (NoVoiceIn *) hw;
+  102:     int live = audio_pcm_hw_get_live_in (hw);
+  103:     int dead = hw->samples - live;
+  104:     int samples = 0;
+  105: 
+  106:     if (dead) {
+  107:         int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+  108:         int64_t ticks = now - no->old_ticks;
+  109:         int64_t bytes =
+  110:             muldiv64(ticks, hw->info.bytes_per_second, NANOSECONDS_PER_SECOND);
+  111: 
+  112:         no->old_ticks = now;
+  113:         bytes = audio_MIN (bytes, INT_MAX);
+  114:         samples = bytes >> hw->info.shift;
+  115:         samples = audio_MIN (samples, dead);
+  116:     }
+  117:     return samples;
+  118: }
+
+--- 采集侧 no_read :120-130 ---
+  120: static int no_read (SWVoiceIn *sw, void *buf, int size)
+  121: {
+  122:     /* use custom code here instead of audio_pcm_sw_read() to avoid
+  123:      * useless resampling/mixing */
+  124:     int samples = size >> sw->info.shift;
+  125:     int total = sw->hw->total_samples_captured - sw->total_hw_samples_acquired;
+  126:     int to_clear = audio_MIN (samples, total);
+  127:     sw->total_hw_samples_acquired += total;
+  128:     audio_pcm_info_clear_buf (&sw->info, buf, to_clear);
+  129:     return to_clear << sw->info.shift;
+  130: }
+
+== 摘录 1 结论 ==
+no_read() 只按虚拟时钟推进的样本数 to_clear 调用 audio_pcm_info_clear_buf() 清零缓冲，
+返回 to_clear << shift —— 即：none 后端下采集【管线照跑、数据恒为静音】，
+字节数与时间严格成正比（no_run_in 用 QEMU_CLOCK_VIRTUAL 算 samples）。
+这正是 P10 验收前提「采集返回静音但管线照跑」的一手依据。
+
+== 摘录 2: audio/noaudio.c (v3.1.0) — 播放侧（逐字）==
+--- no_run_out :43-61 ---
+  43: static int no_run_out (HWVoiceOut *hw, int live)
+  44: {
+  45:     NoVoiceOut *no = (NoVoiceOut *) hw;
+  46:     int decr, samples;
+  47:     int64_t now;
+  48:     int64_t ticks;
+  49:     int64_t bytes;
+  50: 
+  51:     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+  52:     ticks = now - no->old_ticks;
+  53:     bytes = muldiv64(ticks, hw->info.bytes_per_second, NANOSECONDS_PER_SECOND);
+  54:     bytes = audio_MIN(bytes, INT_MAX);
+  55:     samples = bytes >> hw->info.shift;
+  56: 
+  57:     no->old_ticks = now;
+  58:     decr = audio_MIN (live, samples);
+  59:     hw->rpos = (hw->rpos + decr) % hw->samples;
+  60:     return decr;
+  61: }
+--- no_write :63-66 ---
+  63: static int no_write (SWVoiceOut *sw, void *buf, int len)
+  64: {
+  65:     return audio_pcm_sw_write(sw, buf, len);
+  66: }
+
+== 摘录 2 结论 ==
+播放侧同样按虚拟时钟 hw->rpos 推进（:59），数据写进环形缓冲即被消费，不落宿主声卡。
+=> 整机在 none 后端下【播放与采集两条 DMA 链路都在跑】，只是宿主侧无声/无录。
