@@ -1,0 +1,80 @@
+Gitee QEMU 镜像摘录（Intel HDA 流控制寄存器 SDnCTL：RUN/SRST 语义、LPIB 归零点）
+用途：P-NEW「连续流生命周期审计」——判定 stop 后是否必须显式清 RUN、以及重启流时
+      驱动侧哪些绝对坐标必须跟着复位。
+URL:   https://gitee.com/mirrors/qemu/raw/master/hw/audio/intel-hda.c
+URL:   https://gitee.com/mirrors/qemu/raw/master/hw/audio/intel-hda-defs.h
+抓取:  2026-11-11，curl -L 直连 Gitee 镜像（200，无重定向）；行号 = 各原文件行号。
+      镜像 master 与本地 QEMU 3.1.50 版本不同，语义以镜像为准；本仓既有摘录
+      docs/evidence/2026-10-31/gitee-qemu-intelhda-excerpt.txt 只含寄存器偏移与
+      GCAP 复位值，不含 RUN 位语义，故本轮补取。
+
+-- intel-hda-defs.h 130-147（SD_CTL 位定义 + SD_STS 位定义）--
+  131: #define SD_CTL_STREAM_RESET	0x01	/* stream reset bit */
+  132: #define SD_CTL_DMA_START	0x02	/* stream DMA start bit */
+  133: #define SD_CTL_STRIPE		(3 << 16)	/* stripe control */
+  134: #define SD_CTL_TRAFFIC_PRIO	(1 << 18)	/* traffic priority */
+  135: #define SD_CTL_DIR		(1 << 19)	/* bi-directional stream */
+  136: #define SD_CTL_STREAM_TAG_MASK	(0xf << 20)
+  137: #define SD_CTL_STREAM_TAG_SHIFT	20
+  140: #define SD_INT_DESC_ERR		0x10	/* descriptor error interrupt */
+  141: #define SD_INT_FIFO_ERR		0x08	/* FIFO error interrupt */
+  142: #define SD_INT_COMPLETE		0x04	/* completion interrupt */
+  147: #define SD_STS_FIFO_READY	0x20	/* FIFO ready */
+
+-- intel-hda.c 577-604（intel_hda_set_st_ctl：RUN 跳变处理全文）--
+  577: static void intel_hda_set_st_ctl(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old)
+  578: {
+  579:     bool output = reg->stream >= 4;
+  580:     IntelHDAStream *st = d->st + reg->stream;
+  581:
+  582:     if (st->ctl & 0x01) {
+  583:         /* reset */
+  584:         dprint(d, 1, "st #%d: reset\n", reg->stream);
+  585:         st->ctl = SD_STS_FIFO_READY << 24 | SD_CTL_STREAM_RESET;
+  586:     }
+  587:     if ((st->ctl & 0x02) != (old & 0x02)) {
+  588:         uint32_t stnr = (st->ctl >> 20) & 0x0f;
+  589:         /* run bit flipped */
+  590:         if (st->ctl & 0x02) {
+  591:             /* start */
+  592:             dprint(d, 1, "st #%d: start %d (ring buf %d bytes)\n",
+  593:                    reg->stream, stnr, st->cbl);
+  594:             intel_hda_parse_bdl(d, st);
+  595:             intel_hda_notify_codecs(d, stnr, true, output);
+  596:         } else {
+  597:             /* stop */
+  598:             dprint(d, 1, "st #%d: stop %d\n", reg->stream, stnr);
+  599:             intel_hda_notify_codecs(d, stnr, false, output);
+  600:         }
+  601:     }
+  602:     intel_hda_update_irq(d);
+  603: }
+读法：RUN 清零分支（596-600）只做「通知 codec 停流」，函数体内**没有任何**
+      对 st->lpib / st->be / st->bp 的写操作。
+
+-- intel-hda.c 484-491（intel_hda_parse_bdl 尾部：LPIB/BDL 游标归零）--
+  484:     st->bsize = st->cbl;
+  485:     st->lpib  = 0;
+  486:     st->be    = 0;
+  487:     st->bp    = 0;
+  488: }
+读法：parse_bdl 只在 RUN 由 0 变 1 时被调用（intel-hda.c:594）。因此
+      LPIB 的唯一归零点就是「流启动」，RUN 清零时 LPIB 保持不动。
+
+-- intel-hda.c 430-452（intel_hda_xfer：LPIB 推进与环绕归零）--
+  435:         st->lpib += copy;
+  436:         st->bp += copy;
+  ...
+  448:                 /* bpl wrap around */
+  449:                 st->be = 0;
+  450:                 st->lpib = 0;
+
+-- 由原文直接得出的三条能力性结论（供 tech-plan 引用）--
+[src: intel-hda.c:596-600] RUN 清零 = 仅停 codec 侧取数，不重置任何流内位置状态；
+      故 guest 停流后 SDnLPIB 保留最终值，驱动侧「停流后 rdpos 即总消费量」成立。
+[src: intel-hda.c:585] SRST（bit0）写 1 会把整个 st->ctl 覆写为
+      FIFO_READY<<24 | STREAM_RESET，等价于顺带清掉 RUN 与 stream tag。
+[src: intel-hda.c:484-487 + intel-hda.c:594] 每次 RUN 0->1 都重新 parse_bdl 并把
+      lpib/be/bp 归零 —— 即「重启流」在硬件模型侧等价于「位置原点回到 0」。
+      驱动侧凡以绝对字节计数的坐标（写游标、读游标、真实数据末尾）都必须同步归零，
+      否则重启后第一个 reserve 会落在陈旧的绝对偏移上。

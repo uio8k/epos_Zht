@@ -1,0 +1,59 @@
+﻿== L3 整机回归：QEMU 3.1.50 + none 后端 ==
+   仓库：E:\ComputerScience\epos_Zht\epos_Zht
+   后端：QEMU_AUDIO_DRV=none（不碰宿主声卡，D9）
+
+== L3-A PLAY ==
+   覆盖：PCM 播放全链：音量 syscall -> BDL 配置 -> 流启动 -> 停流 -> 状态 syscall
+   构建：make hd.img TEST_MODE=1 TEST_SIGNAL=sine
+   构建 OK（8.2s）
+   运行：QEMU_AUDIO_DRV=none qemu-system-i386w.exe ...（无 monitor / 无 watcher）
+   [PASS] 音量 syscall 往返（audio_set_volume；TEST_MODE 满音量播，避免软件增益污染）
+   [PASS] 用户态生成参考信号并提交播放
+   [PASS] BDL 配置成功（128 条 x 4KB）
+   [PASS] 流启动（格式与内核下发的配置一致）
+   [PASS] 停流干净：underruns=0（none 后端下播放侧照常被消费，不应饿死）
+   [PASS] 状态 syscall 往返（audio_get_errors / audio_get_position_ms）
+   用时：构建 8.2s + 运行 4.9s；串口 5491 字节 -> tests\build\l3_play.log
+
+== L3-B WAV ==
+   覆盖：真实盘上 WAV 读取（song.wav 不在 git 里，故用 tracked 的 s*.wav）+ 多路混音
+   构建：make hd.img SORT_DEMO=1
+   构建 OK（8.2s）
+   运行：QEMU_AUDIO_DRV=none qemu-system-i386w.exe ...（无 monitor / 无 watcher）
+   [PASS] 音量 syscall 往返
+   [PASS] 进入音符驱动路径
+   [PASS] 从磁盘读到 WAV 并完成 3 路混音后提交播放
+   用时：构建 8.2s + 运行 2.4s；串口 5729 字节 -> tests\build\l3_wav.log
+
+== L3-C CAPTURE ==
+   覆盖：采集全流程（1s + 3s 环绕）+ 用户态 API 幂等/参数校验
+   构建：make hd.img CAPTURE_TEST=1
+   构建 OK（8.2s）
+   运行：QEMU_AUDIO_DRV=none qemu-system-i386w.exe ...（无 monitor / 无 watcher）
+   [PASS] 1s 采集：字节数达标、LPIB 在走；none 后端下信号必为 SILENT（预期值）
+   [PASS] 1s 采集：无 overrun、无环绕（256KB 环装得下）
+   [PASS] 3s 采集：529KB > 256KB 环 -> 缓冲升 512KB 且 LPIB 绕回 1 次
+   [PASS] 用户态 API 契约：同参幂等、异参拒绝、停流可重入
+   [PASS] 串口判定行按 v=2 格式输出（P05b 后的新格式）
+   用时：构建 8.2s + 运行 7.2s；串口 11430 字节 -> tests\build\l3_capture.log
+
+== L4 SELFTEST ==
+   覆盖：内核整机自检：分配器往返 + 信号量握手 + tick 前进 + HDA 探测（kernel/selftest.c）
+   构建：make hd.img 
+   构建 OK（7.4s）
+   运行：QEMU_AUDIO_DRV=none qemu-system-i386w.exe ...（无 monitor / 无 watcher）
+   [PASS] 自检段起跑（冷启动即执行，不依赖用户态）
+   [PASS] 分配器往返：kmalloc/kfree 后同尺寸再申请拿回同一地址
+   [PASS] 信号量握手：内核线程 signal -> 主线程 wait -> task_wait 回收
+   [PASS] tick 前进：g_timer_ticks 在定时器中断下自增
+   [PASS] HDA 探测：MMIO/codec/DAC/Pin 四项事实齐全
+   [PASS] 四项全通过（任一项 FAIL 则该行变 FAIL 且数字不足）
+   用时：构建 7.4s + 运行 2.1s；串口 4951 字节 -> tests\build\l4_selftest.log
+
+== 汇总：4 腿，4 通过，0 失败，用时 49.6s ==
+   L3-A   PLAY     PASS
+   L3-B   WAV      PASS
+   L3-C   CAPTURE  PASS
+   L4     SELFTEST PASS
+---
+exit=0

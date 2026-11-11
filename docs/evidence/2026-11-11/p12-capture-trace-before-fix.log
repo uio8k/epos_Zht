@@ -1,0 +1,261 @@
+Welcome to EPOS
+Copyright (C) 2005-2015 MingJian Hong<hongmingjian@gmail.com>
+All rights reserved.
+
+RAM: 0x00002000 - 0x0009f000 (157 frames)
+RAM: 0x00133000 - 0x02fe0000 (11949 frames)
+Calibrating delay... 1471283200 loops per second (2942.56 BogoMIPS)
+task #0: Initializing IDE controller...Done
+task #0: Initializing PCI controller...Done
+E1000: On-board memory 0xfebc0000 mapped to 0xc311f000 (32 pages)
+E1000: IRQ=0x0b
+E1000: MAC address: 52:54:00:12:34:56
+HDA: Found device! BAR0 = 0xfebf0000
+HDA: PCI CMD before = 0x0103 (BME=0 MSE=1 IO=1)
+HDA: PCI CMD after  = 0x0107 (BME=1 MSE=1 IO=1)
+HDA: GCAP=0x4401 v1.0 OSS=4 ISS=4 BSS=0 64OK=1 in_sd=0 out_sd=4
+HDA: GCTL=0x00000001 (CRST=1)
+HDA: INTCTL set to 0x80000000
+HDA: STATESTS = 0x0001
+HDA: Codec 0 present.
+HDA: profile hit 8086:2668 -> qemu hda-duplex (ICH6)
+HDA: topology source=profile dac=0x02 pin=0x07 mixer=0x05 idx=0 hops=3
+HDA: Configuring path: DAC=0x02 Pin=0x07
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: EAPD pin=0x07 req=0x00 rd=0x00 (cap=0 profile=0)
+HDA: SET_CONVERTER_STREAM_CHANNEL verb=0x70640 (tag=4 sd=4)
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000040 cad=0
+HDA: GET_CONV resp=0x00000040 (期望 0x00 = tag<<4|ch)
+HDA: trace log enabled (65536 bytes, 2730 recs)
+HDA: IRQ 11 already owned, polling mode
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x0000001d cad=0
+HDA: verb resp data=0x00400101 cad=0
+HDA: verb resp data=0x00000010 cad=0
+HDA: verb resp data=0x0010011b cad=0
+HDA: verb resp data=0x00400001 cad=0
+HDA: verb resp data=0x00000020 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA-CAP: topology ADC=0x04 MicPin=0x05 (probed)
+HDA: verb resp data=0x00000001 cad=0
+HDA: verb resp data=0x00000005 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000020 cad=0
+HDA: verb resp data=0x00000020 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA-CAP: path ok Pin=0x05 -> ADC=0x04 (conn idx 0), input amp unmuted
+HDA: verb resp data=0x00000020 cad=0
+HDA: verb resp data=0x00000020 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA-CAP: state adc=0x04 pin=0x05 pinctrl=0x20 conn=0 fmt=0x0000 conv=0x00 amp_adc=0x0000 amp_pin=0x0000 sd0_ctl=0x000000
+SELFTEST: begin (4 cases)
+SELFTEST [1/4] allocator
+SELFTEST [1/4] allocator: PASS
+SELFTEST [2/4] semaphore
+SELFTEST [2/4] semaphore: PASS
+SELFTEST [3/4] tick
+SELFTEST [3/4] tick: PASS
+SELFTEST [4/4] hda
+SELFTEST [4/4] hda: PASS
+SELFTEST: RESULT PASS 4/4
+task #0: Initializing FAT file system...Done
+task #0: Loading a.out...Done
+task #0: Creating first user task...=== Capture self-test: 44100Hz 2ch 16bit, bps=176400 ===
+HDA: BDL ok entries=64 cbl=262144
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA-CAP: converter format readback unsupported, use requested 0x4011
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000010 cad=0
+HDA-CAP: stream started (SD0 tag=1 CBL=262144, 44100Hz 2ch 16bit fmt=0x4011)
+[CAP-A] start rc=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: volume=100 gain=0
+HDA: BDL ok entries=128 cbl=524288
+HDA: continuous stream started (CBL=524288, 44100Hz 2ch 16bit)
+[CAP-ENV-A] blk=0 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=1 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=2 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=3 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=4 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=5 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=6 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=7 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=8 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=9 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=10 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=11 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=12 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=13 frames=2200 peak=0 freq=0 tone=0
+[CAP-SNAP-A] blk=13 samples=0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+[CAP-ENV-A] blk=14 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=15 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=16 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=17 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=18 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-A] blk=19 frames=2200 peak=0 freq=0 tone=0
+HDA: capture stopped (bytes=180224 samples=90112 nonzero=0 peak=0 overruns=0)
+[CAP-A] stop rc=0
+[CAP-A] bytes=180224 expect=176400 diff=3824 lpib=200260 wraps=0 overruns=0 peak=0 nonzero=0
+[CAP-A] VERDICT: len=OK path=OK signal=SILENT
+[CAP-A] METER: frames=45056 blocks=20 active=0 freq=0 duty=0% toneblocks=0 toneduty=0%
+AUDIO_VERDICT v=2 result=SILENT f0=0.0 rms=0.0 peak=0 silent=1 rc=-2
+[VGA] font 8x16 loaded from c000:6f80
+[VGA] Entering VGA 8-bit (256-color) graphics mode...
+[VGA] trying VBE mode 0x0101 ... VBE3.0: setting mode to 0x0101(640x480x8,1 planes)
+VBE3.0: On-board memory 0xfd000000 mapped to 0x00007282 (75 pages,linear)
+OK (640x480x8)
+[VGA] 256-color palette set OK (dac[1]=3f3f3f)
+[VGA] FrameBuffer=0x00007282 size=307200 bytes
+[VGA] verdict shown: SILENT
+HDA: BDL ok entries=128 cbl=524288
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA-CAP: converter format readback unsupported, use requested 0x4011
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000010 cad=0
+HDA-CAP: stream started (SD0 tag=1 CBL=524288, 44100Hz 2ch 16bit fmt=0x4011)
+[CAP-B] start rc=0
+[CAP-ENV-B] blk=0 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=1 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=2 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=3 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=4 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=5 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=6 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=7 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=8 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=9 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=10 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=11 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=12 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=13 frames=2200 peak=0 freq=0 tone=0
+[CAP-SNAP-B] blk=13 samples=0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+[CAP-ENV-B] blk=14 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=15 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=16 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=17 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=18 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=19 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=20 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=21 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=22 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=23 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=24 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=25 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=26 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=27 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=28 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=29 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=30 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=31 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=32 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=33 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=34 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=35 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=36 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=37 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=38 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=39 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=40 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=41 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=42 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=43 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=44 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=45 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=46 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=47 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=48 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=49 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=50 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=51 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=52 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=53 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=54 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=55 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=56 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=57 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=58 frames=2200 peak=0 freq=0 tone=0
+[CAP-ENV-B] blk=59 frames=2200 peak=0 freq=0 tone=0
+HDA: capture stopped (bytes=529896 samples=264948 nonzero=0 peak=0 overruns=0)
+[CAP-B] stop rc=0
+[CAP-B] bytes=529896 expect=529200 diff=696 lpib=21992 wraps=1 overruns=0 peak=0 nonzero=0
+[CAP-B] VERDICT: len=OK path=OK signal=SILENT
+[CAP-B] METER: frames=132474 blocks=60 active=0 freq=0 duty=0% toneblocks=0 toneduty=0%
+HDA: BDL ok entries=64 cbl=262144
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA-CAP: converter format readback unsupported, use requested 0x4011
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000010 cad=0
+HDA-CAP: stream started (SD0 tag=1 CBL=262144, 44100Hz 2ch 16bit fmt=0x4011)
+HDA: capture start rejected: active (44100Hz 2ch 16bit)
+HDA: capture stopped (bytes=0 samples=0 nonzero=0 peak=0 overruns=0)
+[CAP-C] first=0 same=0 diff=-2 stop=0 (expect 0/0/-2/0)
+HDA: stop drain_extra=0 B (data_end=365808 B, pct=5%)
+HDA: continuous stream stopped (tail=250 ms, lpib_max_step=181748, wait=poll bcis=0, underruns=0)
+[TRACE] begin recs=13 lost=0 first=0
+[TRACE] t=37 ev=UNKNOWN id=0 s=262144 e=0 rd=0 wr=0
+[TRACE] t=58 ev=STREAM_START id=0 s=0 e=524288 rd=0 wr=0
+[TRACE] t=58 ev=NOTE_SUBMIT id=1 s=0 e=123480 rd=0 wr=0
+[TRACE] t=58 ev=REALIGN id=1 s=0 e=16384 rd=0 wr=0
+[TRACE] t=58 ev=NOTE_WRITTEN id=1 s=16384 e=139864 rd=0 wr=139864
+[TRACE] t=125 ev=NOTE_DONE id=1 s=123480 e=139864 rd=123576 wr=211608
+[TRACE] t=167 ev=UNKNOWN id=0 s=180224 e=0 rd=123576 wr=211608
+[TRACE] t=170 ev=UNKNOWN id=0 s=524288 e=0 rd=123576 wr=211608
+[TRACE] t=524 ev=UNKNOWN id=0 s=529896 e=0 rd=123576 wr=211608
+[TRACE] t=525 ev=UNKNOWN id=0 s=262144 e=0 rd=123576 wr=211608
+[TRACE] t=525 ev=UNKNOWN id=0 s=0 e=0 rd=123576 wr=211608
+[TRACE] t=525 ev=REALIGN id=0 s=139864 e=321708 rd=305324 wr=211608
+[TRACE] t=550 ev=STREAM_STOP id=0 s=321708 e=365808 rd=349468 wr=437488
+[TRACE] end

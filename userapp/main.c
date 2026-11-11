@@ -304,6 +304,51 @@ static void run_test_signal(void)
     }
 #endif /* TEST_SIGNAL_underrun */
 
+#ifdef TEST_SIGNAL_restart
+    /* 停流->重启回归（g_cont_data_end 归零）：同一镜像内跑两轮独立会话，
+       第一轮 800ms、第二轮 200ms。判据 s2 < s1 不是随手取的门线——
+       会话坐标若残留（停流把 data_end 写成总写入量、起流不归零），
+       第二轮的 reserve 会落在环外陈旧偏移，DMA 必须先把那段静音播完
+       才听到本音，于是 s2 ≈ s1 + 本音时长，必然超过 s1。
+       反之正常重启时 s2 只含本轮 200ms + 尾静音 + MARGIN，远小于 s1。 */
+    {
+        const int t1_ms = 800, t2_ms = 200;
+        int16_t *tone1 = make_tone(rate, t1_ms, 5);
+        int16_t *tone2 = make_tone(rate, t2_ms, 5);
+
+        if (tone1 == NULL || tone2 == NULL) {
+            printf("[RESTART] pcm alloc failed\r\n");
+            free(tone1);
+            free(tone2);
+            return;
+        }
+
+        audio_set_volume(100);
+        printf("[TEST] restart: %dms session then %dms session\r\n", t1_ms, t2_ms);
+
+        audio_play_pcm_ms(tone1, rate * t1_ms / 1000 * 4, rate, 2, 16, t1_ms);
+        audio_stop();
+        uint32_t s1 = audio_get_position_ms();
+
+        audio_play_pcm_ms(tone2, rate * t2_ms / 1000 * 4, rate, 2, 16, t2_ms);
+        audio_stop();
+        uint32_t s2 = audio_get_position_ms();
+
+        free(tone1);
+        free(tone2);
+
+        printf("[RESTART] session1=%u ms session2=%u ms\r\n", s1, s2);
+        /* 同时守 s1：第一轮若压根没播起来（读数近 0），s2 < s1 会假绿。 */
+        printf("[RESTART] VERDICT: %s\r\n",
+               (s1 > 500 && s2 < s1) ? "PASS" : "FAIL");
+
+        printf("========================================\r\n");
+        printf("=== Test tone finished. Check serial.log\r\n");
+        printf("========================================\r\n");
+        return;
+    }
+#endif /* TEST_SIGNAL_restart */
+
 
     const int n = rate * dur_ms / 1000;             /* 总采样数 */
     int16_t *pcm = (int16_t *)malloc(n * 2 * sizeof(int16_t));
@@ -763,8 +808,12 @@ void __main()
 void main(void *pv)
 {
 #ifdef TEST_CAPTURE
-    /* 麦克风采集自测：录固定时长、打印统计后停在此处等 watcher 退出 */
+    /* 麦克风采集自测：录固定时长、打印统计后停在此处等 watcher 退出。
+       cap_play_tone 会经 hda_cont_play_note 把播放连续流置 RUN，而
+       audio_capture_stop 只复位输入流，故这里必须显式停播放流，
+       否则程序卡在 while(1) 期间 DMA 一直挂在 RUN=1 上循环。 */
     run_capture_test();
+    audio_stop();
     while (1)
         ;
 #elif defined(TEST_MODE)

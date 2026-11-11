@@ -1,0 +1,21 @@
+﻿== L3 整机回归：QEMU 3.1.50 + none 后端 ==
+   仓库：E:\ComputerScience\epos_Zht\epos_Zht
+   后端：QEMU_AUDIO_DRV=none（不碰宿主声卡，D9）
+
+== L3-C CAPTURE ==
+   覆盖：采集全流程（1s + 3s 环绕）+ 用户态 API 幂等/参数校验
+   构建：make hd.img CAPTURE_TEST=1
+   构建 OK（9.4s）
+   运行：QEMU_AUDIO_DRV=none qemu-system-i386w.exe ...（无 monitor / 无 watcher）
+   [PASS] 1s 采集：字节数达标、LPIB 在走；none 后端下信号必为 SILENT（预期值）
+   [PASS] 1s 采集：无 overrun、无环绕（256KB 环装得下）
+   [PASS] 3s 采集：529KB > 256KB 环 -> 缓冲升 512KB 且 LPIB 绕回 1 次
+   [PASS] 用户态 API 契约：同参幂等、异参拒绝、停流可重入
+   [PASS] 采集测试结束时播放流被显式停掉（cap_play_tone 起流，采集停流不代劳）
+   [PASS] 串口判定行按 v=2 格式输出（P05b 后的新格式）
+   用时：构建 9.4s + 运行 7.8s；串口 12458 字节 -> tests\build\l3_capture.log
+
+== 汇总：1 腿，1 通过，0 失败，用时 17.4s ==
+   L3-C   CAPTURE  PASS
+---
+exit=0

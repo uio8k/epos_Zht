@@ -43,6 +43,9 @@ static const char *hda_trace_ev_name(uint8_t ev)
     case HTEV_WAIT_TIMEOUT: return "WAIT_TIMEOUT";
     case HTEV_STREAM_REJECT: return "STREAM_REJECT";
     case HTEV_STOP_STALLED:  return "STOP_STALLED";
+    case HTEV_CAP_START:     return "CAP_START";
+    case HTEV_CAP_OVERFLOW:  return "CAP_OVERFLOW";
+    case HTEV_CAP_STOP:      return "CAP_STOP";
     default:                return "UNKNOWN";
     }
 }

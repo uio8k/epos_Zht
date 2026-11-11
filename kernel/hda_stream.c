@@ -551,6 +551,10 @@ int hda_cont_start(uint32_t rate, uint32_t ch, uint32_t bits, uint32_t buf_size)
 
     g_cont_on    = 1;
     g_cont_wrpos = 0;
+    /* 会话起点必须连 data_end 一起归零：停流时它保留全曲总写入量（远大于环），
+       漏归零会让下一次起流的 reserve 取到环外绝对偏移，追加落进陈旧区段
+       （实测表现为复播旧缓冲 + 本段消费量翻倍）。 */
+    g_cont_data_end = 0;
     g_cont_rdpos = 0;
     g_cont_lpib  = 0;
     g_cont_wraps = 0;
