@@ -164,6 +164,16 @@ int         sys_task_wait(int tid, int *pcode_exit);
 int         sys_task_getid();
 void        sys_task_yield();
 
+/* 计数信号量（kernel/sem.c）：句柄是静态池里的对象地址，NULL 表示失败。
+   wait 在计数为 0 时睡眠，signal 唤醒全部等待者；临界区全程关中断。 */
+void *sem_create(int value);
+int   sem_destroy(void *handle);
+int   sem_wait(void *handle);
+int   sem_signal(void *handle);
+
+/* L4 整机自检（kernel/selftest.c）：返回失败用例数，0 = 全通过 */
+int   selftest_run(void);
+
 int printk(const char *fmt,...);
 
 void     init_vmspace(uint32_t brk);

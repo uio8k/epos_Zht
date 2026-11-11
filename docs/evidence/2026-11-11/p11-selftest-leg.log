@@ -1,0 +1,22 @@
+$ cp .p11-orig.c kernel/selftest.c && touch kernel/selftest.c && rm -f kernel/selftest.o
+$ "$UV" run --no-project python tests/full_run.py --leg SELFTEST
+== L3 整机回归：QEMU 3.1.50 + none 后端 ==
+   仓库：E:\ComputerScience\epos_Zht\epos_Zht
+   后端：QEMU_AUDIO_DRV=none（不碰宿主声卡，D9）
+
+== L4 SELFTEST ==
+   覆盖：内核整机自检：分配器往返 + 信号量握手 + tick 前进 + HDA 探测（kernel/selftest.c）
+   构建：make hd.img 
+   构建 OK（3.1s）
+   运行：QEMU_AUDIO_DRV=none qemu-system-i386w.exe ...（无 monitor / 无 watcher）
+   [PASS] 自检段起跑（冷启动即执行，不依赖用户态）
+   [PASS] 分配器往返：kmalloc/kfree 后同尺寸再申请拿回同一地址
+   [PASS] 信号量握手：内核线程 signal -> 主线程 wait -> task_wait 回收
+   [PASS] tick 前进：g_timer_ticks 在定时器中断下自增
+   [PASS] HDA 探测：MMIO/codec/DAC/Pin 四项事实齐全
+   [PASS] 四项全通过（任一项 FAIL 则该行变 FAIL 且数字不足）
+   用时：构建 3.1s + 运行 2.2s；串口 4951 字节 -> tests\build\l4_selftest.log
+
+== 汇总：1 腿，1 通过，0 失败，用时 5.4s ==
+   L4     SELFTEST PASS
+RC=0

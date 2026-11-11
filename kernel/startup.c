@@ -114,7 +114,12 @@ void start_user_task()
     vm86_init();          //初始化8086模拟器
     e1000_init();         //初始化E1000网卡
     hda_init();           //初始化HDA音频
-
+    /*
+     * L4 整机自检（P11）：此刻 task0 在跑、中断已开，HDA 探测结果已填进
+     * g_hda，故四项用例中的 hda 一项能读到真实数据。自检永不 abort 启动，
+     * 结果由 tests/full_run.py 的 L4 腿断言（docs/tech-plan-selftest-l4.md）。
+     */
+    selftest_run();
     /*
      * 初始化FAT文件系统
      */

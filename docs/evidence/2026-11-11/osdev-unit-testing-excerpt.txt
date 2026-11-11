@@ -1,0 +1,28 @@
+osdev wiki: Unit_Testing -- 逐字摘录（P11 / L4 自检层的规范依据）
+
+来源 URL: https://wiki.osdev.org/Unit_Testing
+oldid    : https://wiki.osdev.org/index.php?title=Unit_Testing&oldid=27984
+last edit: This page was last edited on 9 July 2023, at 17:27.
+取法     : 浏览器通道（Playwright/Edge）取 #mw-content-text innerText；
+           wiki.osdev.org 直连 curl / Invoke-WebRequest 会被 Cloudflare 拦（403 challenge），
+           r.jina.ai 代理超时；本次为浏览器渲染后的正文。
+取回时间 : 2026-11-11
+
+--- 正文摘录（逐字，段落间空行原样保留）---
+
+Unit testing means that, in addition to the implementation code, you also write a "test driver" that puts the implementation code through a set of trials, checking the returns for correctness. Note that this is done during development / testing - the "test driver" is not shipped with the released code.
+
+The Idea is That...
+If you later change things in the implementation code, the test driver tells you if the results remain the same (regression test);
+If you receive a bug report, you do not only fix the implementation code, but also update the test driver so that this bug could never be introduced again without failing unit testing.
+
+Unit testing is a great way to improve the reliability and correctness of your code. However, it requires that the code to-be-tested actually can be run under control of the test driver. It should be easy to see where this becomes tricky. While it should be possible to test most kernel functions in a "testbed" test driver, the really "juicy" stuff like interrupt handling, process dispatching or memory management are probably not unit-testable.
+
+Alternative / Additional Option: Run-Time Self-Tests
+Before activating a memory provider, ask it for memory, record the address, free the memory and ask for memory again. Most allocators are expected to return the very same address in this case.
+If your memory manager has some 'free zone merging' feature, allocate as much 'small' zones as you can, then free all the 'odd' zones and then all the 'even' zones (stressing the merge feature). When you're done, try to allocate a single zone as large as the collection of all the small zones you initially get.
+Before starting many threads, launch a thread that is expected to signal a semaphore and then wait on that semaphore. If your dispatcher (and semaphores) works fine, you can only go on if that other thread has been executed.
+After enabling interrupts (and especially the timer), poll the 'tick counter' and don't go on until it advanced (confirming you that the timer interrupt works fine)
+
+As many of those tests may hang, you're suggested to print what test you're running before you know if the test was successful or not.
+

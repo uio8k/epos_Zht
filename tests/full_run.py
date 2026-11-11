@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""L3 整机回归（P10）：none 后端跑完整条音频栈，不碰宿主声卡。
+"""L3/L4 整机回归（P10 + P11）：none 后端跑完整条音频栈，不碰宿主声卡。
 
 方案与取证见 docs/tech-plan-full-none.md（2026-11-11 调研轮）。核心依据：
   [Gitee: audio/noaudio.c:120-130]  none 后端采集侧 no_read() 按虚拟时钟算出
@@ -20,9 +20,15 @@
   L3-B WAV      SORT_DEMO=1                   盘上 WAV 读取 + 多路混音
   L3-C CAPTURE  CAPTURE_TEST=1                采集全流程 + 用户态 API 参数校验
 
+第四条腿是 P11 的 L4 内核自检（docs/tech-plan-selftest-l4.md）：
+  L4 SELFTEST   默认构建                       冷启动打印的 SELFTEST 段全 PASS
+                kernel/selftest.c 在 hda_init() 之后跑分配器往返、信号量握手、
+                tick 前进、HDA 探测四项，输出走串口，故这里只断那几个固定行。
+
 用法（入口 make full / make full-l3）：
-  uv run --no-project python tests/full_run.py            # 三条腿全跑
+  uv run --no-project python tests/full_run.py            # 四条腿全跑
   uv run --no-project python tests/full_run.py --leg WAV  # 只跑一条（排障）
+  uv run --no-project python tests/full_run.py --leg SELFTEST
 退出码：全 PASS=0，任一 FAIL=1。
 """
 import argparse
@@ -109,6 +115,26 @@ LEGS = [
              "串口判定行按 v=2 格式输出（P05b 后的新格式）"),
         ],
     },
+    {
+        "id": "L4",
+        "name": "SELFTEST",
+        "build": [],
+        "why": "内核整机自检：分配器往返 + 信号量握手 + tick 前进 + HDA 探测（kernel/selftest.c）",
+        "checks": [
+            (r"SELFTEST: begin \(4 cases\)",
+             "自检段起跑（冷启动即执行，不依赖用户态）"),
+            (r"SELFTEST \[1/4\] allocator: PASS",
+             "分配器往返：kmalloc/kfree 后同尺寸再申请拿回同一地址"),
+            (r"SELFTEST \[2/4\] semaphore: PASS",
+             "信号量握手：内核线程 signal -> 主线程 wait -> task_wait 回收"),
+            (r"SELFTEST \[3/4\] tick: PASS",
+             "tick 前进：g_timer_ticks 在定时器中断下自增"),
+            (r"SELFTEST \[4/4\] hda: PASS",
+             "HDA 探测：MMIO/codec/DAC/Pin 四项事实齐全"),
+            (r"SELFTEST: RESULT PASS 4/4",
+             "四项全通过（任一项 FAIL 则该行变 FAIL 且数字不足）"),
+        ],
+    },
 ]
 
 
@@ -156,7 +182,9 @@ def run_leg(leg):
         return False
 
     os.makedirs(BUILD_DIR, exist_ok=True)
-    serial = os.path.join(BUILD_DIR, "l3_%s.log" % leg["name"].lower())
+    # L3 腿沿用 l3_*.log（与 p10 证据同一命名），L4 腿落 l4_selftest.log
+    serial = os.path.join(BUILD_DIR, "%s_%s.log" % (leg["id"].split("-")[0].lower(),
+                                                    leg["name"].lower()))
     if os.path.exists(serial):
         os.remove(serial)
 

@@ -1,0 +1,65 @@
+osdev wiki: Semaphore -- 逐字摘录（P11 / 信号量实现与 L4 握手用例的依据）
+
+来源 URL: https://wiki.osdev.org/Semaphore
+oldid    : https://wiki.osdev.org/index.php?title=Semaphore&oldid=11881
+last edit: This page was last edited on 6 August 2011, at 15:34.
+取法     : 浏览器通道（Playwright/Edge）取 #mw-content-text innerText；
+           wiki.osdev.org 直连会被 Cloudflare 拦（403 challenge）。
+取回时间 : 2026-11-11
+
+--- 正文摘录（逐字）---
+
+A semaphore is a synchronization primitive data type. From the programmer's perspective, it is an opaque data type with two defined operations, usually called wait and signal. There are two types of semaphore -- the binary semaphore and the counting semaphore.
+
+## Counting semaphores
+
+The most general type of semaphore is the counting semaphore. It can be thought of as a single integer variable. When the signal method is called the variable is atomically incremented. When the wait method is called, the process waits until the variable is non-zero, and then atomically decrements it before returning.
+
+## Binary semaphores
+
+A binary semaphore, also known as Mutex, is like a counting semaphore, except that the signal method sets the value of the semaphore to 1, rather than incrementing it.
+
+## Usage
+
+Binary semaphores are most often used to guarantee mutual exclusion. In this case, the semaphore value is initialized to 1, and an application about to enter a mutually exclusive section of code calls wait, and then calls signal after exiting the code.
+
+Counting semaphores can be used as the building blocks to implement many synchronization models. The typical example of this is a statically allocated queue, as in the example below.
+
+    Message queue[N];
+    Semaphore slots = new Semaphore(N);
+    Semaphore messages = new Semaphore(0);
+    int last_read = 0
+    int last_written = 0
+
+    Message get()
+    {
+       Message m;
+       messages.wait();
+
+       m = queue[last_read];
+       last_read = (last_read+1)%N;
+
+       slots.signal();
+       return m;
+    }
+
+    void put(Message m)
+    {
+       slots.wait();
+
+       queue[last_written] = m;
+       last_written = (last_written+1)%N;
+
+       messages.signal();
+    }
+
+In the example above, the functions could use error codes to tell the caller when the array is out of space and when the queue is empty (or an assertion that terminated the program/crashed the kernel on lack of space and trying to get() from an empty queue). However, in many situations you simply want the current thread to block until the actual request can be performed. These are the cases where you want a semaphore.
+
+## Implementation
+
+While the description of the semaphore is very simple, implementation is not as easy as it might at first sound. First of all, ensuring the two methods operate atomically is not always easy; secondly, for the purpose of efficiency, a thread calling wait on a semaphore whose value is 0 should be removed from the scheduler queue, and only added to it again when the semaphore is signalled.
+
+Therefore, the usual implementation of a semaphore is as a kernel-level object which uses another more primitive form of locking (e.g. a spinlock) to ensure that only one thread may access it at once. In addition to the integer variable, it also contains a queue of threads that are waiting for access. Whenever signal is called, the thread at the front of the queue is woken and rescheduled immediately after incrementing the variable (or, in some cases, the variable is never incremented at all, and the woken thread skips the stage of decrementing it; this ensures that the woken thread progresses rather than some new arrival). Whenever wait cannot immediately progress, the current thread is suspended and added to the queue at an appropriate point (e.g. at the end, or in a position correct for the thread's priority).
+
+NB There is classic race condition here called the lost wake-up problem. For a solution to this problem please read this article http://www.linuxjournal.com/article/8144 .
+

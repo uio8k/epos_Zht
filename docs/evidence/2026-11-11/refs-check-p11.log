@@ -1,0 +1,141 @@
+# refs-check P11 (L4 QEMU SELFTEST) — 复核 tech-plan / progress.html / 代码里所有 文件:行号
+# 生成: 2026-11-11  工具: Select-String -Encoding utf8  工作目录: E:\ComputerScience\epos_Zht\epos_Zht
+# 口径: 行号一律以 Select-String 为准, 不用 rg (外层 AGENTS.md)
+
+===== kernel/sem.c :: /^#define SEM_POOL_SIZE|^#define SEM_SIGNATURE|^static struct semaphore \*sem_lookup|^void \*sem_create|^int sem_wait|^int sem_signal|^int sem_destroy|^int sys_sem_create|^static void \*sem_by_id/
+kernel/sem.c:15: #define SEM_POOL_SIZE 16
+kernel/sem.c:16: #define SEM_SIGNATURE 0x53454d31 /* 'S','E','M','1' */
+kernel/sem.c:27: static struct semaphore *sem_lookup(void *handle)
+kernel/sem.c:46: void *sem_create(int value)
+kernel/sem.c:74: int sem_wait(void *handle)
+kernel/sem.c:103: int sem_signal(void *handle)
+kernel/sem.c:124: int sem_destroy(void *handle)
+kernel/sem.c:151: static void *sem_by_id(int semid)
+kernel/sem.c:158: int sys_sem_create(int value)
+
+===== kernel/selftest.c :: /^#define SELFTEST_CASES|^#define SELFTEST_SPIN_MAX|^static int st_allocator|^static void st_sem_thread|^static int st_semaphore|^static int st_tick|^static int st_hda|^int selftest_run|SELFTEST: begin|SELFTEST: RESULT/
+kernel/selftest.c:21: #define SELFTEST_CASES 4
+kernel/selftest.c:25: #define SELFTEST_SPIN_MAX 50000000UL
+kernel/selftest.c:60: static int st_allocator(void)
+kernel/selftest.c:126: static void st_sem_thread(void *pv)
+kernel/selftest.c:138: static int st_semaphore(void)
+kernel/selftest.c:184: static int st_tick(void)
+kernel/selftest.c:202: static int st_hda(void)
+kernel/selftest.c:220: int selftest_run(void)
+kernel/selftest.c:228: printk("SELFTEST: begin (%d cases)\r\n", SELFTEST_CASES);
+kernel/selftest.c:246: printk("SELFTEST: RESULT %s %d/%d\r\n",
+
+===== kernel/startup.c :: /^void start_user_task|calibrate_delay\(\);|hda_init\(\);|selftest_run\(\);|load_aout\(&g_volinfo|^void mi_startup/
+kernel/startup.c:94: void start_user_task()
+kernel/startup.c:99: calibrate_delay();
+kernel/startup.c:116: hda_init(); //初始化HDA音频
+kernel/startup.c:122: selftest_run();
+kernel/startup.c:154: entry = load_aout(&g_volinfo, filename);
+kernel/startup.c:177: void mi_startup()
+
+===== kernel/kernel.h :: /^#define HZ |g_timer_ticks|^void \*sem_create|^int sem_destroy|^int sem_wait|^int sem_signal|^int selftest_run|sys_task_create\(void|int\s+sys_task_wait|^void sleep_on|^void wake_up|^struct wait_queue \{\|^struct tcb \*sys_task_create/
+kernel/kernel.h:38: #define HZ 100
+kernel/kernel.h:41: extern unsigned volatile g_timer_ticks;
+kernel/kernel.h:111: void sleep_on(struct wait_queue **head);
+kernel/kernel.h:112: void wake_up(struct wait_queue **head, int n);
+kernel/kernel.h:161: struct tcb *sys_task_create(void *tos, void (*func)(void *pv), void *pv);
+kernel/kernel.h:163: int sys_task_wait(int tid, int *pcode_exit);
+kernel/kernel.h:169: void *sem_create(int value);
+
+===== kernel/Makefile :: /selftest\.o/
+kernel/Makefile:33: elf.o printk.o bitmap.o selftest.o
+
+===== kernel/printk.c :: /char buf\[128\]|vsnprintf\(/
+kernel/printk.c:9: char buf[128];
+kernel/printk.c:14: i=vsnprintf(buf,sizeof(buf), fmt, args);
+
+===== kernel/task.c :: /^void sleep_on|^void wake_up|^struct tcb \*sys_task_create|^int sys_task_wait/
+kernel/task.c:69: void sleep_on(struct wait_queue **head)
+kernel/task.c:102: void wake_up(struct wait_queue **head, int n)
+kernel/task.c:168: struct tcb *sys_task_create(void *tos,
+kernel/task.c:237: int sys_task_wait(int tid, int *pcode_exit)
+
+===== kernel/timer.c :: /unsigned volatile g_timer_ticks = 0|g_timer_ticks\+\+|^void calibrate_delay/
+kernel/timer.c:25: unsigned volatile g_timer_ticks = 0;
+kernel/timer.c:32: g_timer_ticks++;
+kernel/timer.c:74: void calibrate_delay(void)
+
+===== kernel/kmalloc.c :: /^void \*kmalloc|^void kfree|^void \*kmemalign/
+kernel/kmalloc.c:25: void *kmalloc(size_t bytes)
+kernel/kmalloc.c:49: void kfree(void *ptr)
+kernel/kmalloc.c:58: void *kmemalign(size_t align, size_t bytes)
+
+===== kernel/hda.c :: /^int hda_init|^    return 0;/
+kernel/hda.c:109: int hda_init(void)
+kernel/hda.c:310: return 0;
+kernel/hda.c:337: return 0;
+
+===== kernel/hda.h :: /^struct hda_dev \{/
+kernel/hda.h:178: struct hda_dev {
+
+===== kernel/hda_internal.h :: /extern struct hda_dev g_hda/
+kernel/hda_internal.h:9: extern struct hda_dev g_hda;
+
+===== kernel/callout.c :: /g_sem_callout = sem_create|sem_mutex = sem_create/
+kernel/callout.c:158: g_sem_callout = sem_create(0);
+kernel/callout.c:159: sem_mutex = sem_create(1);
+
+===== kernel/machdep.c :: /^int sys_putchar/
+kernel/machdep.c:414: int sys_putchar(int c)
+
+===== kernel/machdep.h :: /STACK_PUSH\(kstack, 0x202\)|^#define run_as_task0/
+kernel/machdep.h:120: STACK_PUSH(kstack, 0x202); \
+kernel/machdep.h:143: #define run_as_task0() do { \
+
+===== tests/full_run.py :: /"id": "L4"|"name": "SELFTEST"|SELFTEST: RESULT PASS 4/4|l4_selftest|^LEGS = \[|^REPO =|^QEMU_EXE =|^POLL_S =|^LEG_TIMEOUT_S =|^def run_leg|^def main/
+tests/full_run.py:42: REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+tests/full_run.py:48: QEMU_EXE = os.environ.get("QEMU_EXE") or os.path.join(
+tests/full_run.py:51: POLL_S = 0.10 # 串口轮询间隔
+tests/full_run.py:52: LEG_TIMEOUT_S = 90.0 # 单腿上限（正常 5-8s，留足机器慢时的余量）
+tests/full_run.py:64: LEGS = [
+tests/full_run.py:119: "id": "L4",
+tests/full_run.py:120: "name": "SELFTEST",
+tests/full_run.py:134: (r"SELFTEST: RESULT PASS 4/4",
+tests/full_run.py:177: def run_leg(leg):
+tests/full_run.py:185: # L3 腿沿用 l3_*.log（与 p10 证据同一命名），L4 腿落 l4_selftest.log
+tests/full_run.py:270: def main():
+
+===== Makefile :: /^UV =|^test:|^qtest:|^full-l3:|^full:/
+Makefile:21: UV = "$${USERPROFILE:-$${HOME}}/.local/bin/uv.exe"
+Makefile:35: test:
+Makefile:41: qtest:
+Makefile:48: full-l3:
+Makefile:56: full: test qtest full-l3
+
+===== progress.html :: /data-id="P11"|data-id="P13"|data-id="P10"|<tr><td>L4</td>|<tr><td>L1</td>|<tr><td>L3</td>|id="doneN"|更新于|变更记录|P11 L4 QEMU 整机自检落地/
+progress.html:157: /* 使用说明与变更记录 */
+progress.html:214: <div class="sub">唯一进度文档 · 更新于 2026-11-11 · 状态写在每条目的 <code>data-done</code> 里，随 git 提交；<code>data-dep</code> / <code>data-optional</code> 供 <code>tools...
+progress.html:220: <div class="num"><b id="doneN">0</b>/13 完成</div>
+progress.html:323: <tr><td>L1</td><td><code>make test</code></td><td>codec 配置层（verb 构造、分级回读、连接列表长短格式、amp 方向位）+ 指标纯函数（f0/RMS/THD/SNR、频谱 bin）+ 播放拓扑发现（profile 命中、DFS 路径、长链与...
+progress.html:325: <tr><td>L3</td><td><code>make full</code></td><td>整机 <code>none</code> 后端：syscall 往返、WAV 读取、重复 start 幂等</td><td>&lt;60s</td><td><span class="badge">未开...
+progress.html:326: <tr><td>L4</td><td>QEMU 整机自检</td><td>QEMU 冷启动自检（并入 make full）：分配器、信号量、tick、HDA 探测，串口 SELFTEST 段</td><td>&lt;2s</td><td><span class="badge">已完成 · 4 用例 ...
+progress.html:346: <li class="item" data-id="P10" data-stage="0" data-done="1">
+progress.html:353: <li class="item" data-id="P11" data-stage="0" data-done="1" data-dep="P10">
+progress.html:367: <li class="item" data-id="P13" data-stage="0" data-done="0" data-optional="1">
+progress.html:403: <h2 style="font-size:13px;margin-top:20px">变更记录</h2>
+progress.html:405: <li><b>2026-11-11</b> P11 L4 QEMU 整机自检落地（autodev 轮 4，方案 docs/tech-plan-selftest-l4.md）：内核新增 <code>SELFTEST</code> 段，冷启动打印四例结论后照常进 FAT/用户态，永不 abort 启动。...
+
+===== docs/decisions-audio-test.md :: /层数 4 → 5/
+docs/decisions-audio-test.md:93: **层数 4 → 5**：新增**目标机启动自检**（依据 OSDev `Unit_Testing` 的 Run-Time Self-Tests：分配器往返、信号量握手、tick 前进、先打印测试名）。它不依赖 GUI 与人工，是整机链路上能每天自动跑的回归（2026-11-10 修订：自检在 QE...
+
+===== docs/decisions-qemu-only.md :: /\| D-Q4 \|/
+docs/decisions-qemu-only.md:12: | D-Q4 | P11（原 L4 目标机自检）**改 QEMU 版保留**：SELFTEST 段并入 make full 整机链路；L4 层表格改「QEMU 整机自检」，数据通道（COM1 串口日志）不变——QEMU 串口即自检输出 | 自检能力本身不依赖真机，只是原定在治具上跑；改平台不砍能力（...
+
+===== docs/tech-plan-selftest-l4.md :: /^## /
+docs/tech-plan-selftest-l4.md:6: ## 1 需求与现状
+docs/tech-plan-selftest-l4.md:31: ## 2 规范依据（一手摘录）
+docs/tech-plan-selftest-l4.md:39: ## 3 备选矩阵
+docs/tech-plan-selftest-l4.md:49: ## 4 实现落点
+docs/tech-plan-selftest-l4.md:64: ## 5 关键设计决定
+docs/tech-plan-selftest-l4.md:82: ## 6 与上游决策的相容核对
+docs/tech-plan-selftest-l4.md:100: ## 7 不确定项（每条带验证方法）
+docs/tech-plan-selftest-l4.md:112: ## 8 验收判据
+
+===== 引用范围交叉校验（tech-plan 里出现的所有 文件:行号 是否落在对应文件的行数内）
+  引用总数 38，越界/缺失 0
+  RESULT: all 38 refs in range
