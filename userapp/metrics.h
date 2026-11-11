@@ -1,10 +1,14 @@
-/* 音频客观指标（用户态纯函数，无 IO、无内核依赖）。
+/* 音频行为指标（用户态纯函数，无 IO、无内核依赖）。
  *
- * 算法口径与 tools/audio_metrics.py 的 fft_analysis 完全一致：
+ * 算法口径与 tools/audio_metrics.py 的 fft_analysis 一致（行为指标部分）：
  *   去直流 → Hann 窗 DFT 找峰 → 正弦最小二乘拟合细化 f0
- *   → 时域顺序剥离 2..10 次谐波 → 残差即噪声 → THD / THD+N / SNR
- * 不用「FFT 取峰 + 邻带求和」：Hann 窗积分旁瓣泄漏约 -31.5dB，
- * 会给纯数字正弦测出约 1.8% 的假 THD+N。
+ * 输出 f0/rms/peak/dc_offset/peak_bin 五项行为量。
+ *
+ * 2026-11-10 P05b（docs/decisions-qemu-only.md D-Q5）：SNR/THD 真值指标整体
+ * 删除——真值档位原靠真机 3.5mm 回环定档，真机路线废弃后无定档通道，模拟器
+ * 值非真值（[wiki: Testing] "might not work on the real thing"）；谐波剥离与
+ * THD/SNR 计算随之移除，真值分析只保留在宿主工具 tools/audio_metrics.py
+ * （D11 唯一指标源）作趋势参考。
  *
  * 与 Python 的差异只有一处：本模块不做 active_span 裁剪，
  * 调用方必须传入已经裁好的有效段（测试向量本来就是满幅段）。
@@ -12,16 +16,11 @@
 #ifndef METRICS_H
 #define METRICS_H
 
-#define MET_MAX_HARMONIC 10
-
 typedef struct {
     double f0_hz;
     double rms;
     double peak;
     double dc_offset;
-    double thd_pct;
-    double thd_n_pct;
-    double snr_db;
     int    peak_bin;
 } met_result;
 
@@ -37,13 +36,8 @@ void met_analyze(const short *s, int n, double rate, met_result *out);
 /* 只在 [kmin, kmax] 内找 Hann 窗 DFT 幅度峰，返回 bin 号；用于 B4。 */
 int met_peak_bin(const short *s, int n, double rate, int kmin, int kmax);
 
-/* 判定阈值。当前取值来自宿主声卡回环（板载渲染 -> 立体声混音 -> dsound 采集），
-   只覆盖「已知好」的一侧；定稿要等 P01 治具的 3.5mm 电气回环与失真样本。
-   在此之前这两个数是临时值，不是产品规格。 */
-#define MET_THD_N_MAX_PCT   1.0   /* THD+N 上限（%），临时值，待真机定稿 */
-#define MET_SNR_MIN_DB     60.0   /* SNR 下限（dB），临时值，待真机定稿 */
-
-/* 判定行语义（B5 的纯函数部分）：静音优先于 PASS。 */
-int met_verdict(double rms, double thd_n_pct, double snr_db);
+/* 判定行语义（B5 的纯函数部分）：静音优先于 PASS。
+ * P05b 后判据=通路活性：非静音即 PASS（真值门线已随真机路线废弃）。 */
+int met_verdict(double rms);
 
 #endif /* METRICS_H */

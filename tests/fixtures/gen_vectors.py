@@ -5,6 +5,10 @@
 期望值一律来自 tools/audio_metrics.py（Python 参照实现），
 C 侧只读生成的常量表，不解析 JSON，也不许把被测代码的输出抄回来。
 
+2026-11-10 P05b（docs/decisions-qemu-only.md D-Q5）：guest 侧只保行为指标，
+fixture 只剩 f0/rms/peak_bin 期望列；THD/SNR 相关 case
+（sine_1k_plus_h2_h3 / noise_white_seed1234 / dc_offset_100）随用例删除。
+
 用法：
     uv run --no-project --with numpy python tests/fixtures/gen_vectors.py
 """
@@ -33,22 +37,13 @@ def q(x):
 def build_cases():
     t = np.arange(N) / RATE
     two_pi = 2.0 * np.pi
-    rng = np.random.default_rng(1234)
 
     sine = 0.9 * 32767.0 * np.sin(two_pi * 1000.0 * t)
-    harm = (0.80 * np.sin(two_pi * 1000.0 * t)
-            + 0.0080 * np.sin(two_pi * 2000.0 * t)
-            + 0.0040 * np.sin(two_pi * 3000.0 * t)) * 32767.0
-    noise = 0.5 * 32767.0 * np.sin(two_pi * 1000.0 * t) + rng.normal(0.0, 0.5 * 32767.0 * 10 ** (-50 / 20.0), N)
     silence = np.zeros(N)
-    dc = 0.5 * 32767.0 * np.sin(two_pi * 1000.0 * t) + 100.0
 
     return [
         ("sine_1k_0dbfs", q(sine)),
-        ("sine_1k_plus_h2_h3", q(harm)),
-        ("noise_white_seed1234", q(noise)),
         ("silence", q(silence)),
-        ("dc_offset_100", q(dc)),
     ]
 
 
@@ -75,9 +70,6 @@ def main():
             "rate": RATE,
             "f0_hz": res["fundamental_hz"],
             "rms": res["rms"],
-            "thd_pct": res["thd_pct"],
-            "thd_n_pct": res["thd_n_pct"],
-            "snr_db": res["snr_db"],
             "peak_bin": peak_bin(samples),
             "samples": samples,
         })
@@ -105,8 +97,7 @@ def main():
     for r in rows:
         out.append(
             f'    {{ "{r["name"]}", vec_{r["name"]}, {r["n"]}, {r["rate"]:.1f}, '
-            f'{r["f0_hz"]:.9f}, {r["rms"]:.9f}, {r["thd_pct"]:.9f}, '
-            f'{r["thd_n_pct"]:.9f}, {r["snr_db"]:.9f}, {r["peak_bin"]} }},'
+            f'{r["f0_hz"]:.9f}, {r["rms"]:.9f}, {r["peak_bin"]} }},'
         )
     out.append("};")
     out.append("")
@@ -127,8 +118,7 @@ def main():
     (HERE / "vectors.c").write_text("\n".join(out), encoding="utf-8")
 
     for r in rows:
-        print(f'{r["name"]:<22} f0={r["f0_hz"]:.6f} rms={r["rms"]:.3f} '
-              f'thd={r["thd_pct"]:.6f}% thdn={r["thd_n_pct"]:.6f}% snr={r["snr_db"]:.3f}dB bin={r["peak_bin"]}')
+        print(f'{r["name"]:<22} f0={r["f0_hz"]:.6f} rms={r["rms"]:.3f} bin={r["peak_bin"]}')
     print(f'\nwrote {HERE / "vectors.c"} and vectors.json ({len(rows)} cases, n={N}, rate={RATE:.0f})')
 
 

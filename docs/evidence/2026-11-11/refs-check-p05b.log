@@ -1,0 +1,28 @@
+﻿refs-check P05b 2026-11-11（autodev 轮 2，metrics purge）
+方法: Select-String 逐条 (AGENTS.md 规则)
+PASS | metrics.h 无 THD/SNR 字段与常量 | NEG | E:\ComputerScience\epos_Zht\epos_Zht\userapp\metrics.h -> no match
+PASS | metrics.h verdict 新签名 met_verdict(double rms) | SEL | E:\ComputerScience\epos_Zht\epos_Zht\userapp\metrics.h:41
+PASS | metrics.h 头注释有 P05b/D-Q5 声明 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\userapp\metrics.h:7
+PASS | metrics.c 无谐波剥离与 THD/SNR 计算 | NEG | E:\ComputerScience\epos_Zht\epos_Zht\userapp\metrics.c -> no match
+PASS | metrics.c verdict 新实现(非静音即 PASS) | SEL | E:\ComputerScience\epos_Zht\epos_Zht\userapp\metrics.c:190
+PASS | metrics.c fit_power 无 strip 死分支 | NEG | E:\ComputerScience\epos_Zht\epos_Zht\userapp\metrics.c -> no match
+PASS | main.c AUDIO_VERDICT 行升 v=2 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\userapp\main.c:590
+PASS | main.c 串口行无 thd_n=/snr= 字段(代码行) | NEG | E:\ComputerScience\epos_Zht\epos_Zht\userapp\main.c -> no match
+PASS | main.c cap_show_verdict 新签名(双参) | SEL | E:\ComputerScience\epos_Zht\epos_Zht\userapp\main.c:552
+PASS | test_metrics.c 只剩两条用例 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\tests\test_metrics.c:87
+PASS | test_metrics.c 无 thdn/snr 用例 | NEG | E:\ComputerScience\epos_Zht\epos_Zht\tests\test_metrics.c -> no match
+PASS | vectors.h 结构体无 thd/snr 字段 | NEG | E:\ComputerScience\epos_Zht\epos_Zht\tests\fixtures\vectors.h -> no match
+PASS | vectors.c 只剩 2 case | SEL | E:\ComputerScience\epos_Zht\epos_Zht\tests\fixtures\vectors.c:1040
+PASS | vectors.c case 行无 thd 列 | NEG | E:\ComputerScience\epos_Zht\epos_Zht\tests\fixtures\vectors.c -> no match
+PASS | gen_vectors.py 已同步(2 case/3 列删除) | SEL | E:\ComputerScience\epos_Zht\epos_Zht\tests\fixtures\gen_vectors.py:8
+PASS | vectors.json 重生成(2 case) | SEL | E:\ComputerScience\epos_Zht\epos_Zht\tests\fixtures\vectors.json:3
+PASS | vectors.json 无 thd/snr 键 | NEG | E:\ComputerScience\epos_Zht\epos_Zht\tests\fixtures\vectors.json -> no match
+PASS | 串口证据: AUDIO_VERDICT v=2 出行 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-11-10\p05b-serial.log:283
+PASS | 串口证据: 行内无 thd_n/snr 字段 | NEG | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-11-10\p05b-serial.log -> no match
+PASS | L1 证据: metrics 段 2 Tests 全绿 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-11-10\p05b-make-test.log:70
+PASS | fast 证据: 14 通过/唯二存量失败 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-11-10\p05b-hda-fast.log:74
+PASS | 调研证据: 套件不依赖串口行结论在案 | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\evidence\2026-11-10\p05b-recon.log:5
+PASS | tech-plan 落盘(范围/落点/语义变更) | SEL | E:\ComputerScience\epos_Zht\epos_Zht\docs\tech-plan-metrics-purge.md:30
+PASS | progress.html P05b 条目仍为待做(勾选前) | SEL | E:\ComputerScience\epos_Zht\epos_Zht\progress.html:275
+
+SUMMARY: 24 PASS / 0 FAIL

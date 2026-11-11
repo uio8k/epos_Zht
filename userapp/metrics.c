@@ -67,12 +67,13 @@ int met_peak_bin(const short *s, int n, double rate, int kmin, int kmax)
     return best;
 }
 
-/* 拟合 x ≈ a·sin(ωt) + b·cos(ωt)，返回基波功率；strip 时把拟合值从 x 里减掉。
+/* 拟合 x ≈ a·sin(ωt) + b·cos(ωt)，返回基波功率。
  *
  * 用旋转递推代替逐点 sin/cos：1 秒 44100 点的细化扫描要跑 ~150 次拟合，
  * 逐点三角函数约 2700 万次，会吃掉 2 秒预算；递推每点只要 4 次乘加。
- * 每 1024 点做一次归一化，抑制递推的幅度漂移。 */
-static double fit_strip(double *x, int n, double rate, double f, int strip)
+ * 每 1024 点做一次归一化，抑制递推的幅度漂移。
+ * （P05b：原 strip 剥离分支随 THD/SNR 删除，只留非剥离拟合。） */
+static double fit_power(const double *x, int n, double rate, double f)
 {
     double w = 2.0 * M_PI * f / rate;
     double cw = cos(w), sw = sin(w);
@@ -104,24 +105,6 @@ static double fit_strip(double *x, int n, double rate, double f, int strip)
     a = (C * D - B * E) / det;
     b = (A * E - B * D) / det;
     power = a * a * A + 2.0 * a * b * B + b * b * C;
-
-    if (strip) {
-        cs = 1.0;
-        sn = 0.0;
-        for (int i = 0; i < n; i++) {
-            double nc, ns;
-            x[i] -= a * sn + b * cs;
-            nc = cs * cw - sn * sw;
-            ns = sn * cw + cs * sw;
-            cs = nc;
-            sn = ns;
-            if ((i & 1023) == 1023) {
-                double m = 1.0 / sqrt(cs * cs + sn * sn);
-                cs *= m;
-                sn *= m;
-            }
-        }
-    }
     return power;
 }
 
@@ -135,7 +118,7 @@ static double sumsq(const double *x, int n)
 
 void met_analyze(const short *s, int n, double rate, met_result *out)
 {
-    double *x, *resid, mean = 0.0, ss, f0, fund_power, harm_power = 0.0, noise_power;
+    double *x, mean = 0.0, ss, f0;
     double peak = 0.0;
     int nfft;
 
@@ -146,12 +129,8 @@ void met_analyze(const short *s, int n, double rate, met_result *out)
         return;
 
     x = (double *)malloc(sizeof(double) * (size_t)n);
-    resid = (double *)malloc(sizeof(double) * (size_t)n);
-    if (!x || !resid) {
-        free(x);
-        free(resid);
+    if (!x)
         return;
-    }
 
     for (int i = 0; i < n; i++) {
         mean += (double)s[i];
@@ -181,7 +160,7 @@ void met_analyze(const short *s, int n, double rate, met_result *out)
             int first = 1;
             for (int j = 0; j < 21; j++) {
                 double f = lo + (hi - lo) * (double)j / 20.0;
-                double sse = ss - fit_strip(x, n, rate, f, 0);
+                double sse = ss - fit_power(x, n, rate, f);
                 if (first || sse < best_r) {
                     best_r = sse;
                     best = f;
@@ -198,46 +177,15 @@ void met_analyze(const short *s, int n, double rate, met_result *out)
     }
     out->f0_hz = f0;
 
-    memcpy(resid, x, sizeof(double) * (size_t)n);
-    fund_power = fit_strip(resid, n, rate, f0, 1);
-
-    for (int k = 2; k <= MET_MAX_HARMONIC; k++) {
-        double fk = (double)k * f0;
-        double pk;
-        if (fk >= rate / 2.0)
-            break;
-        pk = fit_strip(resid, n, rate, fk, 1);
-        if (pk > 0.0)
-            harm_power += pk;
-    }
-
-    /* 残差直流不计入失真：直流偏置单独报告 */
-    noise_power = sumsq(resid, n);
-    {
-        double rm = 0.0;
-        for (int i = 0; i < n; i++)
-            rm += resid[i];
-        rm /= (double)n;
-        for (int i = 0; i < n; i++)
-            resid[i] -= rm;
-        noise_power = sumsq(resid, n);
-    }
-
-    if (fund_power > 0.0) {
-        out->thd_pct = sqrt(harm_power / fund_power) * 100.0;
-        out->thd_n_pct = sqrt((harm_power + noise_power) / fund_power) * 100.0;
-    }
-    out->snr_db = (noise_power > 0.0) ? 10.0 * log10(fund_power / noise_power) : 120.0;
-
+    /* P05b（2026-11-10）：谐波剥离与 THD/THD+N/SNR 计算整体删除
+     * （docs/decisions-qemu-only.md D-Q5），fit_strip 的 strip 路径仅剩
+     * 频率细化的非剥离调用；真值分析归宿主 tools/audio_metrics.py（D11）。 */
     free(x);
-    free(resid);
 }
 
-int met_verdict(double rms, double thd_n_pct, double snr_db)
+int met_verdict(double rms)
 {
     if (rms < 1.0)
         return MET_SILENT;
-    if (thd_n_pct < MET_THD_N_MAX_PCT && snr_db > MET_SNR_MIN_DB)
-        return MET_PASS;
-    return MET_FAIL;
+    return MET_PASS;
 }

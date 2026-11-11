@@ -179,8 +179,8 @@ static void shell_sort(void)
 /* ================= 测试信号（音频质量评估用） ================= */
 #ifdef TEST_MODE
 /* 生成已知参考信号 -> 走完整 HDA DMA 路径 -> 由 tools/eval_audio.py 做 FFT/
-   THD/SNR/click 分析。信号在编译期选择（TEST_SIGNAL_*）：
-     sine     : 440Hz 纯音，THD/SNR/频率准确度测量的核心信号
+   FFT/click 行为级分析（真值 SNR/THD 归宿主工具，P05b）。信号在编译期选择（TEST_SIGNAL_*）：
+     sine     : 440Hz 纯音，频率准确度与通路活性检查的核心信号
      impulse  : 单样本冲激，检测频率响应平坦度与缓冲边界 click
      step     : 中段 DC 阶跃，检测增益变化处的瞬态
      sequence : 8 段 200ms 短音（独立调用），暴露音符边界 click
@@ -549,8 +549,7 @@ static uint32_t cap_drain(const char *tag, uint32_t expect,
 
 /* 大字展示：串口行已经打出，这里只把同一结论搬上屏幕。
    顺序不能换——字库必须在切 VBE 之前取。任何一步失败只告警，不回滚判定。 */
-static void cap_show_verdict(const char *result, double f0, double rms,
-                             double thd_n, double snr)
+static void cap_show_verdict(const char *result, double f0, double rms)
 {
     char line[96];
     int  scale = 6;
@@ -576,8 +575,8 @@ static void cap_show_verdict(const char *result, double f0, double rms,
         x = 0;
     vga8_text(result, x, y, scale, color, COL_BG);
 
-    snprintf(line, sizeof(line), "f0=%.0f rms=%.0f thdn=%.1f%% snr=%.1f",
-             f0, rms, thd_n, snr);
+    snprintf(line, sizeof(line), "f0=%.0f rms=%.0f",
+             f0, rms);
     w = 8 * 2 * (int)strlen(line);
     x = (g_graphic_dev.XResolution - w) / 2;
     y = y + 16 * scale + 40;
@@ -588,20 +587,23 @@ static void cap_show_verdict(const char *result, double f0, double rms,
     printf("[VGA] verdict shown: %s\r\n", result);
 }
 
-/* 单行判定：AUDIO_VERDICT v=1 result=... f0= rms= thd_n= snr= peak= silent=
-   格式固定，评测脚本按行首正则取字段。失败也出行（带 rc=），否则脚本没法
-   区分「没跑到」和「跑了但不合格」。串口这行是唯一判据，屏幕只是展示。 */
+/* 单行判定：AUDIO_VERDICT v=2 result=... f0= rms= peak= silent=
+   P05b（2026-11-10）起 v=2：删 thd_n=/snr= 真值字段（真值门线随真机路线
+   废弃，decisions-qemu-only.md D-Q5），判据降为行为级（非静音即 PASS）。
+   格式固定，评测脚本按行首正则取字段；升版本号防旧脚本误读。失败也出行
+   （带 rc=），否则脚本没法区分「没跑到」和「跑了但不合格」。
+   串口这行是唯一判据，屏幕只是展示。 */
 static void cap_verdict_line(const short *mono, int frames,
                              const struct audio_capture_stats *st)
 {
     int start = 0, len = 0, rc;
     met_result mr;
     const char *result = "FAIL";
-    double f0 = 0.0, rms = 0.0, thd_n = 0.0, snr = 0.0;
+    double f0 = 0.0, rms = 0.0;
 
     if (mono == NULL || frames <= 0) {
-        printf("AUDIO_VERDICT v=1 result=FAIL f0=0.0 rms=0.0 thd_n=0.0 "
-               "snr=0.0 peak=%u silent=0 rc=-1\r\n", st->peak);
+        printf("AUDIO_VERDICT v=2 result=FAIL f0=0.0 rms=0.0 "
+               "peak=%u silent=0 rc=-1\r\n", st->peak);
         return;
     }
 
@@ -609,13 +611,13 @@ static void cap_verdict_line(const short *mono, int frames,
                        &start, &len);
     if (rc != 0) {
         result = (rc == -2) ? "SILENT" : "FAIL";
-        printf("AUDIO_VERDICT v=1 result=%s f0=0.0 rms=0.0 thd_n=0.0 "
-               "snr=0.0 peak=%u silent=%d rc=%d\r\n",
+        printf("AUDIO_VERDICT v=2 result=%s f0=0.0 rms=0.0 "
+               "peak=%u silent=%d rc=%d\r\n",
                result, st->peak, (rc == -2) ? 1 : 0, rc);
     } else {
         /* 只算能量最高的一个分析窗，不拿整段：采集里除参考音还有底噪与
-           宿主其它声源，整段做 THD+N 会把它们全算成失真（实测 7884%）。
-           窗长 8192 ≈ 186ms，1kHz 有 186 个周期，频率分辨率足够。 */
+           宿主其它声源。窗长 8192 ≈ 186ms，1kHz 有 186 个周期，
+           频率分辨率足够。 */
         const short *seg = mono + start;
         int alen = len;
         int off  = 0;
@@ -628,20 +630,16 @@ static void cap_verdict_line(const short *mono, int frames,
 
         memset(&mr, 0, sizeof(mr));
         met_analyze(seg, alen, CAP_RATE, &mr);
-        f0    = mr.f0_hz;
-        rms   = mr.rms;
-        thd_n = mr.thd_n_pct;
-        snr   = mr.snr_db;
+        f0  = mr.f0_hz;
+        rms = mr.rms;
 
-        int v = met_verdict(mr.rms, mr.thd_n_pct, mr.snr_db);
+        int v = met_verdict(mr.rms);
         result = (v == MET_PASS) ? "PASS" : ((v == MET_SILENT) ? "SILENT" : "FAIL");
-        printf("AUDIO_VERDICT v=1 result=%s f0=%.1f rms=%.1f thd_n=%.1f "
-               "snr=%.1f peak=%u silent=%d\r\n",
-               result, f0, rms, thd_n, snr, st->peak,
-               (v == MET_SILENT) ? 1 : 0);
+        printf("AUDIO_VERDICT v=2 result=%s f0=%.1f rms=%.1f peak=%u silent=%d\r\n",
+               result, f0, rms, st->peak, (v == MET_SILENT) ? 1 : 0);
     }
 
-    cap_show_verdict(result, f0, rms, thd_n, snr);
+    cap_show_verdict(result, f0, rms);
 }
 
 static void cap_report(const char *tag, uint32_t total, uint32_t expect,

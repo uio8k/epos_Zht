@@ -14,9 +14,6 @@ typedef struct {
     double  rate;
     double  f0_hz;      /* 参照实现的基频 */
     double  rms;
-    double  thd_pct;
-    double  thd_n_pct;
-    double  snr_db;
     int     peak_bin;   /* Hann 窗 DFT 峰值所在 bin（nfft = next_pow2(n)） */
 } vec_case;
 

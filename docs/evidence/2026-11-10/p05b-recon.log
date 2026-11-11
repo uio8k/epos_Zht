@@ -1,0 +1,27 @@
+P05b 删 SNR/THD 真值指标——实施前调研（autodev 轮 2）
+日期: 2026-11-10
+
+== 1. 仓内依赖盘点（grep 全仓，消费者矩阵）==
+1.1 hda_tests 套件（run_tests.py）对串口 AUDIO_VERICT 行依赖：grep 'AUDIO_VERDICT' run_tests.py/serial_parser.py -> 0 命中
+    Q-SINE 等用例的 SNR/THD 判定来自宿主侧 wav 分析（run_tests.py:29-30 阈值 + :91-95 ensure），与串口行无关 -> 删串口行字段零破坏。
+1.2 tools/serial_parser.py 对 AUDIO_VERDICT/thd/snr -> 0 命中。
+1.3 userapp 消费点（P05b 删除面）:
+    - userapp/metrics.h: met_result.thd_pct/thd_n_pct/snr_db(:23-25)、MET_THD_N_MAX_PCT/MET_SNR_MIN_DB(:40-41)、met_verdict(rms,thd_n,snr) 签名(:47)
+    - userapp/metrics.c: 谐波剥离与 THD/SNR 计算(:228/230)、met_verdict 实现(:236-240)
+    - userapp/main.c: cap_verdict_line 打印 thd_n=/snr=(:579-580/591-634)、cap_show_verdict 签名含 thd_n/snr(:553)
+    - tests/test_metrics.c: test_thdn_3rd_harmonic(:66)/test_thdn_dc_offset(:79)/test_snr_noise_floor(:95) 三条直接测 THD/SNR
+    - tests/fixtures/vectors.h: vec_case 含 thd_pct/thd_n_pct/snr_db 期望字段(:17-19)，vectors.c 5 case 其中 3 个（plus_h2_h3/noise/dc_offset）只被 THD/SNR 用例消费
+    - tests/fixtures/gen_vectors.py: 生成器，需同步删列保持可再生链路
+1.4 hda_tests（外层）侧 SNR/THD 是宿主 wav 分析能力（tools/audio_metrics.py，D11 唯一指标源），不在本项范围——删的是 userapp/guest 侧重复口径。
+
+== 2. 决策依据 ==
+docs/decisions-qemu-only.md D-Q5：SNR/THD 真值指标整体删除，只留 overruns/过零样本/峰值等行为指标；真值档位原靠真机 3.5mm 回环定档（P05b 旧文），真机路线废弃后无定档通道，模拟器值非真值。
+
+== 3. osdev 依据（仓内存量摘录引用）==
+[wiki: Testing + 2026-10-31 浏览器摘录]（docs/evidence/2026-10-31/osdev-bochs-emulator-comparison-excerpt.txt 页 2）：
+  "if you test using an emulator, it might not work on the real thing." —— 模拟器上的真值类指标（SNR/THD 绝对值）不具判据效力；
+  "Emulators usually win here, because you can set up your makefile to build a disk image, ready to run in the emulator." —— 行为级判定（走完/计数/峰值）才是模拟器层该断言的东西。
+  本项与该口径一致：guest 侧判定降为行为级，真值分析留在宿主工具（audio_metrics.py）作趋势参考。
+
+== 4. 结论 ==
+删除范围=guest 侧（userapp+tests fixture），宿主工具与套件不动；AUDIO_VERDICT 行格式变更以版本号 v=1->v=2 标记，防旧脚本误读。
