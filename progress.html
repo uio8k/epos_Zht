@@ -211,7 +211,7 @@ footer p{max-width:none}
 <header>
   <div>
     <h1>EPOS 音频驱动进度</h1>
-    <div class="sub">唯一进度文档 · 更新于 2026-10-31 · 状态写在每条目的 <code>data-done</code> 里，随 git 提交</div>
+    <div class="sub">唯一进度文档 · 更新于 2026-11-11 · 状态写在每条目的 <code>data-done</code> 里，随 git 提交；<code>data-dep</code> / <code>data-optional</code> 供 <code>tools/check_progress.py</code> 判定终态</div>
   </div>
   <button class="btn" id="export" disabled>导出并覆盖 progress.html</button>
 </header>
@@ -350,7 +350,7 @@ footer p{max-width:none}
       </label>
       <span class="state">已完成</span>
     </li>
-    <li class="item" data-id="P11" data-stage="0" data-done="0">
+    <li class="item" data-id="P11" data-stage="0" data-done="0" data-dep="P10">
       <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-P11"></span>
       <label class="label" id="l-P11">L4 QEMU 整机自检：QEMU 冷启动打印 <code>SELFTEST</code> 段并并入 <code>make full</code> 链路，全 PASS
         <span class="ev">依据：无 —— 需 QEMU 整机链路（排在 P10 之后）；原「目标机自检」2026-11-10 改 QEMU 版（docs/decisions-qemu-only.md D-Q4）</span>
@@ -364,7 +364,7 @@ footer p{max-width:none}
       </label>
       <span class="state">已完成</span>
     </li>
-    <li class="item" data-id="P13" data-stage="0" data-done="0">
+    <li class="item" data-id="P13" data-stage="0" data-done="0" data-optional="1">
       <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-P13"></span>
       <label class="label" id="l-P13">L3+ 第二实现差分：VBox HD Audio × QEMU 双模拟器交叉验证
         <span class="ev">方案已定（调研完成）：docs/tech-plan-vm-diff.md；原定 Bochs 差分被一手证据证伪——官方全版本无 HDA 设备（spec-bochs-manual-excerpt.txt 六路证据），差分对象修正为 VirtualBox（手册确认 HD Audio 控制器 + TUNA 国内源）</span>

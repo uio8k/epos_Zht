@@ -1,0 +1,130 @@
+refs-check for decisions-autodev.md D-A11 / D-A12 and autodev SKILL 2.5
+date : 2026-11-11 (Asia/Shanghai)
+cwd  : E:\ComputerScience\epos_Zht\epos_Zht
+tool : Select-String (per AGENTS.md, line numbers are taken from this tool only)
+
+--- tools\check_progress.py
+pattern : ^REPO = pathlib|^DEFAULT_FILE = 
+expect  : module root and default target
+  L42: REPO = pathlib.Path(__file__).resolve().parents[1]
+  L43: DEFAULT_FILE = REPO / "progress.html"
+
+--- tools\check_progress.py
+pattern : ^class ItemParser
+expect  : parser entry
+  L50: class ItemParser(HTMLParser):
+
+--- tools\check_progress.py
+pattern : ^def parse_items|^def normalize
+expect  : attribute extraction
+  L69: def parse_items(path):
+  L76: def normalize(raw_items):
+
+--- tools\check_progress.py
+pattern : ^def validate
+expect  : structural checks
+  L88: def validate(items):
+
+--- tools\check_progress.py
+pattern : ^def decide
+expect  : three-state decision
+  L154: def decide(items):
+
+--- tools\check_progress.py
+pattern : ^def check\(|^def render_text
+expect  : single-file check and text rendering
+  L192: def check(path):
+  L206: def render_text(result):
+
+--- tools\check_progress.py
+pattern : ^def selftest
+expect  : built-in cases
+  L233: def selftest_cases():
+  L269: def selftest():
+
+--- tools\check_progress.py
+pattern : ^def main
+expect  : CLI entry
+  L300: def main(argv):
+
+--- progress.html
+pattern : data-id="P11"
+expect  : P11 li: data-dep added
+  L353: <li class="item" data-id="P11" data-stage="0" data-done="0" data-dep="P10">
+
+--- progress.html
+pattern : data-id="P13"
+expect  : P13 li: data-optional added
+  L367: <li class="item" data-id="P13" data-stage="0" data-done="0" data-optional="1">
+
+--- progress.html
+pattern : data-dep=|data-optional=
+expect  : all dependency / optional attributes (expect 2)
+  L353: <li class="item" data-id="P11" data-stage="0" data-done="0" data-dep="P10">
+  L367: <li class="item" data-id="P13" data-stage="0" data-done="0" data-optional="1">
+
+
+--- dsh  (canonical): E:\ComputerScience\epos_Zht\.dsh\skills\autodev\SKILL.md
+  L10: ## 0 触发与边界
+  L16: ## 1 前置自检（开工前一次性）
+  L22: ## 2 选题（干预点①）
+  L30: ## 2.5 终态判定（队列空即收工）
+  L58: ## 3 调研（AGENTS.md 硬规则，不可跳过）
+  L65: ## 3.5 开子 Agent 前先过附 A
+  L69: ## 4 tech-plan（落盘即继续，干预点仅"重大路线变更"）
+  L75: ## 5 实现
+  L82: ## 6 测试（自愈边界：≤2 轮）
+  L90: ## 7 证据核
+  L94: ## 8 提交（干预点②）
+  L101: ## 9 四类硬干预点（一律先问，任何步骤适用）
+  L110: ## 10 失败兜底
+  L116: ## 附 A｜开子 Agent 前的四项自检
+  total lines: 167
+
+--- zcode (mirror): E:\ComputerScience\epos_Zht\.zcode\skills\autodev\SKILL.md
+  L10: ## 0 触发与边界
+  L16: ## 1 前置自检（开工前一次性）
+  L22: ## 2 选题（干预点①）
+  L30: ## 2.5 终态判定（队列空即收工）
+  L58: ## 3 调研（AGENTS.md 硬规则，不可跳过）
+  L65: ## 3.5 开子 Agent 前先过附 A
+  L69: ## 4 tech-plan（落盘即继续，干预点仅"重大路线变更"）
+  L75: ## 5 实现
+  L82: ## 6 测试（自愈边界：≤2 轮）
+  L90: ## 7 证据核
+  L94: ## 8 提交（干预点②）
+  L101: ## 9 四类硬干预点（一律先问，任何步骤适用）
+  L110: ## 10 失败兜底
+  L116: ## 附 A｜开子 Agent 前的四项自检
+  total lines: 167
+
+--- docs\decisions-autodev.md
+pattern : ^\| D-A11|^\| D-A12
+expect  : new decisions
+  L25: | D-A11 | **终态判定**（2026-11-11 追加）：选题前先跑 `tools/check_progress.py --json`，按 `ELIGIBLE` / `BLOCKED` / `TERMINAL` 三态分派；`TERMINAL` 用固定句式收工「根据开发计划，当前已完成，暂无...
+  L26: | D-A12 | **两份 SKILL 副本归一**：`.dsh/skills/autodev/SKILL.md` 为准，`.zcode/skills/autodev/SKILL.md` 为镜像（逐行一致，仅 `ask_user_question` / `AskUserQuestion` 大小写不...
+
+--- docs\decisions-autodev.md
+pattern : ^\| D-A1 
+expect  : D-A1 rewritten to .dsh
+  L10: | D-A1 | 载体为**工作区级 skill**：`外层\.dsh\skills\autodev\SKILL.md`（2026-11-11 由 `.zcode` 改准，见 D-A12），仅本项目会话可见可触发 | DSH 工作区 `.dsh/skills` 与 ZCode 工作区 `.zcode...
+
+--- docs\decisions-autodev.md
+pattern : check_progress\.py
+expect  : script references
+  L25: | D-A11 | **终态判定**（2026-11-11 追加）：选题前先跑 `tools/check_progress.py --json`，按 `ELIGIBLE` / `BLOCKED` / `TERMINAL` 三态分派；`TERMINAL` 用固定句式收工「根据开发计划，当前已完成，暂无...
+  L49: | `epos_Zht\tools\check_progress.py` | 终态判定脚本（D-A11），仅标准库、Python 3.7 语法兼容、不进 `make test` |
+
+--- Makefile
+pattern : ^UV = |^UV :=
+expect  : uv invocation contract
+  L21: UV = "$${USERPROFILE:-$${HOME}}/.local/bin/uv.exe"
+
+--- Makefile
+pattern : ^test:|^qtest:|^full-l3:|^full:
+expect  : targets that must stay green
+  L35: test:
+  L41: qtest:
+  L48: full-l3:
+  L56: full: test qtest full-l3
+

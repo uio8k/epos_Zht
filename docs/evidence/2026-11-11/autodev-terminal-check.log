@@ -1,0 +1,145 @@
+autodev terminal-state check - raw evidence
+date    : 2026-11-11 (Asia/Shanghai)
+repo    : E:\ComputerScience\epos_Zht\epos_Zht
+subject : tools/check_progress.py + progress.html attributes (decisions-autodev.md D-A11)
+interp  : uv-managed python 3.12.13 and MSYS python 3.7.4 (3.7 syntax compatibility)
+
+uv python   -> Python 3.12.13
+msys python -> Python 3.7.4
+
+=== 1. selftest, 11 built-in cases (uv python 3.12.13)
+cmd : uv run --no-project python tools/check_progress.py --selftest
+--- output ---
+ok    1 all done is terminal
+ok    2 single pending with no dep is eligible
+ok    3 pending whose dep is done is eligible
+ok    4 several pending: earliest in document order wins
+ok    5 pending on an optional dep is blocked
+ok    6 only optional pending is terminal
+ok    7 dep on unknown id fails
+ok    8 dependency cycle fails
+ok    9 self dependency fails
+ok   10 optional and done fails
+ok   11 missing data-done fails
+RESULT PASS: 11 cases (eligible/blocked/terminal + 5 structural rules)
+--- exit: 0
+
+=== 2. real progress.html, text (uv python 3.12.13)
+cmd : uv run --no-project python tools/check_progress.py
+--- output ---
+state=ELIGIBLE id=P11 done=11/13
+eligible: P11
+held: P13 (optional)
+--- exit: 0
+
+=== 3. real progress.html, json (uv python 3.12.13)
+cmd : uv run --no-project python tools/check_progress.py --json
+--- output ---
+{"done": 11, "eligible": ["P11"], "held": [{"id": "P13", "why": "optional"}], "id": "P11", "state": "ELIGIBLE", "total": 13}
+--- exit: 0
+
+=== 4. selftest under MSYS python 3.7.4 (proves no 3.8+ syntax)
+cmd : E:\ComputerScience\epos_Zht\msys\2.0\usr\bin\python.exe tools/check_progress.py --selftest
+--- output ---
+ok    1 all done is terminal
+ok    2 single pending with no dep is eligible
+ok    3 pending whose dep is done is eligible
+ok    4 several pending: earliest in document order wins
+ok    5 pending on an optional dep is blocked
+ok    6 only optional pending is terminal
+ok    7 dep on unknown id fails
+ok    8 dependency cycle fails
+ok    9 self dependency fails
+ok   10 optional and done fails
+ok   11 missing data-done fails
+RESULT PASS: 11 cases (eligible/blocked/terminal + 5 structural rules)
+--- exit: 0
+
+=== 5. real progress.html under MSYS python 3.7.4, json
+cmd : E:\ComputerScience\epos_Zht\msys\2.0\usr\bin\python.exe tools/check_progress.py --json
+--- output ---
+{"done": 11, "eligible": ["P11"], "held": [{"id": "P13", "why": "optional"}], "id": "P11", "state": "ELIGIBLE", "total": 13}
+--- exit: 0
+
+NOTE on sections 6-14: each variant is a copy of the real progress.html placed under
+E:\ComputerScience\epos_Zht\epos_Zht\.cp-tmp\ with exactly one attribute edited via
+[System.IO.File]::WriteAllText. The real progress.html is never modified by these runs;
+the .cp-tmp directory was deleted after this log was written.
+
+variant edits applied:
+  terminal    : P11 data-done 0 -> 1                       (expect TERMINAL, exit 0)
+  blocked     : P11 data-dep P10 -> P13 (P13 is optional)   (expect BLOCKED,  exit 0)
+  baddep      : P11 data-dep P10 -> P99 (unknown id)        (expect exit 1)
+  selfdep     : P11 data-dep P10 -> P11 (itself)            (expect exit 1)
+  cycle       : P11 dep P13, P13 dep P11                    (expect exit 1, cycle path)
+  optdone     : P13 data-done 0 -> 1 while data-optional=1  (expect exit 1)
+  missingdone : P11 loses data-done attribute               (expect exit 1)
+  dupid       : P13 data-id P13 -> P11 (duplicate id)       (expect exit 1)
+  baddone     : P11 data-done 0 -> 2 (invalid value)        (expect exit 1)
+
+=== 6. variant 'terminal'
+cmd : uv run --no-project python tools/check_progress.py --file .cp-tmp/terminal.html
+--- output ---
+state=TERMINAL id=- done=12/13
+eligible: -
+held: P13 (optional)
+--- exit: 0
+
+=== 7. variant 'blocked'
+cmd : uv run --no-project python tools/check_progress.py --file .cp-tmp/blocked.html
+--- output ---
+state=BLOCKED id=- done=11/13
+eligible: -
+held: P11 (dep not done: P13)
+held: P13 (optional)
+--- exit: 0
+
+=== 8. variant 'baddep'
+cmd : uv run --no-project python tools/check_progress.py --file .cp-tmp/baddep.html
+--- output ---
+RESULT FAIL (1)
+ - P11 depends on unknown P99
+--- exit: 1
+
+=== 9. variant 'selfdep'
+cmd : uv run --no-project python tools/check_progress.py --file .cp-tmp/selfdep.html
+--- output ---
+RESULT FAIL (1)
+ - P11 depends on itself
+--- exit: 1
+
+=== 10. variant 'cycle'
+cmd : uv run --no-project python tools/check_progress.py --file .cp-tmp/cycle.html
+--- output ---
+RESULT FAIL (1)
+ - dependency cycle: P11 -> P13 -> P11
+--- exit: 1
+
+=== 11. variant 'optdone'
+cmd : uv run --no-project python tools/check_progress.py --file .cp-tmp/optdone.html
+--- output ---
+RESULT FAIL (1)
+ - P13 is data-optional=1 and data-done=1
+--- exit: 1
+
+=== 12. variant 'missingdone'
+cmd : uv run --no-project python tools/check_progress.py --file .cp-tmp/missingdone.html
+--- output ---
+RESULT FAIL (1)
+ - P11 has no data-done
+--- exit: 1
+
+=== 13. variant 'dupid'
+cmd : uv run --no-project python tools/check_progress.py --file .cp-tmp/dupid.html
+--- output ---
+RESULT FAIL (1)
+ - duplicate data-id P11
+--- exit: 1
+
+=== 14. variant 'baddone'
+cmd : uv run --no-project python tools/check_progress.py --file .cp-tmp/baddone.html
+--- output ---
+RESULT FAIL (1)
+ - P11 has data-done='2' (want 0 or 1)
+--- exit: 1
+

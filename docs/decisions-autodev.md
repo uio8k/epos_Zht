@@ -1,13 +1,13 @@
 # 自动开发指令（/autodev）决策记录
 
-日期：2026-11-10。来源：一轮 grill（常规强度，2 轮），用户逐条确认；实施按批准计划落盘（含用户追加要求：完成后不对该指令做测试）。
+日期：2026-11-10 建；2026-11-11 追加 D-A11（终态判定）与 D-A12（双副本归一）。来源：一轮 grill（常规强度，2 轮），用户逐条确认；实施按批准计划落盘（含用户追加要求：完成后不对该指令做测试）。
 范围：项目级自动开发工作流（skill 机制、选题、干预点、自愈边界），不涉及任何代码改动。
 
 ## 1. 机制选型
 
 | # | 结论 | 理由 |
 |---|---|---|
-| D-A1 | 载体为**工作区级 skill**：`外层\.zcode\skills\autodev\SKILL.md`，仅本项目会话可见可触发 | ZCode 原生发现顺序第 4 级（工作区 `.zcode/skills`），外层 `.zcode/` 已在用（plans 目录）；零新代码零新依赖，skill 正文即工作流指令书 |
+| D-A1 | 载体为**工作区级 skill**：`外层\.dsh\skills\autodev\SKILL.md`（2026-11-11 由 `.zcode` 改准，见 D-A12），仅本项目会话可见可触发 | DSH 工作区 `.dsh/skills` 与 ZCode 工作区 `.zcode/skills` 都是项目级发现路径；零新代码零新依赖，skill 正文即工作流指令书 |
 | D-A2 | 备选机制不采纳：Cron 定时（违背"用户选中才跑"）、OffPeak 闲时队列（后置项）、CreateWorkflow 多代理编排（单代理顺序工作流杀鸡用牛刀） | 用户要的是"我选择指令，就能自动开始"，触发权在用户手里 |
 
 ## 2. 已定结论
@@ -22,6 +22,8 @@
 | D-A8 | 流程性干预点三个：选题报备（D-A4）、重大路线变更（D-A5）、自修 2 轮仍红（D-A6） | 与 D-A7 四类合并构成全部停机点，SKILL.md §9 单列 |
 | D-A9 | 决策记录**留文件**：本文件（docs/decisions-autodev.md），随内层仓库 git 提交 | 与 decisions-audio-test.md 同范式；grill 开场问确认 |
 | D-A10 | 上下文将耗尽时按会话续跑机制继续，**不提前截断闸门** | 单 P 项全闸门可能超单次上下文；续跑从断点恢复而非重做 |
+| D-A11 | **终态判定**（2026-11-11 追加）：选题前先跑 `tools/check_progress.py --json`，按 `ELIGIBLE` / `BLOCKED` / `TERMINAL` 三态分派；`TERMINAL` 用固定句式收工「根据开发计划，当前已完成，暂无可自动化开发任务。」，且不 commit、不改 progress.html、不新造 P 项。判定逻辑只此一处实现，页面 JS 不重算 | 原 D-A3/D-A4 只有「有活干」的正向分支，无「全部做完」的出口；判定若靠模型自评会漂移，故落成脚本单一实现。三态互斥穷尽：有可做项 → `ELIGIBLE`；无但被挡 → `BLOCKED`；剩余全是有意悬置 → `TERMINAL` |
+| D-A12 | **两份 SKILL 副本归一**：`.dsh/skills/autodev/SKILL.md` 为准，`.zcode/skills/autodev/SKILL.md` 为镜像（逐行一致，仅 `ask_user_question` / `AskUserQuestion` 大小写不同）；任何改动必须同步两份，不得只改一边 | D-A1 原定 `.zcode`，但 `.dsh` 那份先加上了附 A 而分叉（前 24 行相同、之后不一致）；两边都是工作区级发现路径，只改一边会出现「同一个 /autodev 两种行为」 |
 
 ## 3. 铁律继承（skill 正文显式声明冲突时以下列为准）
 
@@ -42,8 +44,13 @@
 
 | 文件 | 说明 |
 |---|---|
-| `外层\.zcode\skills\autodev\SKILL.md` | 指令本体；外层非 git 仓库，不进版本控制 |
+| `外层\.dsh\skills\autodev\SKILL.md` | 指令本体（**准**，D-A12）；外层非 git 仓库，不进版本控制 |
+| `外层\.zcode\skills\autodev\SKILL.md` | 指令镜像（D-A12），逐行与上者一致 |
+| `epos_Zht\tools\check_progress.py` | 终态判定脚本（D-A11），仅标准库、Python 3.7 语法兼容、不进 `make test` |
+| `epos_Zht\progress.html` | 队列属性扩展：`data-dep`（P11）/ `data-optional`（P13），判定只读不改 |
 | `docs/decisions-autodev.md`（本文件） | 决策记录，随内层仓库提交 |
 | `docs/evidence/2026-11-10/refs-check-autodev.log` | 本文件 文件:行号 引用的 Select-String 复核 |
+| `docs/evidence/2026-11-11/autodev-terminal-check.log` | D-A11 的判定实测（三态 + 结构错误 + 两种解释器） |
+| `docs/evidence/2026-11-11/refs-check-autodev-terminal.log` | 本次新增 D-A11/D-A12 与 SKILL 2.5 节的行号复核 |
 
 静态验证（已做）：frontmatter name/description 齐全、description <1024 字符、触发语义前置（skill 加载合规）。
