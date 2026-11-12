@@ -69,7 +69,9 @@
 | U6 | LAPIC timer 定标（TICR 装填多少得 HZ=100） | S03 实测：写 TDCR=分频、TICR=T，读 ticks 与墙钟比对 |
 | U7 | SIPI 时序（INIT 后延时窗口）在 QEMU TCG 下的容忍度 | S02 实测；失败按 [src: apic.c ICR] 换 shorthand/重试路径 |
 | U8 | entry.S PROLOGUE 手术后 22 字深度拷贝边界（vm86 路径） | S01 回归五腿 + RESTART 腿（vm86 在启动路径被调用） |
-| U9 | **（S01 实施期新增，已解）LAPIC MMIO 页不在页表**：分页开启后 VA 0xFEE00000 未映射，第一次时钟中断的 PROLOGUE 直读即 page fault（首跑 CAPTURE 腿串口 0 字节，证据 make-full-s01-red-boot-hang.log）。解法：init_paging 在开分页前恒等映射 LAPIC 页（PD 槽 0x3FA / PT 槽 0x200，V+W）。S02 AP 启动复用同映射 | 已实测修复，回归五腿验证 |
+| U9 | **（S01 实施期新增，已解）LAPIC MMIO 页不在页表**：分页开启后 VA 0xFEE00000 未映射，第一次时钟中断的 PROLOGUE 直读即 page fault（首跑 CAPTURE 腿串口 0 字节，证据 make-full-s01-red-boot-hang.log）。解法：init_paging 在开分页前恒等映射 LAPIC 页（PD 槽 0x3FB——首版误写 0x3FA——PT 槽 0x200，V+W）。S02 AP 启动复用同映射 | 已实测修复，回归五腿验证 |
+| U10 | **（S02 实施期新增，已解）[0,1MB) 低地址映射被 cstart 主动取消**：[实测: machdep.c cstart 尾部] `for(i=0;i<0x100000;i+=PAGE_SIZE) if(i!=0xB8000) *vtopte(i+KERNBASE)=0;` + PD[0..19] 清零——S02 初版「低地址恒等映射」假设整个不成立。连锁坑（串口路标/页表转储实测定位）：①MP 表扫描需在 KERNBASE 别名临时映射（用完还原）；②trampoline 页拷贝目标走 KERNBASE 别名、源直接用链接期虚拟地址；③**PD[0] 是 vm86 时代的「伪页表」**（cstart 清零后 vm86 区域的 PTE 写落在 PD[0] 指向的帧里，转储实测 0x6067=帧 0x6000 兼任 PT0）——**绝不能重建**：首版重建 PD[0] 顶掉运行期累积的 v86 映射，五腿 WAV(VBE)/CAPTURE 二阶段挂死（bisect 二分实证：仅 reserve 即复现 3/5）；④AP 开分页后从线性 0x8000 取指 → 0x8000 的低别名 PTE 必须写进现存伪页表 | 最终解：**smp_init 挪到 vm86_init/selftest 之后**（届时伪页表就位）+ smp_boot_aps 里只往伪页表 entry 2 加一个 trampoline PTE——[实测: s02-final-smp2-sortdemo.log] -smp 2 双核在线下 VBE 成功设模式，五腿 5/5 |
+| U11 | **（S02 实施期新增，已解）trampoline 自身三坑**：mini-GDT 描述符双字字节序写反（0xffff0000 应为 0x0000ffff，base 变 0xFF）；16 位远跳 CS 误写 0x10（数据段）应为 0x08（代码段）；串口路标（outb 0x3F8 单字节）是定位 AP 死点的有效手段（R-G-P-3-C-X-F 七点全部走通后移除） | 已实测修复，-smp 2 上线验证 |
 
 **S01 实施期设计增补**（不改变路线）：① init_paging 新增 LAPIC 页恒等映射（U9，首跑把 PD 槽写成 0x3FA、实为 0x3FB，二轮修正）；② switch_to 的 asm 操作数从 "m"(g_task_running) 改为显式 old->kstack / new->kstack 字段地址（g_task_running 数组化后不能作 asm 存储器操作数），存取同一字段语义不变；③ run_as_task0 的 "m" 操作数改指 _g_task_running_arr——"m" 装载的即 arr[0] 值（task0 指针），单次解引用到 kstack 与原版一致（首版误加一次解引用致复位循环，冒烟抓到）。
 

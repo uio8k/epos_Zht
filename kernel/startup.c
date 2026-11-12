@@ -120,6 +120,16 @@ void start_user_task()
      * 结果由 tests/full_run.py 的 L4 腿断言（docs/tech-plan-selftest-l4.md）。
      */
     selftest_run();
+
+    /*
+     * S02：MPS 解析 + AP 启动。放在 selftest 之后：vm86_init 的低地址
+     * 映射（PD[0] 伪页表）必须先就位，smp_boot_aps 才能以「只加一个
+     * PTE」的方式拿到 0x8000 的低别名——在 vm86_init 之前跑会走
+     * smp_reserve 的重建分支顶掉伪页表，v86 区域映射全灭（实测
+     * make-full-s02-bisect2.log 五腿 3/5 的根因）。
+     */
+    smp_init();
+
     /*
      * 初始化FAT文件系统
      */
@@ -202,6 +212,12 @@ void mi_startup()
      */
     brk = PAGE_ROUNDUP( (uint32_t)(&end) );
     brk = init_frame(brk);
+
+    /*
+     * S02：立刻从帧分配器预留 trampoline 页（U3）——低 1MB 在管理区内，
+     * 不预留会被后续 kmalloc/page fault 链路分走
+     */
+    smp_reserve_trampoline();
 
     /*
      * 初始化虚拟地址空间，为内核堆预留地址空间

@@ -1,0 +1,9 @@
+﻿ refs-check for S02 delivery citations - 2026-11-13
+PASS kernel/startup.c:131 got=[131]
+PASS kernel/machdep.c:1256 got=[1256]
+PASS kernel/smp.c:166 got=[166]
+PASS kernel/smp.c:149 got=[149]
+PASS kernel/smptramp.S:91 got=[91,95]
+PASS kernel/smptramp.S:48 got=[48]
+PASS docs/evidence/2026-11-13/qemu-src/apic-v3.1.0.c:547 got=[547]
+SUMMARY: 7 PASS / 0 FAIL

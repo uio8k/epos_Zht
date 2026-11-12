@@ -78,6 +78,13 @@ static unsigned loops_per_tick;
  * better than 1% */
 #define LPS_PREC 8
 
+/* 毫秒忙等：loops_per_tick = 每 tick（HZ=100 → 10ms）的循环数。
+   S02 AP 启动时序（INIT 后 10ms、SIPI 后 1ms）用它实现。 */
+void mdelay(unsigned ms)
+{
+    busy_wait(loops_per_tick / 1000 * ms);
+}
+
 void calibrate_delay(void)
 {
     unsigned long tmp, loopbit;

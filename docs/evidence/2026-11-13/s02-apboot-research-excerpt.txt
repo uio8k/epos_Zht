@@ -1,0 +1,60 @@
+================================================================
+S02（AP 启动）专项调研摘录（2026-11-13）
+原始物：docs/evidence/2026-11-13/qemu-src/apic-v3.1.0.c（gitee 镜像 v3.1.0 逐字全文）
+================================================================
+
+--- 1. INIT IPI 投递（BSP 侧写入 ICR 后 QEMU 的行为） ---
+[src: qemu-src/apic-v3.1.0.c:534-546] apic_deliver：
+    case APIC_DM_INIT:
+        trig_mode = (s->icr[0] >> 15) & 1;
+        level = (s->icr[0] >> 14) & 1;
+        if (level == 0 && trig_mode == 1) { /* deassert 仅重置仲裁 id */ ... return; }
+        break;   /* 普通 INIT（assert）落入 apic_bus_deliver */
+[src: apic-v3.1.0.c:241-246] apic_bus_deliver：
+    case APIC_DM_INIT:
+        /* normal INIT IPI sent to processors */
+        foreach_apic(apic_iter, deliver_bitmask,
+                     cpu_interrupt(CPU(apic_iter->cpu), CPU_INTERRUPT_INIT));
+        return;
+→ INIT 使 AP 复位并进入 wait_for_sipi 状态。
+
+--- 2. SIPI 起跑地址 ---
+[src: apic-v3.1.0.c:547-551] apic_deliver：
+    case APIC_DM_SIPI:
+        foreach_apic(apic_iter, deliver_bitmask,
+                     apic_startup(apic_iter, vector_num));
+        return;
+[src: apic-v3.1.0.c:510-516] apic_startup：
+    s->sipi_vector = vector_num;
+    cpu_interrupt(CPU(s->cpu), CPU_INTERRUPT_SIPI);
+[src: apic-v3.1.0.c:502-505]（cpu-exec 侧）if (!s->wait_for_sipi) return; s->wait_for_sipi = 0;
+→ SIPI 仅对「已 INIT、在等 SIPI」的 AP 生效；AP 以 CS = vector<<8、IP = 0 进入实模式，
+   vector=0x08 → 线性 0x08000。
+[src: 实测 mps-parse-smp2.txt] APIC ID 0/1；shorthand=11（bits18-19）= all-excluding-self。
+
+--- 3. ICR 寄存器位段（BSP 发 IPI 的构造） ---
+[src: apic-v3.1.0.c:820-823] 写 ICR低（0x300）即触发 apic_deliver：
+    apic_deliver(dev, (s->icr[1] >> 24) & 0xff, (s->icr[0] >> 11) & 1,
+                 (s->icr[0] >> 8) & 7, (s->icr[0] & 0xff), (s->icr[0] >> 15) & 1);
+    dest_shorthand = (s->icr[0] >> 18) & 3;
+位段：bit0-7 vector；bit8-10 delivery mode（5=INIT、6=SIPI）；bit14 level；
+      bit15 trigger；bit18-19 shorthand。
+构造：INIT  = 0x000C4500（shorthand 11 + level 1 + DM 101）
+      SIPI  = 0x000C0608（shorthand 11 + DM 110 + vector 0x08）
+
+--- 4. SVR（spurious vector）使能 ---
+[src: apic-v3.1.0.c:811] case 0x0f: s->spurious_vec = val & 0x1ff; —— bit8 = APIC enable。
+AP 复位后 LAPIC 处于禁用态，ap_main 前需写 SVR = 0x1FF 使能（S03 的 LAPIC timer 也
+依赖它）。BSP 侧同样写一次（对齐真机要求：发 IPI 前本核 APIC 应使能）。
+
+--- 5. 时序要求 ---
+Intel MP 规范时序：INIT 后延时 10ms → SIPI → 200µs → 第二发 SIPI → 200µs。
+QEMU 侧 wait_for_sipi 门控不强制时延（[src: :502-505]），但按规范走最稳；
+内核已有 calibrate_delay 的 loops_per_tick（HZ=100 → 每 tick=10ms），
+mdelay(ms) = busy_wait(loops_per_tick/1000*ms) 即可。
+
+--- 6. 页表前提（S01 已建） ---
+[实测: kernel/machdep.c:1140] init_paging 已恒等映射 LAPIC 页（PD 槽 0x3FB/PT 槽 0x200）；
+[实测: kernel/machdep.c:1123] pte 循环恒等映射 [0, pgdir)——含内核镜像（physfree 起
+0x135000）与 BIOS/MP 表区（0xF58A0）→ trampoline 页 0x8000 与 16 位代码段寻址在
+分页开启前同为线性=物理，开启后恒等映射继续有效（AP 共享同一 pgdir）。

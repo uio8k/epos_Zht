@@ -46,7 +46,9 @@ struct kernel_lock {
 
 static __inline void kernel_lock_acquire(struct kernel_lock *l)
 {
-    if (l->owner == g_task_running) {
+    /* owner 必须非 NULL 才算递归：owner==NULL=current 时（AP 落地初期
+       current 尚未赋值）若视作递归，会在未持锁状态 depth++ 直接放行 */
+    if (l->owner != NULL && l->owner == g_task_running) {
         l->depth++;
         return;
     }

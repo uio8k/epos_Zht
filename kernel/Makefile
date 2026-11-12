@@ -30,14 +30,18 @@ COBJS=	ide.o floppy.o e1000.o hda.o hda_stream.o hda_audio.o hda_capture.o hda_b
 	hda_topo.o hda_profile.o hda_regs.o pci.o vm86.o \
 	kbd.o timer.o machdep.o task.o mktime.o sem.o \
 	page.o startup.o frame.o kmalloc.o dosfs.o pe.o \
+	smp.o smptramp.o \
 	elf.o printk.o bitmap.o selftest.o
 COBJS+=	../lib/softfloat.o ../lib/string.o ../lib/memcpy.o \
 		../lib/memset.o ../lib/snprintf.o ../lib/tlsf/tlsf.o
 
 OBJS=	entry.o $(COBJS)
 
+smptramp.o: smptramp.S
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+
 make.dep: *.c *.h
-	$(CC) $(CPPFLAGS) -M $(COBJS:.o=.c) >make.dep
+	$(CC) $(CPPFLAGS) -M $(filter-out smptramp.c,$(COBJS:.o=.c)) >make.dep
 
 .DELETE_ON_ERROR: make.dep
 .FORCE:

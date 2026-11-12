@@ -95,10 +95,11 @@ struct tcb {
 
 #define TASK_KSTACK 0           /*=offsetof(struct tcb, kstack)*/
 
-/* Per-CPU 当前线程：下标 = 本核 LAPIC ID（-smp 1 恒 0；QEMU -smp 2 下 ID=0/1，
-   ID=index 见 docs/tech-plan-smp-prototype.md U4）。g_task_running 宏让既有
-   代码零改动；entry.S 直接读 _g_task_running_arr（LAPIC ID 直读，C5）。 */
-#define NR_CPUS 1
+/* Per-CPU 当前线程：下标 = 本核 LAPIC ID（QEMU -smp 2 下 ID=0/1，
+   ID=index 见 docs/tech-plan-smp-prototype.md U4；-smp 1 恒 0）。
+   g_task_running 宏让既有代码零改动；entry.S 直接读 _g_task_running_arr
+   （LAPIC ID 直读，C5）。NR_CPUS 自 S02 起为 2。 */
+#define NR_CPUS 2
 extern struct tcb *g_task_running_arr[NR_CPUS];
 #define g_task_running (g_task_running_arr[lapic_id() & (NR_CPUS - 1)])
 
@@ -211,6 +212,7 @@ uint32_t frame_alloc_in_addr(uint32_t pa, uint32_t npages);
 void     frame_free(uint32_t paddr, uint32_t npages);
 
 void     calibrate_delay(void);
+void     mdelay(unsigned ms);     /* 毫秒忙等（loops_per_tick 定标，S02 AP 时序用） */
 unsigned sys_sleep(unsigned seconds);
 int      sys_nanosleep(const struct timespec *rqtp, struct timespec *rmtp);
 struct timeval {
@@ -223,6 +225,12 @@ struct timezone {
 	int tz_dsttime;
 };
 int sys_gettimeofday(struct timeval *tv, struct timezone *tz);
+
+/* SMP（kernel/smp.c，S02）：MPS 解析 + AP 启动。smp_reserve_trampoline 在
+   init_frame 后立刻调用（帧分配器预留 0x8000）；smp_init 在 calibrate_delay
+   之后调用（mdelay 依赖 loops_per_tick）。-smp 1 下两者均为空转。 */
+void     smp_init(void);
+void     smp_reserve_trampoline(void);
 
 void     mi_startup();
 #endif /*_KERNEL_H*/
