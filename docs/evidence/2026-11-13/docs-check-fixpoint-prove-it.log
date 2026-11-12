@@ -1,3 +1,4 @@
+"${USERPROFILE:-${HOME}}/.local/bin/uv.exe" run --no-project python tools/check_docs.py
 docs-check: repo=E:\\ComputerScience\\epos_Zht\\epos_Zht workspace=E:\\ComputerScience\\epos_Zht
 --- checks ---
 C1   ok    0 fail / 0 warn
@@ -10,4 +11,4 @@ C7   ok    0 fail / 0 warn
 C8   ok    0 fail / 0 warn
 C9   ok    0 fail / 0 warn
 C10  ok    0 fail / 0 warn
-RESULT PASS (0 fail / 0 warn) 0.29s
+RESULT PASS (0 fail / 0 warn) 0.10s
