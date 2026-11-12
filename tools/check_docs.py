@@ -107,7 +107,7 @@ TESTSLINE = re.compile(u"^\\s*(\\d+)\\s+Tests\\b", re.M)
 MANIFEST = [
     (u"docs/decisions-audio-test.md", u"定案 D1–D12（音频测试口径）", u"file"),
     (u"docs/decisions-qemu-only.md", u"定案 D-Q1–D-Q10（QEMU-only）", u"file"),
-    (u"docs/decisions-autodev.md", u"定案 D-A1–D-A13（autodev 流程）", u"file"),
+    (u"docs/decisions-autodev.md", u"定案 D-A1–D-A15（autodev 流程与分支管辖）", u"file"),
     (u"docs/decisions-docs.md", u"定案 D-D1–D-D8（文档托管）", u"file"),
     (u"docs/decisions-adc.md", u"定案（ADC 历史，2026-10-28）", u"file"),
     (u"docs/tech-plan-*.md", u"方案（{n} 份）", u"glob"),
@@ -467,7 +467,12 @@ def check_tables(page):
 
 def check_count(page):
     m = COUNTSUM.search(page)
+    has_cases = any(re.match(u"^U-[A-Za-z]", c[1][0].strip()) for c in parse_rows(page))
     if not m:
+        # 空队列（SMP 族，D-A14）：页面没有用例表就没有计数句，不算错；
+        # 有用例行却没写计数句才是漂移。
+        if not has_cases:
+            return []
         return [finding("FAIL", "C6", u"progress.html", u"no 已实现 N/M 条 sentence")]
     done = total = 0
     for a, cells in parse_rows(page):
