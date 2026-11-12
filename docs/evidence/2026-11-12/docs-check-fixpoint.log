@@ -1,0 +1,32 @@
+﻿# docs-check convergence (fixed point) - why the health block needs ONE FOLLOW-UP commit
+# date: 2026-11-12   cwd: E:\ComputerScience\epos_Zht\epos_Zht
+
+## what happened
+The 4th health block records, per inner doc, the date of that file's LAST GIT COMMIT.
+Before committing, those dates are the OLD ones (2026-11-11 for decisions-autodev.md,
+(mtime) for the newly created docs/decisions-docs.md, 2026-10-28 for README.md).
+Committing the round changes exactly those dates to today - which makes the block that
+was just committed stale, so the very next 'make docs-check' fails C7.
+
+## observed
+eec6d01  docs: the refactor itself (22 files)
+  -> uv run --no-project python tools/check_docs.py
+     FAIL C7  progress.html:health -> block differs from --sync output (22 vs 22 lines)
+     RESULT FAIL (1 fail / 1 warn)
+  -> uv run --no-project python tools/check_docs.py --sync
+     changed 4 rows: decisions-autodev.md 2026-11-11 -> 2026-11-12
+                     decisions-docs.md   2026-11-12 (mtime) -> 2026-11-12
+                     README.md            2026-10-28 -> 2026-11-12
+3609947  docs: refresh generated health block after first commit (1 file, 3 +-)
+  -> uv run --no-project python tools/check_docs.py --sync
+     no diff  <- the block is now a FIXED POINT
+
+## rule for future rounds (D-D6 step 5)
+Commit, then run '--sync' again.  If it rewrites the block, commit that as a second
+small commit.  Do NOT try to make it converge inside one commit - it cannot, by
+construction.  And never 'fix' it by writing a dirty flag into the block: that was
+tried and it breaks on every single commit instead of once.
+
+## cmd (after 3609947)
+uv run --no-project python tools/check_docs.py --sync  -> RESULT PASS (0 fail / 1 warn) 0.43s
+git --no-pager diff --stat progress.html               -> (empty)
