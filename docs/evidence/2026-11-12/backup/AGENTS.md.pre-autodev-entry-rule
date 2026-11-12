@@ -1,0 +1,21 @@
+# AGENTS.md
+
+本文件只记「怎么交差」的硬规矩，不重复 `CODEBUDDY.md` 的架构与命令。规则来源：2026-10-28 写 `docs/tech-plan-hda.md` 时踩到的坑（行号引用错 2 处、证据日志写成 UTF-16、表格竖线断表）。
+
+| 规则 | 由什么拦住 |
+|---|---|
+| 交差前跑真实测试入口（`make test`、`hda_tests\run_all.bat --suite fast`），原始输出落 `docs/evidence/<YYYY-MM-DD>/` | 人工：日志文件必须存在，且里面能看到命令原文与退出码 |
+| 文档里写 `文件:行号` 之前，用 `Select-String` 逐条复核，输出落 `docs/evidence/<日期>/*refs-check*.log` | 人工：没有 refs-check 日志就不算核对过 |
+| 证据日志写入只用 `Out-File` / `Set-Content -Encoding utf8`，禁用 `Tee-Object` | 人工：PowerShell 5.1 的 `Tee-Object` 写 UTF-16，中文全成间隔字符；打开首行读不通就是没落对 |
+| 串口/日志的行号一律以 `Select-String` 结果为准，不用 ripgrep 的行号 | 人工：本仓日志含 CR-only 行尾，rg 与 PowerShell 计数会差十几行（2026-10-28 实例：`:16` 实为 `:31`） |
+| Markdown 表格单元格里出现竖线写成 `\|` | 人工：渲染后表头与分隔行列数对不上就是断了 |
+| 规范类结论必须带出处标记 `[wiki: 段落名]` / `[spec: 条目]` / `[实测: 文件:行号]`；wiki 与规范冲突以规范为准并显式列出；不确定项单列一章 | 人工：用 `Select-String -Pattern '\[wiki:'` 或 `'\[实测:'` 能查到；无出处的判断句视为未完成 |
+| 每项工作（进度页一个 P 项）动代码之前，先上 Gitee / osdev wiki 调研：摘录逐字落 `docs/evidence/<日期>/`（带 URL/oldid/行号），方案写 `docs/tech-plan-*.md` 并加 `[Gitee: 文件:行号]` 标记（规则来源：2026-10-31 用户约定，首轮实践为 P09 调研轮） | 人工：动代码前没有调研摘录与 tech-plan 就算未完成；QEMU 源走 gitee.com/mirrors/qemu（raw 链接有签名重定向，`curl -L` 可直接跟）；osdev wiki 直读会被反爬拦，用仓内已存摘录 |
+| 只写文档的会话不碰 `kernel/`、`userapp/`、`tests/` | 人工：收尾 `git status --short` 只应出现文档与 `docs/evidence/` 路径 |
+| `progress.html` 是唯一人工界面：用户只看这一页判断项目状态。其余文档（`docs/decisions-*`、`docs/tech-plan-*`、`README.md`、`CODEBUDDY.md`、本文件、skill 双副本）由 DSH 维护，不需要用户评审（决策 `docs/decisions-docs.md` D-D1） | 人工：用户需要读第二份文档才能知道状态，就是这条被破坏了 |
+| `docs/decisions-*.md` 只追加，过期条目在原处加〔已废止 → 见 D-xx〕标注，不删不改原句（D-D2） | 人工：`git diff` 出现 deletions 的 decisions 行脚就是违规 |
+| 交差前必跑 `make docs-check`（已并入 `make full` 首位），红了先修文档再谈测试（D-D4） | 人工：证据目录没有 `docs-check-*.log`，或最后一份不是 `RESULT PASS`，算未完成 |
+| `docs/evidence/` 下既有文件 append-only：不删、不改、不整理归档；改错了就再落一份带后缀的（D-D7） | 人工：`git status` 出现证据文件的 delete/modify 即为违规 |
+| 改外层非 git 文件（`AGENTS.md`、`CODEBUDDY.md`、`docs/`、skill 双副本）前，先备份到 `epos_Zht/docs/evidence/<日期>/backup/` | 人工：备份目录里没有该文件的原件就算没备份 |
+| 改完 `.dsh/skills/autodev/SKILL.md` 必须同步 `.zcode` 镜像（只差 `ask_user_question`/`AskUserQuestion` 一处工具名），否则 `make docs-check` 的 C8 会红 | 人工：`RESULT` 里 C8 非 ok 即未同步 |
+| 开发文档按分支管辖（D-A14 / SKILL §1.5 映射表）：智能体只管 `git branch --show-current` 对应分支的文档族，管辖域外文档不读不改；共享流程层改动提交后 cherry-pick 同步另一分支 | 人工：SMP 轮出现音频族文档改动（或反之）即为违规 |

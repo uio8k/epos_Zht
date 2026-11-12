@@ -107,7 +107,7 @@ TESTSLINE = re.compile(u"^\\s*(\\d+)\\s+Tests\\b", re.M)
 MANIFEST = [
     (u"docs/decisions-audio-test.md", u"定案 D1–D12（音频测试口径）", u"file"),
     (u"docs/decisions-qemu-only.md", u"定案 D-Q1–D-Q10（QEMU-only）", u"file"),
-    (u"docs/decisions-autodev.md", u"定案 D-A1–D-A15（autodev 流程与分支管辖）", u"file"),
+    (u"docs/decisions-autodev.md", u"定案 D-A1–D-A16（autodev 流程与分支管辖）", u"file"),
     (u"docs/decisions-docs.md", u"定案 D-D1–D-D8（文档托管）", u"file"),
     (u"docs/decisions-adc.md", u"定案（ADC 历史，2026-10-28）", u"file"),
     (u"docs/tech-plan-*.md", u"方案（{n} 份）", u"glob"),
