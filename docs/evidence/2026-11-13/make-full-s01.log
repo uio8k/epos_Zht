@@ -279,3 +279,5 @@ make[1]: Leaving directory '/e/ComputerScience/epos_Zht/epos_Zht/tests'
    L3-C   CAPTURE  PASS
    L3-D   RESTART  PASS
    L4     SELFTEST PASS
+
+--- delivery annotation (D-A17): command = cmd /c "call setvars.bat /ni && cd /d epos_Zht && make full"; exit code = 0; summary = 5 legs 5 PASS, 34.2s ---

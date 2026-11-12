@@ -165,3 +165,5 @@ test_hda_regs.c:59:t4_index_0x1801:PASS
 4 Tests 0 Failures 0 Ignored 
 OK
 [tests] ALL PASS
+
+--- delivery annotation (D-A17): command = cmd /c testsun_tests.bat (direct, from repo root); exit code = 0; [tests] ALL PASS 37/37 ---
