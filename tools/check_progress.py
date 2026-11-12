@@ -86,10 +86,12 @@ def normalize(raw_items):
 
 
 def validate(items):
-    """Returns a list of structural problems; empty means the input is usable."""
+    """Returns a list of structural problems; empty means the input is usable.
+
+    空队列是合法态（SMP 分支 Sxx 队列立基后等待用户发需求，D-A14/D-A15），
+    不算结构错误：判定走 BLOCKED（无可做项、无悬置项、也非全部完成）。
+    """
     fails = []
-    if not items:
-        fails.append('no <li class="item"> found')
 
     by_id = {}
     for index, item in enumerate(items):
@@ -175,6 +177,10 @@ def decide(items):
     if eligible:
         state = ELIGIBLE
     elif blocked:
+        state = BLOCKED
+    elif not items:
+        # 空队列 = 等待用户发需求（SMP 分支 Sxx 立基后初始态，D-A14/D-A15）。
+        # 不是 TERMINAL——TERMINAL 的收工句式是「当前已完成」，对空队列是误导。
         state = BLOCKED
     else:
         state = TERMINAL
