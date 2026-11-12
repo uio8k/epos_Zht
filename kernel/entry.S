@@ -23,7 +23,7 @@
     .extern _g_intr_vector
     .extern _g_resched
     .extern _schedule
-    .extern _g_task_running
+    .extern _g_task_running_arr
     .extern _syscall
     .extern _exception
 
@@ -191,8 +191,17 @@ _exception_simd_fp:
     pushl $19
     jmp exception_common
 
+/* S01：current 取用从全局标量改为 per-CPU 数组 _g_task_running_arr，下标
+   = 本核 LAPIC ID（0xFEE00020 的 bits31..24，见 cpu.h lapic_id）。原单条
+   movl 换成四条直读；不触碰 fs/ds/es/gs 段语义，vm86 路径零改动（C5）。 */
+#define CURRENT_TO_EAX \
+    movl $0xFEE00020, %eax; \
+    movl (%eax), %eax; \
+    shrl $24, %eax; \
+    movl _g_task_running_arr(,%eax,4), %eax;
+
 #define PROLOGUE \
-    movl _g_task_running, %eax; \
+    CURRENT_TO_EAX \
     cmpl $0, %eax; \
     je 3f; \
     ; \
@@ -218,7 +227,7 @@ _exception_simd_fp:
     3:
 
 #define EPILOGUE \
-    movl _g_task_running, %eax; \
+    CURRENT_TO_EAX \
     cmpl $0, %eax; \
     je 3f; \
     ; \
@@ -461,7 +470,7 @@ _sys_vm86:
     cld
     rep movsl
 
-    movl _g_task_running, %eax
+    CURRENT_TO_EAX
     movl %edi, (%eax)
 
     addl $(3*4), %esp

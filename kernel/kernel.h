@@ -95,10 +95,21 @@ struct tcb {
 
 #define TASK_KSTACK 0           /*=offsetof(struct tcb, kstack)*/
 
-extern struct tcb *g_task_running;
+/* Per-CPU 当前线程：下标 = 本核 LAPIC ID（-smp 1 恒 0；QEMU -smp 2 下 ID=0/1，
+   ID=index 见 docs/tech-plan-smp-prototype.md U4）。g_task_running 宏让既有
+   代码零改动；entry.S 直接读 _g_task_running_arr（LAPIC ID 直读，C5）。 */
+#define NR_CPUS 1
+extern struct tcb *g_task_running_arr[NR_CPUS];
+#define g_task_running (g_task_running_arr[lapic_id() & (NR_CPUS - 1)])
+
 extern struct tcb *g_task_head;
 extern struct tcb *task0;
 extern struct tcb *g_task_own_fpu;
+
+/* 全局内核锁（S01，docs/tech-plan-smp-prototype.md C2）：owner+depth 递归
+   自旋锁，lock_irqsave/lock_irqrestore 用法见 spinlock.h；定义在 kernel/task.c。
+   睡眠契约：sleep_on 调用方必须持有本锁且 depth==1（sleep_on 切出前放锁）。 */
+extern struct kernel_lock g_kernel_lock;
 
 extern int g_resched;
 void schedule();
@@ -108,6 +119,9 @@ struct wait_queue {
     struct tcb *tsk;
     struct wait_queue *next;
 };
+/* sleep_on：调用方持 g_kernel_lock（depth==1）进入；内部「入队+置
+   WAITING」在锁内完成（防丢唤醒），切出前放锁（C6）；被唤醒后取回锁摘链，
+   返回时已放锁——调用方如需继续访问共享状态须重新 lock_irqsave。 */
 void sleep_on(struct wait_queue **head);
 void wake_up(struct wait_queue **head, int n);
 

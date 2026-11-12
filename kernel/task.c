@@ -20,10 +20,12 @@
 #include <stddef.h>
 #include <string.h>
 #include "kernel.h"
+#include "spinlock.h"
 
 int g_resched;
 struct tcb *g_task_head;
-struct tcb *g_task_running;
+struct tcb *g_task_running_arr[NR_CPUS];
+struct kernel_lock g_kernel_lock = { 0, NULL, 0 };
 struct tcb *task0;
 struct tcb *g_task_own_fpu;
 
@@ -34,7 +36,11 @@ struct tcb *g_task_own_fpu;
  */
 void schedule()
 {
-    struct tcb *select = g_task_running;
+    uint32_t flags;
+    struct tcb *select;
+
+    lock_irqsave(&g_kernel_lock, flags);
+    select = g_task_running;
     do {
         select = select->next;
         if(select == NULL)
@@ -47,8 +53,10 @@ void schedule()
     } while(1);
 
     if(select == g_task_running) {
-        if(select->state == TASK_STATE_READY)
+        if(select->state == TASK_STATE_READY) {
+            lock_irqrestore(&g_kernel_lock, flags);
             return;
+        }
         select = task0;
     }
 
@@ -58,6 +66,8 @@ void schedule()
         printk("warning: kernel stack of task #%d overflow!!!", select->tid);
 
     g_resched = 0;
+    /* 切出前放锁（C6）：锁不能被 switch_to 冻结在被切出的核上 */
+    lock_irqrestore(&g_kernel_lock, flags);
     switch_to(select);
 }
 
@@ -75,7 +85,17 @@ void sleep_on(struct wait_queue **head)
     *head = &wait;
 
     g_task_running->state = TASK_STATE_WAITING;
+
+    /* C6：放锁再切。若带着 g_kernel_lock 睡眠，switch_to 的 popfl 会把
+       持锁状态冻结在被切出的核上（线程不再运行，无从 release），
+       其它核将自旋至死锁。「入队 + 置 WAITING」已在调用方持有的同一把
+       锁内完成，跨核无丢唤醒窗口。 */
+    kernel_lock_release(&g_kernel_lock);
+
     schedule();
+
+    /* 唤醒后取回锁摘链，返回时放锁（调用方按 kernel.h 的契约处理） */
+    kernel_lock_acquire(&g_kernel_lock);
 
     if(*head == &wait)
         *head = wait.next;
@@ -91,6 +111,8 @@ void sleep_on(struct wait_queue **head)
             }
         } while(p != NULL);
     }
+
+    kernel_lock_release(&g_kernel_lock);
 }
 
 /**
@@ -199,9 +221,9 @@ struct tcb *sys_task_create(void *tos,
 
     INIT_TASK_CONTEXT(ustack, new->kstack, func, pv);
 
-    save_flags_cli(flags);
+    lock_irqsave(&g_kernel_lock, flags);
     add_task(new);
-    restore_flags(flags);
+    lock_irqrestore(&g_kernel_lock, flags);
 
     return new;
 }
@@ -215,7 +237,7 @@ void sys_task_exit(int code_exit)
 {
     uint32_t flags;
 
-    save_flags_cli(flags);
+    lock_irqsave(&g_kernel_lock, flags);
 
     wake_up(&g_task_running->wq_exit, -1);
 
@@ -225,6 +247,8 @@ void sys_task_exit(int code_exit)
     if(g_task_own_fpu == g_task_running)
         g_task_own_fpu = NULL;
 
+    /* 先放锁再调度（schedule 自带取锁，带着锁进去会自死锁） */
+    lock_irqrestore(&g_kernel_lock, flags);
     schedule();
 }
 
@@ -245,15 +269,20 @@ int sys_task_wait(int tid, int *pcode_exit)
     if(tid == 0)
         return -1;
 
-    save_flags_cli(flags);
+    lock_irqsave(&g_kernel_lock, flags);
 
     if((tsk = get_task(tid)) == NULL) {
-        restore_flags(flags);
+        lock_irqrestore(&g_kernel_lock, flags);
         return -1;
     }
 
-    if(tsk->state != TASK_STATE_ZOMBIE)
+    if(tsk->state != TASK_STATE_ZOMBIE) {
+        /* sleep_on 返回时锁已放、中断仍关（睡眠前 save 的 EFLAGS），
+           先恢复中断态再重新持锁收尾（C6 睡眠契约） */
         sleep_on(&tsk->wq_exit);
+        restore_flags(flags);
+        lock_irqsave(&g_kernel_lock, flags);
+    }
 
     if(pcode_exit != NULL)
         *pcode_exit= tsk->code_exit;
@@ -261,13 +290,13 @@ int sys_task_wait(int tid, int *pcode_exit)
     if(tsk->wq_exit == NULL) {
         remove_task(tsk);
         //printk("%d: Task %d reaped\r\n", sys_task_getid(), tsk->tid);
-        restore_flags(flags);
+        lock_irqrestore(&g_kernel_lock, flags);
 
         kfree(tsk);
         return 0;
     }
 
-    restore_flags(flags);
+    lock_irqrestore(&g_kernel_lock, flags);
     return 0;
 }
 

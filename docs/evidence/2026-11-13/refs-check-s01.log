@@ -1,0 +1,10 @@
+﻿ refs-check for S01 delivery citations - 2026-11-13 (rerun after cpu.h line fix 110->113)
+PASS kernel/machdep.c:1140 got=[1140]
+PASS kernel/task.c:28 got=[28]
+PASS kernel/entry.S:197 got=[197]
+PASS kernel/spinlock.h:47 got=[47]
+PASS kernel/task.c:79 got=[79]
+PASS kernel/cpu.h:113 got=[113]
+PASS docs/evidence/2026-11-13/qemu-src/apic-v3.1.0.c:672 got=[672]
+--- fails=0
+SUMMARY: 7 PASS / 0 FAIL

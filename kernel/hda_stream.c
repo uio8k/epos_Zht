@@ -1,5 +1,6 @@
 #include <string.h>
 #include "kernel.h"
+#include "spinlock.h"
 #include "cpu.h"
 #include "machdep.h"
 #include "hda.h"
@@ -195,7 +196,13 @@ void isr_hda(uint32_t irq, struct context *ctx)
     hda_writeb(HDA_SD_STS(g_hda.sd_out), HDA_SDSTS_BCIS);  /* W1C */
     g_hda_irq_count++;
     hda_cont_refresh_rd();           /* 推进 rdpos（MMIO 读，允许） */
-    wake_up(&wq_hda, -1);            /* 唤醒全部等待者（ISR 内可用，有先例） */
+    {
+        /* 唤醒全部等待者：进内核锁防跨核竞态（S01） */
+        uint32_t wflags;
+        lock_irqsave(&g_kernel_lock, wflags);
+        wake_up(&wq_hda, -1);
+        lock_irqrestore(&g_kernel_lock, wflags);
+    }
 }
 
 /* 注册 BCIS 中断。本内核 g_intr_vector 是单指针覆盖、无共享 IRQ 链，
@@ -293,10 +300,12 @@ static int hda_cont_wait_until(uint32_t target)
             return 1;
 
         if (g_hda_irq_ok == 1) {
-            /* 关中断后重查条件再睡眠，避免「检查后、睡眠前」中断到达
-               造成丢唤醒；伪唤醒（条件未满足）属正常，醒来继续睡。 */
+            /* 持内核锁重查条件再睡眠（条件检查与 ISR 唤醒同锁，跨核无丢
+               唤醒窗口）；伪唤醒（条件未满足）属正常，醒来继续睡。
+               S01 C6：sleep_on 切出前放锁，返回时锁已放、restore_flags
+               恢复睡眠前中断态。 */
             uint32_t flags;
-            save_flags_cli(flags);
+            lock_irqsave(&g_kernel_lock, flags);
             if (g_cont_rdpos < target)
                 sleep_on(&wq_hda);
             restore_flags(flags);

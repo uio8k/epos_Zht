@@ -25,6 +25,7 @@
 #include <audio_capture.h>
 
 #include "kernel.h"
+#include "spinlock.h"
 #include "multiboot.h"
 #include "hda.h"
 
@@ -120,22 +121,24 @@ void disable_irq(uint32_t irq)
  */
 void switch_to(struct tcb *new)
 {
+    /* S01：g_task_running 已数组化（kernel.h），asm 操作数改用显式的
+       old/new->kstack 地址；存/取的都是 kstack 字段，语义逐字节不变。 */
+    struct tcb *old = g_task_running;
+
     __asm__ __volatile__ (
             "pushfl\n\t"
             "pushal\n\t"
             "pushl $1f\n\t"
-            "movl %0, %%eax\n\t"
-            "movl %%esp, (%%eax)\n\t"
+            "movl %%esp, %0\n\t"
             "addl $40, %%esp\n\t"
             :
-            :"m"(g_task_running)
-            );
+            :"m"(old->kstack)
+            :"memory");
 
     g_task_running = new;
 
     __asm__ __volatile__ (
-            "movl %0, %%eax\n\t"
-            "movl (%%eax), %%esp\n\t"
+            "movl %0, %%esp\n\t"
             "ret\n\t"
             "1:\n\t"
             "movl %%cr0, %%eax\n\t"
@@ -144,8 +147,8 @@ void switch_to(struct tcb *new)
             "popal\n\t"
             "popfl\n\t"
             :
-            :"m"(g_task_running)
-            );
+            :"m"(new->kstack)
+            :"memory");
 }
 
 static
@@ -421,7 +424,7 @@ int sys_putchar(int c)
     /*
      * 读取当前光标位置
      */
-    save_flags_cli(flags);
+    lock_irqsave(&g_kernel_lock, flags);
     outportb(0x3d4, 0x0e);
     curpos = inportb(0x3d5);
     curpos <<= 8;
@@ -471,7 +474,7 @@ int sys_putchar(int c)
     outportb(0x3d5, curpos & 0x0ff);
     outportb(0x3d4, 0x0e);
     outportb(0x3d5, curpos >> 8);
-    restore_flags(flags);
+    lock_irqrestore(&g_kernel_lock, flags);
 
     /*
      * 同时输出到串口 COM1（0x3F8），用于 QEMU -serial 重定向
@@ -500,11 +503,11 @@ void sys_beep(int freq)
 
         freq = 1193182 / freq;
 
-        save_flags_cli(flags);
+        lock_irqsave(&g_kernel_lock, flags);
         outportb (0x43, 0xB6);
         outportb (0x42,  freq       & 0xFF);
         outportb (0x42, (freq >> 8) & 0xFF);
-        restore_flags(flags);
+        lock_irqrestore(&g_kernel_lock, flags);
 
         outportb (0x61, 3);
     }
@@ -544,18 +547,29 @@ int exception(struct context *ctx)
     case 7://device not available
         __asm__ __volatile__("clts\t\n");
 
-        if(g_task_own_fpu == g_task_running)
-            return 0;
+        /* S01：g_task_own_fpu 是跨核共享量，读写与 fnsave/frstor 决策
+           进内核锁（本 ISR 无睡眠，自旋安全） */
+        {
+            uint32_t fflags;
+            lock_irqsave(&g_kernel_lock, fflags);
 
-        __asm__ __volatile__("fwait\t\n");
+            if(g_task_own_fpu == g_task_running) {
+                lock_irqrestore(&g_kernel_lock, fflags);
+                return 0;
+            }
 
-        if(g_task_own_fpu) {
-            __asm__ __volatile__("fnsave %0\t\n"::"m"(g_task_own_fpu->fpu));
+            __asm__ __volatile__("fwait\t\n");
+
+            if(g_task_own_fpu) {
+                __asm__ __volatile__("fnsave %0\t\n"::"m"(g_task_own_fpu->fpu));
+            }
+
+            g_task_own_fpu = g_task_running;
+
+            __asm__ __volatile__("frstor %0\t\n"::"m"(g_task_running->fpu));
+
+            lock_irqrestore(&g_kernel_lock, fflags);
         }
-
-        g_task_own_fpu = g_task_running;
-
-        __asm__ __volatile__("frstor %0\t\n"::"m"(g_task_running->fpu));
 
         return 0;
 
@@ -1114,6 +1128,20 @@ static uint32_t init_paging(uint32_t physfree)
      * 映射页目录及页表
      */
     pgdir[(KERNBASE>>PGDR_SHIFT)-1]=(uint32_t)(pgdir)|L2E_V|L2E_W;
+
+    /*
+     * S01：恒等映射 LAPIC MMIO 页（0xFEE00000，PD 槽 0x3FB——0xFEE00000
+     * 落在 0xFEC00000..0xFF000000 段，首跑误写 0x3FA 致映射落空；PT 槽
+     * 0x200）。cpu.h 的 lapic_id() 与 entry.S 的 CURRENT_TO_EAX 都要直读
+     * 它——分页开启后若不映射，第一次时钟中断的 PROLOGUE 就会在 VA
+     * 0xFEE00000 page fault（首跑 CAPTURE 腿串口 0 字节，见
+     * docs/evidence/2026-11-13/make-full-s01-red-boot-hang.log）。
+     */
+    pgdir[0x3FB] = physfree | L2E_V | L2E_W;
+    memset((void *)physfree, 0, L2_TABLE_SIZE);
+    pte = (uint32_t *)physfree;
+    physfree += L2_TABLE_SIZE;
+    pte[0x200] = 0xFEE00000 | L2E_V | L2E_W;
 
     /*
      * 打开分页

@@ -1,6 +1,7 @@
 #ifdef USE_FLOPPY
 
 #include "kernel.h"
+#include "spinlock.h"
 
 /* Defines for accessing the upper and lower byte of an integer. */
 #define LO_BYTE(x)           ((x) & 0xFF)
@@ -238,7 +239,7 @@ static void fdc_read_sector_imp (uint8_t head, uint8_t track, uint8_t sector)
   int i;
 	uint8_t st0, cyl;
 
-  save_flags_cli(flags);
+  lock_irqsave(&g_kernel_lock, flags);
 
   dma_xfer(2, (uint32_t)g_buf_dma, FLOPPY_BYTES_PER_SECTOR, 1); 
 	fdc_sendbyte (
@@ -253,7 +254,7 @@ static void fdc_read_sector_imp (uint8_t head, uint8_t track, uint8_t sector)
 	fdc_sendbyte ( FLOPPY_GAP3_LENGTH_3_5 );
 	fdc_sendbyte ( 0xff );
 
-  restore_flags(flags);
+  lock_irqrestore(&g_kernel_lock, flags);
  
 	fdc_wait_irq ();
  
@@ -271,7 +272,7 @@ static void fdc_write_sector_imp (uint8_t head, uint8_t track, uint8_t sector)
   int i;
 	uint8_t st0, cyl;
 
-  save_flags_cli(flags);
+  lock_irqsave(&g_kernel_lock, flags);
 
   dma_xfer(2, (uint32_t)g_buf_dma, FLOPPY_BYTES_PER_SECTOR, 0); 
 	fdc_sendbyte (
@@ -286,7 +287,7 @@ static void fdc_write_sector_imp (uint8_t head, uint8_t track, uint8_t sector)
 	fdc_sendbyte ( FLOPPY_GAP3_LENGTH_3_5 );
 	fdc_sendbyte ( 0xff );
 
-  restore_flags(flags);
+  lock_irqrestore(&g_kernel_lock, flags);
  
 	fdc_wait_irq ();
  

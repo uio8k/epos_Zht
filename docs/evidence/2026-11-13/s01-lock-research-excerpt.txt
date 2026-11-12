@@ -1,0 +1,39 @@
+================================================================
+S01（锁与 per-CPU 基建）专项调研摘录（2026-11-13）
+================================================================
+
+--- 1. spinlock 原语的硬件语义 ---
+[实测: /tmp/spinprobe.c 编译自检（gcc -m32 -O2，objdump -d）]
+  15: 87 10          xchg %edx,(%eax)
+  26: eb e8          jmp 10 <_probe+0x10>
+  → __sync_lock_test_and_set 编译为 xchg（Intel：xchg 对内存操作数恒发 LOCK# 信号，
+    隐含全屏障）；__sync_lock_release 编译为普通 mov（配合编译器屏障）。自旋回环为
+    读-跳转双循环（test-and-test-and-set 形态由编译器 O2 自动形成）。
+[src: gcc onlinedocs __sync-lock-test-and-set]：语义 = atomic exchange，返回旧值。
+设计采信：i486+ 恒可用（xchg mem 是唯一不需要 cmpxchg 的原子交换），无 libatomic 依赖。
+
+--- 2. LAPIC ID 直读（mycpu / entry.S 手术用） ---
+[src: qemu-src/apic-v3.1.0.c:672] case 0x02: /* id */ —— ID 寄存器在 MMIO 字节偏移 0x020，
+值在 bits 31..24（写回读取函数 val = s->id << 24 形态，apic_mem_read 分派）。
+[src: mps-parse-smp2.txt] config header apic_ptr = 0xFEE00000（BIOS 亲口告知 LAPIC 基址）。
+[实测: mps-parse-smp2.txt] -smp 2 下 APIC ID = 0, 1 —— 与 cpu_index 一致（pc-v3.1.0.c:691-702）。
+结论：`*(volatile uint32_t*)0xFEE00020 >> 24` 即本核 APIC ID；-smp 1 下恒为 0。
+
+--- 3. 睡眠纪律（仓内存量摘录） ---
+[实测: docs/evidence/2026-11-11/osdev-semaphore-excerpt.txt]（已存）：
+  「检查计数 + 入队」全程在临界区内完成，避免 lost wake-up；睡眠 = 移出调度队列，
+  被唤醒后重查条件。
+本设计延伸（C6）：临界区用 g_kernel_lock（irqsave 自旋锁）承载；sleep_on 在切出前
+放锁、唤醒后取回锁做摘链并保持放锁返回——调用方循环体重查条件时重新持锁，
+条件检查与入队同在一把锁内 → 跨核无丢唤醒窗口。
+
+--- 4. 本轮锁策略（嵌套死锁规避，代码调用图实测） ---
+[实测: kernel/page.c grep] page.c 调 kmalloc/kfree（:114/:177/:224），不调 frame_alloc；
+[实测: kernel/task.c:180-204] kmemalign 在 save_flags_cli 区之外；kernel/task.c:266 kfree 在
+restore_flags 之后 —— kfree 不进锁内。
+[实测: kernel/sem.c] 无内存分配调用。
+嵌套风险矩阵：page.c（g_kernel_lock）→ kmalloc（tlsf）→ 需要自己的锁。
+结论：双锁分层——g_kernel_lock（task/sem/page/frame/wake/调度/timer/驱动睡眠点）+
+  g_kmalloc_lock（kmalloc.c 专属叶子锁，永不反向调用上层）→ 任意方向无环。
+g_kernel_lock 做成 owner+depth 递归锁：防御 page_map/page_alloc 类内部互相调用
+（ISR 与中断线程同 owner 不可达——持锁区间 IF=0，同核 ISR 无法插入）。

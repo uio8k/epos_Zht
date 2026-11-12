@@ -35,7 +35,7 @@
 | # | 决策 | 弃选项 |
 |---|---|---|
 | C1 | **用户任务钉死 CPU0**：调度器把内核态线程放行到任意核、用户态线程（tos!=NULL 创建的任务）只在 CPU0 上调度。换来 F4 单 TSS/esp0 不改、vm86/HDA/dosfs/e1000 全部免改 | 用户任务全核跑（需 per-CPU GDT/TSS + 驱动全面加锁，规模×3） |
-| C2 | **全局大锁 g_kernel_lock**：全部 save_flags_cli 共享区挂这把锁，spinlock-irqsave 模式 | 细粒度锁（每子系统一把，设计负担大） |
+| C2 | **全局大锁 g_kernel_lock**：全部 save_flags_cli 共享区挂这把锁，spinlock-irqsave 模式。实现细化（S01 实施期，2026-11-13）：①递归 owner+depth 语义——调用图实测发现 page.c 锁区内调 kmalloc，且 page_map/page_alloc 存在内部互相调用，非递归锁会自死锁；②kmalloc 单独配叶子锁 g_kmalloc_lock（两锁无反向依赖无环，见 docs/evidence/2026-11-13/s01-lock-research-excerpt.txt §4） | 细粒度锁（每子系统一把，设计负担大） |
 | C3 | **不做 TLB shootdown**，记为已知局限：单地址空间（F5）+ 映射只在启动期建立（CPU0），原型不做跨核动态映射 | 映射 IPI 广播 flush（原型不需要） |
 | C4 | **PIC timer 只到 CPU0（LINTIN0=ExtInt 实证），AP 用 LAPIC timer**（periodic，独立向量，每核独立节拍） | AP 复用 PIC（不可能——LINTIN0 不通） |
 | C5 | **mycpu() = LAPIC ID 直读**（`*(volatile uint32_t*)0xFEE00020 >> 24`），entry.S 的 PROLOGUE/EPILOGUE 用 4 条指令替换 `movl _g_task_running`；不动 fs/ds/es/gs 段语义，vm86 汇编零触碰 | %gs per-CPU 段（要动 vm86 的 gs 透传，险） |
@@ -69,6 +69,9 @@
 | U6 | LAPIC timer 定标（TICR 装填多少得 HZ=100） | S03 实测：写 TDCR=分频、TICR=T，读 ticks 与墙钟比对 |
 | U7 | SIPI 时序（INIT 后延时窗口）在 QEMU TCG 下的容忍度 | S02 实测；失败按 [src: apic.c ICR] 换 shorthand/重试路径 |
 | U8 | entry.S PROLOGUE 手术后 22 字深度拷贝边界（vm86 路径） | S01 回归五腿 + RESTART 腿（vm86 在启动路径被调用） |
+| U9 | **（S01 实施期新增，已解）LAPIC MMIO 页不在页表**：分页开启后 VA 0xFEE00000 未映射，第一次时钟中断的 PROLOGUE 直读即 page fault（首跑 CAPTURE 腿串口 0 字节，证据 make-full-s01-red-boot-hang.log）。解法：init_paging 在开分页前恒等映射 LAPIC 页（PD 槽 0x3FA / PT 槽 0x200，V+W）。S02 AP 启动复用同映射 | 已实测修复，回归五腿验证 |
+
+**S01 实施期设计增补**（不改变路线）：① init_paging 新增 LAPIC 页恒等映射（U9，首跑把 PD 槽写成 0x3FA、实为 0x3FB，二轮修正）；② switch_to 的 asm 操作数从 "m"(g_task_running) 改为显式 old->kstack / new->kstack 字段地址（g_task_running 数组化后不能作 asm 存储器操作数），存取同一字段语义不变；③ run_as_task0 的 "m" 操作数改指 _g_task_running_arr——"m" 装载的即 arr[0] 值（task0 指针），单次解引用到 kstack 与原版一致（首版误加一次解引用致复位循环，冒烟抓到）。
 
 ## 7 已知局限（原型接受，记录在案）
 

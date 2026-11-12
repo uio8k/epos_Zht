@@ -1,0 +1,113 @@
+"${USERPROFILE:-${HOME}}/.local/bin/uv.exe" run --no-project python tools/check_docs.py
+docs-check: repo=E:\\ComputerScience\\epos_Zht\\epos_Zht workspace=E:\\ComputerScience\\epos_Zht
+--- checks ---
+C1   ok    0 fail / 0 warn
+C2   ok    0 fail / 0 warn
+C3   ok    0 fail / 0 warn
+C4   ok    0 fail / 0 warn
+C5   ok    0 fail / 0 warn
+C6   ok    0 fail / 0 warn
+C7   ok    0 fail / 0 warn
+C8   ok    0 fail / 0 warn
+C9   ok    0 fail / 0 warn
+C10  ok    0 fail / 0 warn
+RESULT PASS (0 fail / 0 warn) 0.11s
+C:/msys64/mingw64/bin/mingw32-make.exe -C tests test
+mingw32-make[1]: Entering directory 'E:/ComputerScience/epos_Zht/epos_Zht/tests'
+cmd //c run_tests.bat
+Microsoft Windows [�汾 10.0.26200.9711]
+(c) Microsoft Corporation����������Ȩ����
+
+E:\ComputerScience\epos_Zht\epos_Zht\tests>mingw32-make[1]: Leaving directory 'E:/ComputerScience/epos_Zht/epos_Zht/tests'
+"${USERPROFILE:-${HOME}}/.local/bin/uv.exe" run --no-project python tests/qtest_client.py
+== qtest 连接建立（QEMU pid=1716）==
+  intel-hda @ 00:02.0
+  [PASS] BAR0 有效（0xfebfc000，SeaBIOS 已分配）
+  [PASS] GCAP=0x4401（期望 0x4401：OSS=4 ISS=4）
+  out_sd=#4 (ISS=4) SD@0xfebfc100
+-- U-L2-01: BDL 链写读回 + RUN 位 --
+  intel-hda @ 00:02.0
+  [PASS] BAR0 有效（0xfebfc000，SeaBIOS 已分配）
+  [PASS] GCAP=0x4401（期望 0x4401：OSS=4 ISS=4）
+  out_sd=#4 (ISS=4) SD@0xfebfc100
+  [PASS] CBL 回读 0x40000
+  [PASS] LVI 回读 1
+  [PASS] BDPL 回读 0x300000
+  [PASS] BDPU 回读 0
+  [PASS] CTL tag 回读 1
+  [PASS] RUN 位置 1 读回
+  [PASS] RUN 清 0 读回
+-- U-L2-02: LPIB 推进与环绕回 --
+  verb resp: streamid=0x00000000 fmt=0x00000000
+  U1: start=0 real+300ms -> +0 bytes（期望 ~9600±，来自 2*ch*freq）
+  组合 tag=4 fmt=0x10: LPIB +0
+  组合 tag=0 fmt=0x00: LPIB +63244
+  [PASS] LPIB 真实时间推进（300ms 内有变化）
+  [PASS] LPIB 有推进（21/21 次采样变化）
+  [PASS] LPIB 环绕回 >=1 次（实测 1 次）
+  [PASS] 停 RUN 后 LPIB 冻结
+== 汇总：15 PASS，0 FAIL ==
+"${USERPROFILE:-${HOME}}/.local/bin/uv.exe" run --no-project python tests/full_run.py
+== L3 整机回归：QEMU 3.1.50 + none 后端 ==
+   仓库：E:\ComputerScience\epos_Zht\epos_Zht
+   后端：QEMU_AUDIO_DRV=none（不碰宿主声卡，D9）
+
+== L3-A PLAY ==
+   覆盖：PCM 播放全链：音量 syscall -> BDL 配置 -> 流启动 -> 停流 -> 状态 syscall
+   构建：make hd.img TEST_MODE=1 TEST_SIGNAL=sine
+   构建 OK（2.9s）
+   运行：QEMU_AUDIO_DRV=none qemu-system-i386w.exe ...（无 monitor / 无 watcher）
+   [FAIL] 音量 syscall 往返（audio_set_volume；TEST_MODE 满音量播，避免软件增益污染）
+          期望匹配：\[TEST\] volume set to 100
+   [FAIL] 用户态生成参考信号并提交播放
+          期望匹配：\[TEST\] sine 440Hz, 2000ms
+   [FAIL] BDL 配置成功（128 条 x 4KB）
+          期望匹配：HDA: BDL ok entries=128 cbl=524288
+   [FAIL] 流启动（格式与内核下发的配置一致）
+          期望匹配：HDA: continuous stream started \(CBL=524288, 44100Hz 2ch 16bit\)
+   [FAIL] 停流干净：underruns=0（none 后端下播放侧照常被消费，不应饿死）
+          期望匹配：HDA: continuous stream stopped \(tail=\d+ ms, lpib_max_step=\d+, wait=poll bcis=0, underruns=0\)
+   [FAIL] 状态 syscall 往返（audio_get_errors / audio_get_position_ms）
+          期望匹配：\[AUDIO\] errors: fifo=0 desc=0  position: \d+ ms
+   用时：构建 2.9s + 运行 90.1s；串口 0 字节 -> tests\build\l3_play.log
+   --- 串口尾部 ---
+
+== L3-B WAV ==
+   覆盖：真实盘上 WAV 读取（song.wav 不在 git 里，故用 tracked 的 s*.wav）+ 多路混音
+   构建：make hd.img SORT_DEMO=1
+   构建 OK（2.7s）
+   运行：QEMU_AUDIO_DRV=none qemu-system-i386w.exe ...（无 monitor / 无 watcher）
+   [FAIL] 音量 syscall 往返
+          期望匹配：\[AUDIO\] volume set to 80
+   [FAIL] 进入音符驱动路径
+          期望匹配：\[MELODY\] Shell sort driving melody, one note per swap
+   [FAIL] 从磁盘读到 WAV 并完成 3 路混音后提交播放
+          期望匹配：\[MELODY\] #0 note=\d+ ms=\d+ voices=3 s\d+\.wav
+   用时：构建 2.7s + 运行 90.1s；串口 0 字节 -> tests\build\l3_wav.log
+   --- 串口尾部 ---
+
+== L3-C CAPTURE ==
+   覆盖：采集全流程（1s + 3s 环绕）+ 用户态 API 幂等/参数校验
+   构建：make hd.img CAPTURE_TEST=1
+   构建 OK（2.7s）
+   运行：QEMU_AUDIO_DRV=none qemu-system-i386w.exe ...（无 monitor / 无 watcher）
+   [FAIL] 1s 采集：字节数达标、LPIB 在走；none 后端下信号必为 SILENT（预期值）
+          期望匹配：\[CAP-A\] VERDICT: len=OK path=OK signal=SILENT
+   [FAIL] 1s 采集：无 overrun、无环绕（256KB 环装得下）
+          期望匹配：\[CAP-A\] bytes=\d+ expect=176400 diff=-?\d+ lpib=\d+ wraps=0 overruns=0
+   [FAIL] 3s 采集：529KB > 256KB 环 -> 缓冲升 512KB 且 LPIB 绕回 1 次
+          期望匹配：\[CAP-B\] bytes=\d+ expect=529200 diff=-?\d+ lpib=\d+ wraps=1 overruns=0
+   [FAIL] 用户态 API 契约：同参幂等、异参拒绝、停流可重入
+          期望匹配：\[CAP-C\] first=0 same=0 diff=-2 stop=0 \(expect 0/0/-2/0\)
+   [FAIL] 采集测试结束时播放流被显式停掉（cap_play_tone 起流，采集停流不代劳）
+          期望匹配：HDA: continuous stream stopped \(tail=\d+ ms
+   [FAIL] 串口判定行按 v=2 格式输出（P05b 后的新格式）
+          期望匹配：AUDIO_VERDICT v=2 result=SILENT .*silent=1
+   用时：构建 2.7s + 运行 90.1s；串口 0 字节 -> tests\build\l3_capture.log
+   --- 串口尾部 ---
+
+== L3-D RESTART ==
+   覆盖：同一镜像内停流->重启两轮会话，验会话坐标（data_end/rdpos/wrpos）在起流时确实归零
+   构建：make hd.img TEST_MODE=1 TEST_SIGNAL=restart
+   构建 OK（2.7s）
+   运行：QEMU_AUDIO_DRV=none qemu-system-i386w.exe ...（无 monitor / 无 watcher）

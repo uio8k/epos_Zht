@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <string.h>
 #include "kernel.h"
+#include "spinlock.h"
 #include "cpu.h"
 
 #define LOWORD(l) ((uint16_t)(l))
@@ -216,7 +217,13 @@ static void isr_e1000(uint32_t irq, struct context *ctx)
 
 	if(icr & IMS_RXT0) {
 		//e1000_recv();
-		wake_up(&wq_nic, 1);
+		{
+			/* ISR 内唤醒：进内核锁防跨核竞态（S01） */
+			uint32_t wflags;
+			lock_irqsave(&g_kernel_lock, wflags);
+			wake_up(&wq_nic, 1);
+			lock_irqrestore(&g_kernel_lock, wflags);
+		}
 	}
 }
 
@@ -311,8 +318,8 @@ ssize_t sys_recv(int sockfd, void *buf, size_t len, int flags)
 {
     uint32_t _flags;
 
-	/*在队列wq_nic上等待数据包到来*/
-	save_flags_cli(_flags);
+	/*在队列wq_nic上等待数据包到来（S01 C6：持锁进入；sleep_on 切出前放锁）*/
+	lock_irqsave(&g_kernel_lock, _flags);
 	sleep_on(&wq_nic);
 	restore_flags(_flags);
 

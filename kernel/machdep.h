@@ -143,6 +143,8 @@ struct context {
 #define run_as_task0() do { \
     g_task_running = task0; \
     __asm__ __volatile__ ( \
+            /* "m"(_g_task_running_arr) 装载的是 arr[0] 的值（= task0 指针）， */ \
+            /* 与旧版 "m"(g_task_running) 同义，只需一次解引用到 kstack */ \
             "movl %0, %%eax\n\t" \
             "movl (%%eax), %%eax\n\t" \
             "pushl $1f\n\t" \
@@ -151,7 +153,7 @@ struct context {
             "ret\n\t" \
             "1:\n\t" \
             : \
-            :"m"(g_task_running) \
+            :"m"(g_task_running_arr) \
             :"%eax" \
             ); \
 } while(0)

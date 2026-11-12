@@ -239,12 +239,12 @@ footer p{max-width:none}
   <div class="sec-head"><h2>① SMP 开发队列</h2><span class="hint">Sxx 编号，自 S01 起（docs/decisions-autodev.md D-A15）</span></div>
   <p class="small" style="margin:8px 0">队列已立项（S01–S04，方案见 <code>docs/tech-plan-smp-prototype.md</code>，调研证据 <code>docs/evidence/2026-11-13/</code>）；由 autodev 一轮一项推进（D-A16 唯一入口）。音频驱动的进度、用例与变更记录整体留在 <code>x86</code> 分支本页（git 可回溯）；本分支按管辖映射（SKILL §1.5 / D-A14）不读不改音频族文档。</p>
   <ul class="items">
-    <li class="item" data-id="S01" data-stage="0" data-done="0">
-      <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-S01"></span>
+    <li class="item" data-id="S01" data-stage="0" data-done="1">
+      <span class="check" role="checkbox" aria-checked="true" tabindex="0" aria-labelledby="l-S01"></span>
       <label class="label" id="l-S01">S01 锁与 per-CPU 基建：spinlock 原语 + 全局内核锁 + save_flags_cli 共享区换锁 + 五个睡眠点「放锁再 schedule」手术 + current per-CPU 化（entry.S 手术）
-        <span class="ev">依据：docs/tech-plan-smp-prototype.md §2/§3/§4（U2–U5 取证）；验收 = make test 37 绿 + -smp 1 五腿与基线一致</span>
+        <span class="ev">依据：docs/tech-plan-smp-prototype.md §2/§3/§4（U2–U5 取证）；实测 = make test 37 PASS + qtest 15 PASS + 五腿 5/5（34.2s 与基线一致）+ SELFTEST 4/4；证据 docs/evidence/2026-11-13/（refs-check-s01.log 7/7 PASS）</span>
       </label>
-      <span class="state">待做</span>
+      <span class="state">已完成</span>
     </li>
     <li class="item" data-id="S02" data-stage="0" data-done="0" data-dep="S01">
       <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-S02"></span>
@@ -284,7 +284,7 @@ footer p{max-width:none}
         <tr><td><code>docs/decisions-docs.md</code></td><td>定案 D-D1–D-D8（文档托管）</td><td>2026-11-12</td><td>0</td><td>DSH</td></tr>
         <tr><td><code>docs/decisions-adc.md</code></td><td>定案（ADC 历史，2026-10-28）</td><td>2026-10-28</td><td>0</td><td>DSH</td></tr>
         <tr><td><code>docs/tech-plan-*.md</code></td><td>方案（8 份）</td><td>2026-11-13 (mtime)</td><td>0</td><td>DSH</td></tr>
-        <tr><td><code>docs/evidence/</code></td><td>证据（7 目录 / 135 文件）</td><td>2026-11-13</td><td>0</td><td>DSH</td></tr>
+        <tr><td><code>docs/evidence/</code></td><td>证据（7 目录 / 143 文件）</td><td>2026-11-13</td><td>0</td><td>DSH</td></tr>
         <tr><td><code>README.md</code></td><td>驱动说明入口</td><td>2026-11-12</td><td>0</td><td>DSH</td></tr>
         <tr><td><code>../AGENTS.md</code></td><td>交差硬规则表</td><td>2026-11-13 (mtime)</td><td>0</td><td>DSH</td></tr>
         <tr><td><code>../CODEBUDDY.md</code></td><td>架构与常用命令</td><td>2026-11-12 (mtime)</td><td>0</td><td>DSH</td></tr>
@@ -307,6 +307,7 @@ footer p{max-width:none}
   <p>git push 仍由你决定——本地提交自动，远端推送手动（<code>docs/decisions-docs.md</code> D-D3）。</p>
   <h2 style="font-size:13px;margin-top:20px">变更记录</h2>
   <ul class="list">
+    <li><b>2026-11-13</b> S01 锁与 per-CPU 基建完成（/autodev 首个 SMP 编码轮）：新增 kernel/spinlock.h（xchg 自旋锁 + owner/depth 递归内核锁 g_kernel_lock；kmalloc 配独立叶子锁 g_kmalloc_lock 防嵌套死锁）；task/sem/page/frame/timer/kbd/e1000/hda_stream/floppy/hda_trace/machdep 全部 save_flags_cli 共享区换锁；五个睡眠点改「放锁再 schedule」契约（C6，sleep_on 重写为锁内入队→放锁切出→取回摘链）；current per-CPU 化——g_task_running 数组化（kernel.h 宏保持调用侧零改动）+ entry.S PROLOGUE/EPILOGUE/sys_vm86 三处 LAPIC ID 直读手术（C5）+ switch_to/run_as_task0 asm 操作数改写；init_paging 恒等映射 LAPIC 页（PD 槽 0x3FB/PT 槽 0x200——首跑误写 0x3FA 致串口 0 字节回归，加 run_as_task0 双重解引用复位循环，两轮自修内闭合，红证据 make-full-s01-red-boot-hang.log + 两次冒烟串口）。验收（DSH 式入口 setvars.bat 链）：make test 37 PASS + qtest 15 PASS + 五腿 5/5（34.2s 与基线一致）+ SELFTEST 4/4。方案 docs/tech-plan-smp-prototype.md（实施期增补 U9/C2 细化）；证据 docs/evidence/2026-11-13/。</li>
     <li><b>2026-11-13</b> SMP 队列立项 S01–S04（前置设计轮，非编码轮——编码等 /autodev 触发，D-A16）：SMP 最简原型方案定稿 docs/tech-plan-smp-prototype.md（裁剪决策 C1 用户任务钉死 CPU0 / C2 全局大锁 / C3 不做 TLB shootdown / C4 LAPIC timer / C5 LAPIC ID 直读 mycpu / C6 睡眠放锁），调研取证落 docs/evidence/2026-11-13/（QEMU 3.1.50 -smp 2 实跑 MPS 解析：_MP_@0xF58A0、APIC ID 0/1、LINTIN0=ExtInt 证实 PIC 不达 AP；QEMU 源 apic.c/pc.c 逐字摘录 qemu-src/）。同日流程层：D-A17 prove-it 内嵌为 autodev 交差层。</li>
     <li><b>2026-11-12</b> SMP 分支队列立基（非音频轮次，决策 docs/decisions-autodev.md D-A14/D-A15）：x86_SMP 本地重置到 x86 HEAD（827ec57，继承 DSH 全部成果——旧 x86_SMP 实为无独有提交的祖先快照，远端 origin/x86_SMP 保持旧位置 5a10f99 未动，force push 届时另行确认）；本页改造为 SMP 专属队列（Sxx 自 S01 起），音频驱动的进度、用例与变更记录整体留在 x86 分支本页历史（git 可回溯），本分支此后不读不改音频族文档（SKILL §1.5 管辖映射）。流程层配套：SKILL 双副本新增 §1.5 分支管辖映射、AGENTS.md 加分支管辖行（原件备份 docs/evidence/2026-11-12/backup/）、check_docs.py C6 空队列兼容（无用例表即无计数句）。队列当前为空，等待用户发出 SMP 开发需求。</li>
   </ul>

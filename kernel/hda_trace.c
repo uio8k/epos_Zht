@@ -1,5 +1,6 @@
 #include <string.h>
 #include "kernel.h"
+#include "spinlock.h"
 #include "cpu.h"
 #include "hda.h"
 #include "hda_internal.h"
@@ -13,7 +14,7 @@
      sizeof 推导（= 2730 条），追加只做字段赋值，零格式化开销——
      播放热路径不碰串口（g_hda_quiet 的教训：逐音 printk 刷串口曾
      拖慢播放导致丢音）。
-   - 任务上下文与 ISR 双写者：追加用 save_flags_cli 关中断保护。
+   - 任务上下文与 ISR 双写者：追加用内核锁 g_kernel_lock 保护（S01）。
    - 播放结束后由 sys_audio_stop / sys_audio_get_underruns 触发 dump，
      经 COM1 输出；tools/serial_parser.py 识别 [TRACE] 段落落盘
      audio_trace.log 并重建调用链视图。
@@ -83,7 +84,7 @@ void hda_trace_log(uint8_t ev, uint8_t note_id, uint32_t start, uint32_t end)
         return;
 
     uint32_t flags;
-    save_flags_cli(flags);
+    lock_irqsave(&g_kernel_lock, flags);
 
     struct hda_trace_rec *r = &g_trace_buf[g_trace_head];
     r->tick    = g_timer_ticks;
@@ -100,7 +101,7 @@ void hda_trace_log(uint8_t ev, uint8_t note_id, uint32_t start, uint32_t end)
         g_trace_dropped++;
     g_trace_total++;
 
-    restore_flags(flags);
+    lock_irqrestore(&g_kernel_lock, flags);
 }
 
 /* 批量导出到 COM1（非热路径，只在播放结束后调用）。
@@ -117,12 +118,12 @@ void hda_trace_dump(void)
     }
 
     uint32_t flags;
-    save_flags_cli(flags);
+    lock_irqsave(&g_kernel_lock, flags);
     uint32_t total   = g_trace_total;
     uint32_t dropped = g_trace_dropped;
     uint32_t head    = g_trace_head;
     uint32_t cap     = g_trace_cap;
-    restore_flags(flags);
+    lock_irqrestore(&g_kernel_lock, flags);
 
     uint32_t count = (total < cap) ? total : cap;
     uint32_t first = (total < cap) ? 0 : head;  /* 绕回后最旧条目在 head */
@@ -134,9 +135,9 @@ void hda_trace_dump(void)
            （sys_audio_get_underruns(dump=1)），与 ISR 的追加并发；
            直接读共享槽位可能读到被覆盖一半的条目（撕裂）。 */
         struct hda_trace_rec rec;
-        save_flags_cli(flags);
+        lock_irqsave(&g_kernel_lock, flags);
         rec = g_trace_buf[(first + i) % cap];
-        restore_flags(flags);
+        lock_irqrestore(&g_kernel_lock, flags);
 
         printk("[TRACE] t=%u ev=%s id=%u s=%u e=%u rd=%u wr=%u\r\n",
                rec.tick, hda_trace_ev_name(rec.ev), rec.note_id,

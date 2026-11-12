@@ -16,6 +16,7 @@
 
 #include <stddef.h>
 #include "kernel.h"
+#include "spinlock.h"
 #include "cpu.h"
 
 #define TRUE        1
@@ -248,8 +249,13 @@ void isr_keyboard(uint32_t irq, struct context *ctx)
         /*放到键盘缓冲区*/
         buf_kbd = key;
 
-        /*唤醒一个等待键盘输入的线程*/
-        wake_up(&wq_kbd, 1);
+        /*唤醒一个等待键盘输入的线程（ISR 内，进内核锁防跨核竞态，S01）*/
+        {
+            uint32_t wflags;
+            lock_irqsave(&g_kernel_lock, wflags);
+            wake_up(&wq_kbd, 1);
+            lock_irqrestore(&g_kernel_lock, wflags);
+        }
     }
 }
 
@@ -262,8 +268,10 @@ int sys_getchar()
 {
     uint32_t flags;
 
-    /*等待键盘输入，亦即在队列wq_kbd上等待*/
-    save_flags_cli(flags);
+    /*等待键盘输入，亦即在队列wq_kbd上等待
+      （S01 C6：持锁进入；sleep_on 切出前放锁，返回时锁已放，
+      restore_flags 恢复睡眠前的中断态）*/
+    lock_irqsave(&g_kernel_lock, flags);
     sleep_on(&wq_kbd);
     restore_flags(flags);
 

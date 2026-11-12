@@ -11,6 +11,7 @@
  */
 #include <stddef.h>
 #include "kernel.h"
+#include "spinlock.h"
 
 #define SEM_POOL_SIZE   16
 #define SEM_SIGNATURE   0x53454d31  /* 'S','E','M','1' */
@@ -51,7 +52,7 @@ void *sem_create(int value)
     if (value < 0)
         return NULL;
 
-    save_flags_cli(flags);
+    lock_irqsave(&g_kernel_lock, flags);
     for (i = 0; i < SEM_POOL_SIZE; i++) {
         if (g_sem_pool[i].signature == SEM_SIGNATURE)
             continue;
@@ -59,10 +60,10 @@ void *sem_create(int value)
         g_sem_pool[i].waiters = 0;
         g_sem_pool[i].wq = NULL;
         g_sem_pool[i].signature = SEM_SIGNATURE;
-        restore_flags(flags);
+        lock_irqrestore(&g_kernel_lock, flags);
         return (void *)&g_sem_pool[i];
     }
-    restore_flags(flags);
+    lock_irqrestore(&g_kernel_lock, flags);
 
     return NULL;
 }
@@ -79,18 +80,20 @@ int sem_wait(void *handle)
     if (sem == NULL)
         return -1;
 
-    save_flags_cli(flags);
+    lock_irqsave(&g_kernel_lock, flags);
     while (sem->value <= 0) {
         sem->waiters++;
-        sleep_on(&sem->wq);
+        sleep_on(&sem->wq);              /* 放锁睡眠，返回时锁已放、中断仍关 */
+        restore_flags(flags);            /* 恢复睡眠前的中断态 */
+        lock_irqsave(&g_kernel_lock, flags); /* 重新持锁重查条件（C6 契约） */
         sem->waiters--;
         if (sem->signature != SEM_SIGNATURE) {
-            restore_flags(flags);
+            lock_irqrestore(&g_kernel_lock, flags);
             return -1;
         }
     }
     sem->value--;
-    restore_flags(flags);
+    lock_irqrestore(&g_kernel_lock, flags);
 
     return 0;
 }
@@ -108,10 +111,10 @@ int sem_signal(void *handle)
     if (sem == NULL)
         return -1;
 
-    save_flags_cli(flags);
+    lock_irqsave(&g_kernel_lock, flags);
     sem->value++;
     wake_up(&sem->wq, -1);
-    restore_flags(flags);
+    lock_irqrestore(&g_kernel_lock, flags);
 
     return 0;
 }
@@ -130,7 +133,7 @@ int sem_destroy(void *handle)
     if (sem == NULL)
         return -1;
 
-    save_flags_cli(flags);
+    lock_irqsave(&g_kernel_lock, flags);
     if (sem->waiters != 0) {
         rc = -1;
     } else {
@@ -138,7 +141,7 @@ int sem_destroy(void *handle)
         sem->wq = NULL;
         sem->signature = 0;
     }
-    restore_flags(flags);
+    lock_irqrestore(&g_kernel_lock, flags);
 
     return rc;
 }

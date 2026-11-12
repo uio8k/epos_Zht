@@ -100,6 +100,21 @@ cpu_idle()
     __asm__ __volatile__("hlt");
 }
 
+/* spin_lock 自旋回环里的让位指令；386 无 pause，用短空转等价（QEMU 下
+   pause 与 nop 同价）。 */
+static __inline void cpu_pause()
+{
+    __asm__ __volatile__("nop");
+}
+
+/* 本核 LAPIC ID：MMIO 0xFEE00020 的 bits 31..24（QEMU 源 apic-v3.1.0.c:672 的
+   id 分派；基址来自 MPS config header apic_ptr，[实测: mps-parse-smp2.txt]）。
+   -smp 1 下恒为 0；QEMU -smp 2 下为 0/1（pc-v3.1.0.c:691-702，ID=index）。 */
+static __inline uint32_t lapic_id(void)
+{
+    return (*(volatile uint32_t *)0xFEE00020) >> 24;
+}
+
 #define save_flags_cli(flags)   \
     do {                        \
         __asm__ __volatile__(   \

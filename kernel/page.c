@@ -20,6 +20,7 @@
 #include <stddef.h>
 #include <string.h>
 #include "kernel.h"
+#include "spinlock.h"
 
 struct pvmap {
     uint32_t paddr;
@@ -84,13 +85,13 @@ uint32_t page_alloc_in_addr(uint32_t va, int npages, uint32_t prot)
        va + size > KERN_MAX_ADDR)
         return SIZE_MAX;
 
-    save_flags_cli(flags);
+    lock_irqsave(&g_kernel_lock, flags);
 
     struct vmzone *p = kvmzone, *q = NULL;
     if(va < USER_MAX_ADDR) {
         /*不能跨越用户空间和内核空间的边界*/
         if(va + size > USER_MAX_ADDR) {
-            restore_flags(flags);
+            lock_irqrestore(&g_kernel_lock, flags);
             return SIZE_MAX;
         }
         p = uvmzone;
@@ -99,12 +100,12 @@ uint32_t page_alloc_in_addr(uint32_t va, int npages, uint32_t prot)
     for(; p != NULL; q = p, p = p->next) {
         if(va >= p->base &&
            va <  p->base + p->limit) {
-            restore_flags(flags);
+            lock_irqrestore(&g_kernel_lock, flags);
             return SIZE_MAX;
         }
         if(va < p->base) {
             if(va + size > p->base) {
-                restore_flags(flags);
+                lock_irqrestore(&g_kernel_lock, flags);
                 return SIZE_MAX;
             }
             break;
@@ -124,7 +125,7 @@ uint32_t page_alloc_in_addr(uint32_t va, int npages, uint32_t prot)
         q->next = x;
     }
 
-    restore_flags(flags);
+    lock_irqrestore(&g_kernel_lock, flags);
     return va;
 }
 
@@ -139,7 +140,7 @@ uint32_t page_alloc(int npages, uint32_t prot, uint32_t user)
     if(npages <= 0)
         return SIZE_MAX;
 
-    save_flags_cli(flags);
+    lock_irqsave(&g_kernel_lock, flags);
 
     struct vmzone *p = kvmzone, *q = NULL;
     if(user) {
@@ -163,13 +164,13 @@ uint32_t page_alloc(int npages, uint32_t prot, uint32_t user)
     if(user) {
         if(va >= USER_MAX_ADDR ||
            va + size > USER_MAX_ADDR) {
-            restore_flags(flags);
+            lock_irqrestore(&g_kernel_lock, flags);
             return SIZE_MAX;
         }
     } else {
         if(va >= KERN_MAX_ADDR ||
            va + size > KERN_MAX_ADDR) {
-            restore_flags(flags);
+            lock_irqrestore(&g_kernel_lock, flags);
             return SIZE_MAX;
         }
     }
@@ -187,7 +188,7 @@ uint32_t page_alloc(int npages, uint32_t prot, uint32_t user)
         q->next = x;
     }
 
-    restore_flags(flags);
+    lock_irqrestore(&g_kernel_lock, flags);
 
     return va;
 }
@@ -207,7 +208,7 @@ int page_free(uint32_t va, int npages)
     if(va == USER_MAX_ADDR)
         return -1;
 
-    save_flags_cli(flags);
+    lock_irqsave(&g_kernel_lock, flags);
 
     struct vmzone *p = kvmzone, *q = NULL;
     if(va < USER_MAX_ADDR) {
@@ -220,13 +221,13 @@ int page_free(uint32_t va, int npages)
             } else {
                 q->next = p->next;
             }
-            restore_flags(flags);
+            lock_irqrestore(&g_kernel_lock, flags);
             kfree(p);
             return 0;
         }
     }
 
-    restore_flags(flags);
+    lock_irqrestore(&g_kernel_lock, flags);
     return -1;
 }
 
@@ -237,7 +238,7 @@ int page_free(uint32_t va, int npages)
 uint32_t page_prot(uint32_t va)
 {
     uint32_t flags;
-    save_flags_cli(flags);
+    lock_irqsave(&g_kernel_lock, flags);
 
     struct vmzone *p = kvmzone;
     if(va < USER_MAX_ADDR) {
@@ -246,12 +247,12 @@ uint32_t page_prot(uint32_t va)
     for(; p != NULL; p = p->next) {
         if(va >= p->base &&
            va <  p->base+p->limit) {
-            restore_flags(flags);
+            lock_irqrestore(&g_kernel_lock, flags);
             return p->protect;
         }
     }
 
-    restore_flags(flags);
+    lock_irqrestore(&g_kernel_lock, flags);
     return -1;
 }
 

@@ -20,6 +20,7 @@
 #include <stddef.h>
 #include <time.h>
 #include "kernel.h"
+#include "spinlock.h"
 
 /*记录系统启动以来，定时器中断的次数*/
 unsigned volatile g_timer_ticks = 0;
@@ -29,6 +30,11 @@ unsigned volatile g_timer_ticks = 0;
  */
 void isr_timer(uint32_t irq, struct context *ctx)
 {
+    uint32_t flags;
+
+    /* g_timer_ticks 自增与时间片扣减都动跨核共享量，进内核锁；ISR 内自旋
+       锁合法——只在其它核正持锁时短暂自旋（-smp 1 下等价原来的裸写）。 */
+    lock_irqsave(&g_kernel_lock, flags);
     g_timer_ticks++;
     //sys_putchar('.');
 
@@ -47,6 +53,7 @@ void isr_timer(uint32_t irq, struct context *ctx)
             }
         }
     }
+    lock_irqrestore(&g_kernel_lock, flags);
 }
 
 /**
