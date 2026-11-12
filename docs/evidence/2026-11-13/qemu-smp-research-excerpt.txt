@@ -1,0 +1,57 @@
+================================================================
+SMP 最简原型调研摘录汇总（2026-11-13，供 docs/tech-plan-smp-prototype.md 引用）
+原始物：
+  qemu-src/apic-v3.1.0.c   = https://gitee.com/mirrors/qemu/raw/v3.1.0/hw/intc/apic.c（逐字全文，940 行）
+  qemu-src/pc-v3.1.0.c     = https://gitee.com/mirrors/qemu/raw/v3.1.0/hw/i386/pc.c（逐字全文，2468 行）
+  mps-parse-smp2.txt       = QEMU -smp 2 实跑 pmemsave(0xE0000..0xFFFFF) 的 MPS 解析
+  （QEMU 二进制：外层 Qemu/qemu-system-i386w.exe，VERSION=3.1.50；bios-256k.bin strings 含 "_MP_" x2）
+================================================================
+
+--- U1：QEMU 3.1.50 -smp 2 生成 MPS 表 [实测: mps-parse-smp2.txt] ---
+浮动指针 "_MP_" 位于物理 0xF58A0（dump 内偏移 88224），指向 config table 0xF58B0：
+  sig=PCMP, entry_count=20, spec_rev=4(0x35 是 checksum；spec rev 字节=04), LAPIC 地址=0xFEE00000
+  20 条目 = 2 processor(各20B) + 2 bus(PCI/ISA) + 1 IO APIC(8B, id=0 ver=0x11 addr=0xFEC00000)
+           + 13 IO INT + 2 local INT（非 processor 条目一律 8 字节 [实测: 十六进制逐字节]）
+  processor#1: apic_id=0 cpuflag=0x03（bit0 enabled=1, bit1 BSP=1）
+  processor#2: apic_id=1 cpuflag=0x01（bit0 enabled=1, bit1 BSP=0）
+  local INT#1: LINTIN0 -> interrupt type 3 = ExtInt（PIC 仅路由到 BSP 的 LINTIN0——
+               证实设计中 C4 假设：8259 中断只到 0 号核，AP 必须用 LAPIC timer）
+注意：config header 的 base_table_length=228 与实际条目区 184 字节不符（SeaBIOS 多计尾巴）；
+内核解析必须以 entry_count 为循环边界、按类型定步长（processor=20，其余=8），不可信任 base_len。
+CPU flag 布局为 FreeBSD mpbios 布局：type(0) apicid(1) apicver(2) cpuflag(3) sig(4..7) feat(8..11)。
+
+--- U4：APIC ID 分派 [src: qemu-src/pc-v3.1.0.c:691-702] ---
+  uint32_t x86_cpu_apic_id_from_index(unsigned int cpu_index) {
+      correct_id = x86_apicid_from_cpu_idx(smp_cores, smp_threads, cpu_index);
+      if (compat_apic_id_mode) { ... return cpu_index; }
+      else return correct_id; }
+compat 模式默认关闭（static bool 默认 false，仅机器显式调用 enable_compat_apic_id_mode 才开）。
+-smp 2 默认拓扑（2 socket x 1 core）下 CPU0=APIC ID 0、CPU1=APIC ID 1 —— 与 [实测: mps-parse-smp2.txt]
+的 MPS processor 条目互证。内核 mycpu() 用 LAPIC ID 直读（>>24）即可当数组下标。
+
+--- U2：LAPIC timer 语义 [src: qemu-src/apic-v3.1.0.c:622-651, 840-842, 849-851] ---
+  622: d = (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - s->initial_count_load_time) >>
+  623:     s->count_shift;                  /* tick = 虚拟时钟纳秒 >> 分频移位 */
+  840: s->initial_count = val;             /* 写 TICR 即装填 */
+  849: s->divide_conf = val & 0xb;         /* TDCR 分频 */
+  851: s->count_shift = (v + 1) & 7;
+寄存器字节偏移（write handler case 值 x4；与 Intel SDM 一致）：
+  ID=0x020, EOI=0x0B0, SVR=0x0F0（写值 &0x1ff，bit8=APIC enable，apic.c:811）,
+  ESR=0x280, ICR低=0x300, ICR高=0x310, TICR=0x380, TDCR=0x3E0
+IPI：写 ICR低 触发 apic_deliver（apic.c:820-823：
+  apic_deliver(dev, (s->icr[1] >> 24) & 0xff, (s->icr[0] >> 11) & 1,
+               (s->icr[0] >> 8) & 7, (s->icr[0] & 0xff), (s->icr[0] >> 15) & 1);
+  dest shorthand = (icr[0] >> 18) & 3 —— bit18-19=01 表示全部含自（含自身广播））
+结论：TICR 装填值以「纳秒/2^shift」计，S03 实测定标（先写 TDCR 再写 TICR）。
+
+--- U3：低内存 trampoline 页归属 [实测: kernel/frame.c:29-58 + kernel/machdep.c:1140-1159] ---
+init_ram 把 multiboot mmap 的 AVAILABLE 区原样填入 g_ram_zone（PAGE_TRUNCATE 保留低地址），
+QEMU pc 低 RAM 区 0x0-0x9FC00 属 AVAILABLE -> pmzone[0].base 从 0x0 起（被 physfree 调整后仍覆盖低页）。
+frame_alloc 可能返回低 1MB 页面 -> trampoline 必须用 frame_alloc_in_addr(TRAMPOLINE_PA, 1) 在
+init_frame 之后立刻显式预留（先到先得），不能用「帧分配器不管低内存」的错误假设。
+trampoline 页选 0x8000（避开 BIOS 数据区 0x400-0x4FF、EBDA 尾部、盘引导区；QEMU 下无实盘冲突）。
+
+--- 相关交叉引用 ---
+kernel 现状单核假设五要害（F1-F7）与裁剪决策 C1-C4：见本会话设计稿（已获用户审核通过），
+将落入 docs/tech-plan-smp-prototype.md §1/§2。
+SMP 分支（x86_SMP）管辖规则：SKILL §1.5（D-A14）；/autodev 唯一入口（D-A16）；交差格式（D-A17）。

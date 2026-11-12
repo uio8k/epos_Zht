@@ -1,0 +1,21 @@
+﻿ refs-check for docs/tech-plan-smp-prototype.md citations - 2026-11-13
+PASS kernel/cpu.h:103 pattern=[#define save_flags_cli] got=[103]
+PASS kernel/cpu.h:112 pattern=[#define restore_flags] got=[112]
+PASS kernel/task.c:26 pattern=[struct tcb \*g_task_running;] got=[26]
+PASS kernel/entry.S:195 pattern=[movl _g_task_running, %eax;] got=[195,221]
+PASS kernel/machdep.c:121 pattern=[void switch_to\(struct tcb \*new\)] got=[121]
+PASS kernel/machdep.c:282 pattern=[tss.esp0 = ] got=[282]
+PASS kernel/entry.S:473 pattern=[space 0x2000] got=[473]
+PASS kernel/startup.c:30 pattern=[uint32_t \*PT  = ] got=[30]
+PASS kernel/frame.c:29 pattern=[uint32_t init_frame] got=[29]
+PASS kernel/machdep.c:1150 pattern=[g_ram_zone\[n  \] = PAGE_TRUNCATE] got=[1150]
+PASS kernel/machdep.c:553 pattern=[fnsave %0] got=[553,566]
+PASS kernel/sem.c:85 pattern=[sleep_on\(&sem->wq\)] got=[85]
+PASS kernel/task.c:256 pattern=[sleep_on\(&tsk->wq_exit\)] got=[256]
+PASS kernel/kbd.c:267 pattern=[sleep_on\(&wq_kbd\)] got=[267]
+PASS kernel/hda_stream.c:301 pattern=[sleep_on\(&wq_hda\)] got=[301]
+PASS kernel/e1000.c:316 pattern=[sleep_on\(&wq_nic\)] got=[316]
+PASS Makefile:67 pattern=[qemu-system-i386] got=[67,84]
+PASS kernel/timer.c:38 pattern=[g_resched = 1] got=[38,45]
+--- fails=0
+--- exit code: 0

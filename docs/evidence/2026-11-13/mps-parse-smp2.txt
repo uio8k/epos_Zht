@@ -1,0 +1,15 @@
+=== MPS parse of QEMU 3.1.50 -smp 2 pmemsave dump (0xE0000..0xFFFFF), 2026-11-13
+floating pointer _MP_ at phys 0xF58A0 -> default-config config table phys 0xF58B0
+config: sig=PCMP base_table_len=228 entry_count=20 spec_rev=53
+  processor: apic_id=0 cpuflag=0x03 (bit0 enabled=1, bit1 BSP=1) cpu_sig=0x00000663 feature=0x0781abfd
+  processor: apic_id=1 cpuflag=0x01 (bit0 enabled=1, bit1 BSP=0) cpu_sig=0x00000663 feature=0x0781abfd
+  bus: id=0 type=PCI
+  bus: id=1 type=ISA
+  IO APIC: id=17 ver=0x01 addr=0xfec00000
+  processor: apic_id=4 cpuflag=0x09 (bit0 enabled=1, bit1 BSP=0) cpu_sig=0x00010003 feature=0x0b000c00
+  local INT: srcbus_irq=0 dest LINTIN0 interrupt type=3
+  local INT: srcbus_irq=0 dest LINTIN0 interrupt type=1
+  processor: apic_id=0 cpuflag=0x00 (bit0 enabled=0, bit1 BSP=0) cpu_sig=0x00000000 feature=0x00000000
+  processor: apic_id=8 cpuflag=0x00 (bit0 enabled=0, bit1 BSP=0) cpu_sig=0x122e8086 feature=0x00000000
+  processor: apic_id=0 cpuflag=0x37 (bit0 enabled=1, bit1 BSP=1) cpu_sig=0x00000000 feature=0x00000000
+walked all 20 declared entries

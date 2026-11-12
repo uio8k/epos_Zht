@@ -211,13 +211,13 @@ footer p{max-width:none}
 <header>
   <div>
     <h1>EPOS SMP（多核）开发进度</h1>
-    <div class="sub">唯一进度文档 · 更新于 2026-11-12 · 状态写在每条目的 <code>data-done</code> 里，随 git 提交；<code>data-dep</code> / <code>data-optional</code> 供 <code>tools/check_progress.py</code> 判定终态，表格行的 <code>data-state</code> 供 <code>tools/check_docs.py</code> 核对文档一致性（<code>make docs-check</code>）。本文件是唯一人工界面，其余文档由 DSH 维护：<code>docs/decisions-docs.md</code> D-D1</div>
+    <div class="sub">唯一进度文档 · 更新于 2026-11-13 · 状态写在每条目的 <code>data-done</code> 里，随 git 提交；<code>data-dep</code> / <code>data-optional</code> 供 <code>tools/check_progress.py</code> 判定终态，表格行的 <code>data-state</code> 供 <code>tools/check_docs.py</code> 核对文档一致性（<code>make docs-check</code>）。本文件是唯一人工界面，其余文档由 DSH 维护：<code>docs/decisions-docs.md</code> D-D1</div>
   </div>
   <button class="btn" id="export" disabled>导出并覆盖 progress.html</button>
 </header>
 
 <div class="meter">
-  <div class="num"><b id="doneN">0</b>/0 完成</div>
+  <div class="num"><b id="doneN">0</b>/4 完成</div>
   <div class="track"><i id="doneBar"></i></div>
 </div>
 
@@ -229,7 +229,7 @@ footer p{max-width:none}
 <div class="stages">
   <div class="stage" data-stage="0">
     <h3>唯一阶段 · 多核（SMP）开发（x86_SMP 分支）</h3>
-    <div class="row"><span class="n"><b data-stage-n>0</b>/<span data-stage-t>0</span></span><span class="small">x86 成果之上 · Sxx 队列</span></div>
+    <div class="row"><span class="n"><b data-stage-n>0</b>/<span data-stage-t>4</span></span><span class="small">x86 成果之上 · Sxx 队列</span></div>
     <div class="bar"><i data-stage-bar></i></div>
     <p class="note">在 x86 分支全部成果之上起步（本地重置，D-A15）；音频族文档归 x86 分支管辖（D-A14），本分支不读不改</p>
   </div>
@@ -237,7 +237,37 @@ footer p{max-width:none}
 
 <section>
   <div class="sec-head"><h2>① SMP 开发队列</h2><span class="hint">Sxx 编号，自 S01 起（docs/decisions-autodev.md D-A15）</span></div>
-  <p class="small" style="margin:8px 0">队列为空——等待用户发出 SMP（多核）开发需求后由 autodev 选题立项（S01 起）；不自行新造队列项（D-A11 终态判定）。音频驱动的进度、用例与变更记录整体留在 <code>x86</code> 分支本页（git 可回溯）；本分支按管辖映射（SKILL §1.5 / D-A14）不读不改音频族文档。</p>
+  <p class="small" style="margin:8px 0">队列已立项（S01–S04，方案见 <code>docs/tech-plan-smp-prototype.md</code>，调研证据 <code>docs/evidence/2026-11-13/</code>）；由 autodev 一轮一项推进（D-A16 唯一入口）。音频驱动的进度、用例与变更记录整体留在 <code>x86</code> 分支本页（git 可回溯）；本分支按管辖映射（SKILL §1.5 / D-A14）不读不改音频族文档。</p>
+  <ul class="items">
+    <li class="item" data-id="S01" data-stage="0" data-done="0">
+      <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-S01"></span>
+      <label class="label" id="l-S01">S01 锁与 per-CPU 基建：spinlock 原语 + 全局内核锁 + save_flags_cli 共享区换锁 + 五个睡眠点「放锁再 schedule」手术 + current per-CPU 化（entry.S 手术）
+        <span class="ev">依据：docs/tech-plan-smp-prototype.md §2/§3/§4（U2–U5 取证）；验收 = make test 37 绿 + -smp 1 五腿与基线一致</span>
+      </label>
+      <span class="state">待做</span>
+    </li>
+    <li class="item" data-id="S02" data-stage="0" data-done="0" data-dep="S01">
+      <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-S02"></span>
+      <label class="label" id="l-S02">S02 AP 启动：MPS 解析（entry_count 边界）+ 每核结构 + trampoline（0x8000 页显式预留）+ INIT-SIPI-SIPI + ap_main idle
+        <span class="ev">依据：tech-plan §4 S02；[实测: mps-parse-smp2.txt] _MP_@0xF58A0、APIC ID 0/1；验收 = -smp 2 两核串口 idle、BSP 不回归</span>
+      </label>
+      <span class="state">待做</span>
+    </li>
+    <li class="item" data-id="S03" data-stage="0" data-done="0" data-dep="S02">
+      <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-S03"></span>
+      <label class="label" id="l-S03">S03 每核节拍与调度：LAPIC timer（PIC 仅达 CPU0——MPS LINTIN0=ExtInt 实证）+ schedule per-CPU 收尾 + HWINT 直调 schedule
+        <span class="ev">依据：tech-plan §3 C4/C6；[src: apic-v3.1.0.c:622-651]；验收 = 每核 ticks 独立递增、AP 线程被时间片抢占</span>
+      </label>
+      <span class="state">待做</span>
+    </li>
+    <li class="item" data-id="S04" data-stage="0" data-done="0" data-dep="S03">
+      <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-S04"></span>
+      <label class="label" id="l-S04">S04 端到端验证：-smp 2 进 Makefile + selftest 三个 SMP 用例（双核并行计数/锁互斥/跨核信号量唤醒）+ 五腿音频回归不劣化 + U5 FPU 断言
+        <span class="ev">依据：tech-plan §4 S04/§6 U5；验收 = SMP 自检 PASS + 五腿 verdict 与基线一致</span>
+      </label>
+      <span class="state">待做</span>
+    </li>
+  </ul>
 </section>
 
 <section>
@@ -253,8 +283,8 @@ footer p{max-width:none}
         <tr><td><code>docs/decisions-autodev.md</code></td><td>定案 D-A1–D-A17（autodev 流程与分支管辖）</td><td>2026-11-13</td><td>0</td><td>DSH</td></tr>
         <tr><td><code>docs/decisions-docs.md</code></td><td>定案 D-D1–D-D8（文档托管）</td><td>2026-11-12</td><td>0</td><td>DSH</td></tr>
         <tr><td><code>docs/decisions-adc.md</code></td><td>定案（ADC 历史，2026-10-28）</td><td>2026-10-28</td><td>0</td><td>DSH</td></tr>
-        <tr><td><code>docs/tech-plan-*.md</code></td><td>方案（7 份）</td><td>2026-11-12 (mtime)</td><td>0</td><td>DSH</td></tr>
-        <tr><td><code>docs/evidence/</code></td><td>证据（7 目录 / 130 文件）</td><td>2026-11-13</td><td>0</td><td>DSH</td></tr>
+        <tr><td><code>docs/tech-plan-*.md</code></td><td>方案（8 份）</td><td>2026-11-13 (mtime)</td><td>0</td><td>DSH</td></tr>
+        <tr><td><code>docs/evidence/</code></td><td>证据（7 目录 / 134 文件）</td><td>2026-11-13</td><td>0</td><td>DSH</td></tr>
         <tr><td><code>README.md</code></td><td>驱动说明入口</td><td>2026-11-12</td><td>0</td><td>DSH</td></tr>
         <tr><td><code>../AGENTS.md</code></td><td>交差硬规则表</td><td>2026-11-13 (mtime)</td><td>0</td><td>DSH</td></tr>
         <tr><td><code>../CODEBUDDY.md</code></td><td>架构与常用命令</td><td>2026-11-12 (mtime)</td><td>0</td><td>DSH</td></tr>
@@ -277,6 +307,7 @@ footer p{max-width:none}
   <p>git push 仍由你决定——本地提交自动，远端推送手动（<code>docs/decisions-docs.md</code> D-D3）。</p>
   <h2 style="font-size:13px;margin-top:20px">变更记录</h2>
   <ul class="list">
+    <li><b>2026-11-13</b> SMP 队列立项 S01–S04（前置设计轮，非编码轮——编码等 /autodev 触发，D-A16）：SMP 最简原型方案定稿 docs/tech-plan-smp-prototype.md（裁剪决策 C1 用户任务钉死 CPU0 / C2 全局大锁 / C3 不做 TLB shootdown / C4 LAPIC timer / C5 LAPIC ID 直读 mycpu / C6 睡眠放锁），调研取证落 docs/evidence/2026-11-13/（QEMU 3.1.50 -smp 2 实跑 MPS 解析：_MP_@0xF58A0、APIC ID 0/1、LINTIN0=ExtInt 证实 PIC 不达 AP；QEMU 源 apic.c/pc.c 逐字摘录 qemu-src/）。同日流程层：D-A17 prove-it 内嵌为 autodev 交差层。</li>
     <li><b>2026-11-12</b> SMP 分支队列立基（非音频轮次，决策 docs/decisions-autodev.md D-A14/D-A15）：x86_SMP 本地重置到 x86 HEAD（827ec57，继承 DSH 全部成果——旧 x86_SMP 实为无独有提交的祖先快照，远端 origin/x86_SMP 保持旧位置 5a10f99 未动，force push 届时另行确认）；本页改造为 SMP 专属队列（Sxx 自 S01 起），音频驱动的进度、用例与变更记录整体留在 x86 分支本页历史（git 可回溯），本分支此后不读不改音频族文档（SKILL §1.5 管辖映射）。流程层配套：SKILL 双副本新增 §1.5 分支管辖映射、AGENTS.md 加分支管辖行（原件备份 docs/evidence/2026-11-12/backup/）、check_docs.py C6 空队列兼容（无用例表即无计数句）。队列当前为空，等待用户发出 SMP 开发需求。</li>
   </ul>
 </footer>
