@@ -1,0 +1,8 @@
+﻿# autodev SKILL dual-copy check (D-A12): .dsh is canonical, .zcode is mirror
+# normalization: ask_user_question <-> AskUserQuestion (the only permitted difference)
+# cmd: PowerShell -replace then -ceq byte compare of the two files
+# date: 2026-11-12 22:33:19
+dsh   : 13329 bytes  sha256=6266345BE10FFC23BF0CC04C3D5F7DA876C20620414A500ECF5CA03CCC796C1B
+zcode : 13327 bytes  sha256=68F11955220BFBDDB08B35986B15D69D84EEE1098A5FAE73C9BC9D93018E6E84
+RESULT: PASS - identical after normalization
+SUMMARY: IDENTICAL

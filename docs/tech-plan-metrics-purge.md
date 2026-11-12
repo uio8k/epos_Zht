@@ -47,6 +47,8 @@ f0/RMS/peak/dc_offset/peak_bin（行为指标，静音判定与频率检查仍�
    userapp/ tests/ 无命中（宿主 hda_tests/tools 不在范围）。
 2. `make test` 全绿（第 2 段 5→2 条，总数 40→37）。
 3. `hda_tests --suite fast` 不退化（14/16，唯二存量）。
+   〔2026-11-12 追注：此后 `2fce427` 修好 `ST-ENUM-TABLE`，现行基线 15/16，
+   唯一 FAIL = `ST-SYSCALL-NR`；原句为本轮落地时的口径，保留不改。〕
 4. 整机串口：CAPTEST 模式下 AUDIO_VERDICT 行以 `v=2` 出现且无 thd_n=/snr= 字段
    （本轮以 TEST_MODE 构建验证，落证据）。
 5. gen_vectors.py 可再生成 vectors.c（口径一致）。

@@ -1,0 +1,49 @@
+﻿# refs-check: file:line references asserted by this round's documents
+# method: Select-String (AGENTS.md rule: never use ripgrep line numbers here)
+# date: 2026-11-12
+
+## group 1 - symbols that must exist in the files this round touched
+
+PASS  progress.html -> DOCS-HEALTH:BEGIN  (first line 401)
+PASS  progress.html -> tools/check_docs.py  (first line 214)
+PASS  progress.html -> data-state  (first line 214)
+PASS  progress.html -> 已实现 7/7 条  (first line 395)
+PASS  progress.html -> verdict-big.png  (first line 271)
+PASS  progress.html -> refs-check-p10.log 31/31  (first line 349)
+PASS  Makefile -> docs-check  (first line 54)
+PASS  Makefile -> full: docs-check test qtest full-l3  (first line 63)
+PASS  tools/check_docs.py -> def check_health  (first line 657)
+PASS  tools/check_docs.py -> def check_tables  (first line 452)
+PASS  tools/check_docs.py -> def _git_exe  (first line 159)
+PASS  docs/decisions-docs.md -> D-D1  (first line 1)
+PASS  docs/decisions-docs.md -> D-D8  (first line 1)
+PASS  docs/decisions-autodev.md -> D-A13  (first line 21)
+PASS  docs/tech-plan-docs.md -> C10 | fail  (first line 71)
+PASS  README.md -> CODEBUDDY.md  (first line 6)
+PASS  ..\CODEBUDDY.md -> setvars.bat  (first line 3)
+PASS  ..\setvars.bat -> SET PATH=%SystemRoot%  (first line 3)
+
+## group 2 - page line anchors cited in docs/tech-plan-docs.md 9 and the changelog entry
+PASS  progress.html -> 更新于 2026-11-12  (line 214)
+PASS  progress.html -> 已完成 · 5 腿 / 55s  (line 325)
+PASS  progress.html -> 37 测试 / 6 段  (line 323)
+SUMMARY: 21 PASS / 0 FAIL
+
+## group 3 - re-verified after the L3 badge was corrected to the real measurement
+## (append-only: group 2 above was written while the badge still read 55s; it is superseded, not edited)
+PASS  progress.html -> 已完成 · 5 腿 / 41s  (line 325)
+PASS  progress.html -> 37 测试 / 6 段  (line 323)
+PASS  progress.html -> 更新于 2026-11-12  (line 214)
+PASS  progress.html -> 已实现 7/7 条  (line 395)
+PASS  progress.html -> DOCS-HEALTH:BEGIN  (line 401)
+PASS  docs\tech-plan-docs.md -> 15/16  (line 56)
+PASS  docs\tech-plan-docs.md -> ST-ENUM-TABLE  (line 56)
+PASS  docs\tech-plan-full-none.md -> 追注  (line 237)
+PASS  docs\tech-plan-metrics-purge.md -> 追注  (line 50)
+PASS  ..\AGENTS.md -> 唯一人工界面  (line 15)
+PASS  ..\AGENTS.md -> D-D7  (line 18)
+PASS  ..\.dsh\skills\autodev\SKILL.md -> 15/16  (line 89)
+PASS  ..\.zcode\skills\autodev\SKILL.md -> 15/16  (line 89)
+# group 3: 13 PASS / 0 FAIL
+
+SUMMARY: 34 PASS / 0 FAIL  (group 1-2 = 21, group 3 = 13)

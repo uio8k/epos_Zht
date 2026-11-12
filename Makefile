@@ -48,12 +48,19 @@ qtest:
 full-l3:
 	$(UV) run --no-project python tests/full_run.py
 
-# 提交前全套：L1 -> L2 -> L3。
+# 文档一致性：页面与实况不脱节（docs/decisions-docs.md D-D4，tools/check_docs.py）。
+# 放在 full 首位——文档没对齐就不该谈测试全绿：一份写着「未开始」而实际已跑的
+# 进度页，会让后续所有「已完成」都失去可信度。
+.PHONY: docs-check
+docs-check:
+	$(UV) run --no-project python tools/check_docs.py
+
+# 提交前全套：docs -> L1 -> L2 -> L3。
 # 保持串行（不写 -j）是保守取舍：串行实测 29.6-30.6s、make clean 后 35.7s，均已满足
 # D2 的 60s 全套预算，没有为省几秒去引入并行不确定性的收益。若将来要并行，先用
 # docs/evidence/2026-11-11/p10-build-parallel-check.log 的方法实测再下结论。
 .PHONY: full
-full: test qtest full-l3
+full: docs-check test qtest full-l3
 
 .PHONY: qemu
 qemu: hd.img

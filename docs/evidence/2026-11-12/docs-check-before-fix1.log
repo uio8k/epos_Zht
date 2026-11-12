@@ -1,0 +1,19 @@
+﻿# intermediate docs-check run: after page+Makefile+README/CODEBUDDY edits, before skill mirror sync
+# shows the C7 catch (health block stale) and C8 (dual-copy drift) in action
+# date: 2026-11-12
+docs-check: repo=E:\\ComputerScience\\epos_Zht\\epos_Zht workspace=E:\\ComputerScience\\epos_Zht
+FAIL C7  progress.html:health -> block differs from --sync output (22 vs 22 lines)
+WARN C3  refs-check-research.log -> no SUMMARY line; counted 27 PASS lines instead
+--- checks ---
+C1   ok    0 fail / 0 warn
+C2   ok    0 fail / 0 warn
+C3   WARN  0 fail / 1 warn
+C4   ok    0 fail / 0 warn
+C5   ok    0 fail / 0 warn
+C6   ok    0 fail / 0 warn
+C7   FAIL  1 fail / 0 warn
+C8   ok    0 fail / 0 warn
+C9   ok    0 fail / 0 warn
+C10  ok    0 fail / 0 warn
+RESULT FAIL (1 fail / 1 warn) 0.19s
+# exit=1

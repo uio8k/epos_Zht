@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -211,7 +211,7 @@ footer p{max-width:none}
 <header>
   <div>
     <h1>EPOS 音频驱动进度</h1>
-    <div class="sub">唯一进度文档 · 更新于 2026-11-11 · 状态写在每条目的 <code>data-done</code> 里，随 git 提交；<code>data-dep</code> / <code>data-optional</code> 供 <code>tools/check_progress.py</code> 判定终态</div>
+    <div class="sub">唯一进度文档 · 更新于 2026-11-12 · 状态写在每条目的 <code>data-done</code> 里，随 git 提交；<code>data-dep</code> / <code>data-optional</code> 供 <code>tools/check_progress.py</code> 判定终态，表格行的 <code>data-state</code> 供 <code>tools/check_docs.py</code> 核对文档一致性（<code>make docs-check</code>）。本文件是唯一人工界面，其余文档由 DSH 维护：<code>docs/decisions-docs.md</code> D-D1</div>
   </div>
   <button class="btn" id="export" disabled>导出并覆盖 progress.html</button>
 </header>
@@ -268,7 +268,7 @@ footer p{max-width:none}
     <li class="item" data-id="P05" data-stage="0" data-done="1">
       <span class="check" role="checkbox" aria-checked="true" tabindex="0" aria-labelledby="l-P05"></span>
       <label class="label" id="l-P05">判定输出：串口 <code>AUDIO_VERDICT</code> 单行 + VGA 大字，继电器推迟
-        <span class="ev">依据：串口 <code>AUDIO_VERDICT v=1 result=… f0= rms= thd_n= snr= peak= silent=</code>（main.c 的 cap_verdict_line）；字库取自 BIOS <code>int 10h 1130h</code>，大字截图 docs/evidence/2026-10-29/verdict-big.png；<code>[CAP-*]</code> 行一字未改</span>
+        <span class="ev">依据：串口 <code>AUDIO_VERDICT v=1 result=… f0= rms= thd_n= snr= peak= silent=</code>（main.c 的 cap_verdict_line）；字库取自 BIOS <code>int 10h 1130h</code>，大字截图 <code>../docs/evidence/2026-10-29/verdict-big.png</code>（外层工作区，内层无该目录）；<code>[CAP-*]</code> 行一字未改</span>
       </label>
       <span class="state">已完成</span>
     </li>
@@ -320,10 +320,10 @@ footer p{max-width:none}
     <table>
       <thead><tr><th>层</th><th>入口</th><th>覆盖</th><th>预算</th><th>状态</th></tr></thead>
       <tbody>
-        <tr><td>L1</td><td><code>make test</code></td><td>codec 配置层（verb 构造、分级回读、连接列表长短格式、amp 方向位）+ 指标纯函数（f0/RMS/THD/SNR、频谱 bin）+ 播放拓扑发现（profile 命中、DFS 路径、长链与成环）+ 有效段裁剪与分析窗（8 条）+ BDL 合规断言（六类负码与边界，10 条）</td><td>&lt;2s</td><td><span class="badge">部分 · 36 测试 / 5 段</span></td></tr>
-        <tr><td>L2</td><td><code>make qtest</code></td><td>流与缓冲：BDL/CBL/LVI、RUN、LPIB 推进与环绕回、BCIS（U-L2-01/02 已落地；BCIS 后置）</td><td>数秒</td><td><span class="badge">部分 · 2 用例 / 15 断言</span></td></tr>
-        <tr><td>L3</td><td><code>make full</code></td><td>整机 <code>none</code> 后端：syscall 往返、WAV 读取、重复 start 幂等</td><td>&lt;60s</td><td><span class="badge">未开始</span></td></tr>
-        <tr><td>L4</td><td>QEMU 整机自检</td><td>QEMU 冷启动自检（并入 make full）：分配器、信号量、tick、HDA 探测，串口 SELFTEST 段</td><td>&lt;2s</td><td><span class="badge">已完成 · 4 用例 / 4 PASS</span></td></tr>
+        <tr data-layer="L1" data-state="partial"><td>L1</td><td><code>make test</code></td><td>codec 配置层（verb 构造、分级回读、连接列表长短格式、amp 方向位）+ 指标纯函数（f0/RMS/THD/SNR、频谱 bin）+ 播放拓扑发现（profile 命中、DFS 路径、长链与成环）+ 有效段裁剪与分析窗（8 条）+ BDL 合规断言（六类负码与边界，10 条）+ hda_regs（GCAP 解码与流索引换算）</td><td>&lt;2s</td><td><span class="badge">部分 · 37 测试 / 6 段</span></td></tr>
+        <tr data-layer="L2" data-state="partial"><td>L2</td><td><code>make qtest</code></td><td>流与缓冲：BDL/CBL/LVI、RUN、LPIB 推进与环绕回、BCIS（U-L2-01/02 已落地；BCIS 后置）</td><td>数秒</td><td><span class="badge">部分 · 2 用例 / 15 断言</span></td></tr>
+        <tr data-layer="L3" data-state="done"><td>L3</td><td><code>make full</code></td><td>整机 <code>none</code> 后端五腿：PLAY（音量/BDL/起停流/状态 syscall）、WAV（盘上 wav 读取 + 3 路混音）、CAPTURE（1s 采集 + 3s 环绕 + API 契约）、RESTART（连续启停不残留坐标）、L4 自检</td><td>&lt;60s</td><td><span class="badge">已完成 · 5 腿 / 41s</span></td></tr>
+        <tr data-layer="L4" data-state="done"><td>L4</td><td>QEMU 整机自检</td><td>QEMU 冷启动自检（并入 make full）：分配器、信号量、tick、HDA 探测，串口 SELFTEST 段</td><td>&lt;2s</td><td><span class="badge">已完成 · 4 用例 / 4 PASS</span></td></tr>
       </tbody>
     </table>
     </div>
@@ -346,7 +346,7 @@ footer p{max-width:none}
     <li class="item" data-id="P10" data-stage="0" data-done="1">
       <span class="check" role="checkbox" aria-checked="true" tabindex="0" aria-labelledby="l-P10"></span>
       <label class="label" id="l-P10">L3 整机 <code>none</code> 后端：不依赖宿主声卡的全流程回归
-        <span class="ev">依据：gitee-p10-noaudio-excerpt.txt（QEMU noaudio.c 逐字——no_read/no_run_in 按虚拟时钟推进并把缓冲清零，坐实「管线照跑、样本恒静音」）+ qemu-audio-help-p10.log（本机 3 驱动：none 双路/ wav 不支持采集 / dsound 违反 D9，唯一解是 none）。落地：新 tests/full_run.py 三腿（PLAY 走 TEST_MODE 验音量/BDL/流启动/停流/状态 syscall；WAV 走 SORT_DEMO 验盘上 wav 读取与 3 路混音；CAPTURE 走 CAPTURE_TEST 验 1s 采集 + 3s 环绕 + API 契约），全程 QEMU_AUDIO_DRV=none、无 monitor/watcher；make 新增 full / full-l3；顺带修好 make qtest 的 uv 定位（USERPROFILE 优先，见 p10-uv-path-bug.log）。实测 make full 29.6s 退出码 0（p10-make-full.log），L1 37/37、L2 15/15、L3 3/3；fast 仍 14/16 唯二存量（p10-hda-fast.log）。方案 docs/tech-plan-full-none.md，refs-check-p10.log 24/24 PASS</span>
+        <span class="ev">依据：gitee-p10-noaudio-excerpt.txt（QEMU noaudio.c 逐字——no_read/no_run_in 按虚拟时钟推进并把缓冲清零，坐实「管线照跑、样本恒静音」）+ qemu-audio-help-p10.log（本机 3 驱动：none 双路/ wav 不支持采集 / dsound 违反 D9，唯一解是 none）。落地：新 tests/full_run.py 三腿（PLAY 走 TEST_MODE 验音量/BDL/流启动/停流/状态 syscall；WAV 走 SORT_DEMO 验盘上 wav 读取与 3 路混音；CAPTURE 走 CAPTURE_TEST 验 1s 采集 + 3s 环绕 + API 契约），全程 QEMU_AUDIO_DRV=none、无 monitor/watcher；make 新增 full / full-l3；顺带修好 make qtest 的 uv 定位（USERPROFILE 优先，见 p10-uv-path-bug.log）。实测 make full 29.6s 退出码 0（p10-make-full.log），L1 37/37、L2 15/15、L3 3/3；fast 仍 14/16 唯二存量（p10-hda-fast.log）。方案 docs/tech-plan-full-none.md，refs-check-p10.log 31/31 PASS（docs/evidence/2026-11-11）</span>
       </label>
       <span class="state">已完成</span>
     </li>
@@ -381,30 +381,61 @@ footer p{max-width:none}
     <table>
       <thead><tr><th>用例</th><th>层</th><th>状态</th><th>卡在哪</th></tr></thead>
       <tbody>
-        <tr><td>U-L1-01…03</td><td>L1</td><td><span class="badge ok">已实现</span></td><td>codec 配置层，5 条用例在同一文件（含 amp 方向位、长格式连接列表、回读校验等）</td></tr>
-        <tr><td>U-L1-06…10</td><td>L1</td><td><span class="badge ok">已实现</span></td><td>指标纯函数，对 Python 参照全绿；未接入采集流程</td></tr>
-        <tr><td>U-L1-04</td><td>L1</td><td><span class="badge ok">已实现</span></td><td>QEMU profile 命中 + 未知机型走 DFS，8 条用例覆盖（含长链与成环防御）</td></tr>
-        <tr><td>U-L2-01 / 02</td><td>L2</td><td><span class="badge ok">已实现</span></td><td>make qtest 15 PASS / 0 FAIL（docs/evidence/2026-10-31/qtest-run.log）；BCIS 中断用例后置</td></tr>
-        <tr><td>U-L3-01 / 02</td><td>L3</td><td><span class="badge">空着</span></td><td>make full 目标未建，需 QEMU none 后端整机跑通</td></tr>
-        <tr><td>U-L4-01</td><td>L4</td><td><span class="badge">空着</span></td><td>改 QEMU 整机自检，随 P11（排在 P10 之后）；原真机口径已废弃（docs/decisions-qemu-only.md D-Q4）</td></tr>
-        <tr><td>U-L5-01</td><td>L5</td><td><span class="badge ok">已实现（历史）</span></td><td>宿主声卡回环（P12），两轮 4/4 PASS；QEMU-only 修订后宿主通道不再扩展，仅存档</td></tr>
+        <tr data-case="U-L1-01…03" data-state="done"><td>U-L1-01…03</td><td>L1</td><td><span class="badge ok">已实现</span></td><td>codec 配置层，5 条用例在同一文件（含 amp 方向位、长格式连接列表、回读校验等）</td></tr>
+        <tr data-case="U-L1-06…10" data-state="done"><td>U-L1-06…10</td><td>L1</td><td><span class="badge ok">已实现</span></td><td>指标纯函数，对 Python 参照全绿；未接入采集流程</td></tr>
+        <tr data-case="U-L1-04" data-state="done"><td>U-L1-04</td><td>L1</td><td><span class="badge ok">已实现</span></td><td>QEMU profile 命中 + 未知机型走 DFS，8 条用例覆盖（含长链与成环防御）</td></tr>
+        <tr data-case="U-L2-01 / 02" data-state="done"><td>U-L2-01 / 02</td><td>L2</td><td><span class="badge ok">已实现</span></td><td>make qtest 15 PASS / 0 FAIL（docs/evidence/2026-10-31/qtest-run.log）；BCIS 中断用例后置</td></tr>
+        <tr data-case="U-L3-01 / 02" data-state="done"><td>U-L3-01 / 02</td><td>L3</td><td><span class="badge ok">已实现</span></td><td>L3-A/B/C/D 四腿随 P10 落地，make full 内跑（QEMU none 后端整机跑通）</td></tr>
+        <tr data-case="U-L4-01" data-state="done"><td>U-L4-01</td><td>L4</td><td><span class="badge ok">已实现</span></td><td>并入 make full 第 5 腿（P11）4/4 PASS，串口 SELFTEST 段；原真机口径已废弃（docs/decisions-qemu-only.md D-Q4）</td></tr>
+        <tr data-case="U-L5-01" data-state="done"><td>U-L5-01</td><td>L5</td><td><span class="badge ok">已实现（历史）</span></td><td>宿主声卡回环（P12），两轮 4/4 PASS；QEMU-only 修订后宿主通道不再扩展，仅存档</td></tr>
       </tbody>
     </table>
     </div>
   </div>
-  <p class="small" style="margin-top:10px">已实现 12/14 条（U-L1-05、U-L5-02 随真机路线删除关闭，2026-11-10）；其余 2 条按上表原因留空，<b>不写占位测试</b>——空着的用例不会假装通过。</p>
+  <p class="small" style="margin-top:10px">已实现 7/7 条（U-L1-05、U-L5-02 随真机路线删除关闭，2026-11-10，不计入本表）；<b>不写占位测试</b>——没有实测依据的用例不会出现在本表。计数与行状态由 <code>tools/check_docs.py</code> 的 C6 核对，改表必须同步改这句话。</p>
+</section>
+
+<section>
+  <div class="sec-head"><h2>④ 文档健康</h2><span class="hint">本块由 <code>tools/check_docs.py --sync</code> 生成，勿手改；改完文档跑 <code>make docs-check</code> 核对</span></div>
+  <div class="card" style="padding:0;overflow:hidden">
+<!-- DOCS-HEALTH:BEGIN 由 tools/check_docs.py --sync 生成，勿手改 -->
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>文档</th><th>角色</th><th>最后更新</th><th>失效引用</th><th>维护</th></tr></thead>
+      <tbody>
+        <tr><td><code>docs/decisions-audio-test.md</code></td><td>定案 D1–D12（音频测试口径）</td><td>2026-11-10</td><td>0</td><td>DSH</td></tr>
+        <tr><td><code>docs/decisions-qemu-only.md</code></td><td>定案 D-Q1–D-Q10（QEMU-only）</td><td>2026-11-10</td><td>0</td><td>DSH</td></tr>
+        <tr><td><code>docs/decisions-autodev.md</code></td><td>定案 D-A1–D-A13（autodev 流程）</td><td>2026-11-11</td><td>0</td><td>DSH</td></tr>
+        <tr><td><code>docs/decisions-docs.md</code></td><td>定案 D-D1–D-D8（文档托管）</td><td>2026-11-12 (mtime)</td><td>0</td><td>DSH</td></tr>
+        <tr><td><code>docs/decisions-adc.md</code></td><td>定案（ADC 历史，2026-10-28）</td><td>2026-10-28</td><td>0</td><td>DSH</td></tr>
+        <tr><td><code>docs/tech-plan-*.md</code></td><td>方案（7 份）</td><td>2026-11-12 (mtime)</td><td>0</td><td>DSH</td></tr>
+        <tr><td><code>docs/evidence/</code></td><td>证据（6 目录 / 122 文件）</td><td>2026-11-12</td><td>0</td><td>DSH</td></tr>
+        <tr><td><code>README.md</code></td><td>驱动说明入口</td><td>2026-10-28</td><td>0</td><td>DSH</td></tr>
+        <tr><td><code>../AGENTS.md</code></td><td>交差硬规则表</td><td>2026-11-12 (mtime)</td><td>0</td><td>DSH</td></tr>
+        <tr><td><code>../CODEBUDDY.md</code></td><td>架构与常用命令</td><td>2026-11-12 (mtime)</td><td>0</td><td>DSH</td></tr>
+        <tr><td><code>../docs/decisions-agent-loop.md</code></td><td>agent loop 决策（历史）</td><td>2026-11-11 (mtime)</td><td>0</td><td>DSH</td></tr>
+        <tr><td><code>../.dsh/skills/autodev/SKILL.md</code></td><td>autodev 指令（准）</td><td>2026-11-12 (mtime)</td><td>0</td><td>DSH</td></tr>
+        <tr><td><code>../.zcode/skills/autodev/SKILL.md</code></td><td>autodev 指令（镜像）</td><td>2026-11-12 (mtime)</td><td>0</td><td>DSH</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="small">自检 <code>tools/check_docs.py --sync</code> 生成：C1–C10 中除本块保真（C7）外 <b>0 失败 / 1 警告</b> · 生成于 2026-11-12 · 红了先修再 --sync</p>
+<!-- DOCS-HEALTH:END -->
+  </div>
 </section>
 
 <footer>
   <h2 style="font-size:13px">使用说明</h2>
-  <p>勾选后页面顶部出现「N 项未保存」，点导出把当前状态写成 <code>progress.html</code>，覆盖原文件后执行：</p>
-  <p class="mono">git add progress.html &amp;&amp; git commit -m "progress: 更新勾选" &amp;&amp; git push</p>
-  <p>另一台设备 <code>git pull</code> 后直接打开即看到同一状态。约定：勾选集中在主力机，另一台只读；若两边都改，冲突时按条目并集手工保留。</p>
+  <p><b>本页以 DSH 写入为准</b>：状态存放在 <code>data-done</code>、<code>data-state</code> 等属性里，由 autodev 每轮实现后自动改写并随 git 提交。人工勾选/导出只用于临时查看，不构成流程闸门（D-D1）。</p>
+  <p>人工只需读这一页：<b>切换状态看条目标签，跑没跑过看证据路径，文档有没有漂移看 ④ 文档健康</b>。</p>
+  <p><code>make docs-check</code> 核对文档一致性（红即表示页面与实况脱节，由 DSH 修完再提交）；<code>make full</code> 跑全套测试。</p>
+  <p>git push 仍由你决定——本地提交自动，远端推送手动（<code>docs/decisions-docs.md</code> D-D3）。</p>
   <h2 style="font-size:13px;margin-top:20px">变更记录</h2>
   <ul class="list">
+    <li><b>2026-11-12</b> 文档托管改造落地（非 P 项轮次，方案 docs/tech-plan-docs.md，决策 docs/decisions-docs.md D-D1–D-D8）：把「唯一人工界面 = progress.html、其余文档由 DSH 维护」从口头约定变成可执行检查。①新增 <code>tools/check_docs.py</code>（纯标准库，C1–C10 十项检查 + <code>--json</code> / <code>--sync</code> / <code>--selftest</code> 10 例自检）：C1 托管面文档路径存在、C2 页面自述日期 == 变更记录首条、C3 页面引用的 refs-check 计数 == 日志 SUMMARY、C4/C5 两表状态机（<code>data-state</code> 与 P 项 <code>data-done</code> 一致，open/none 必须带 <code>data-blocked-by</code>）、C6「已实现 N/M 条」== 表格行实际、C7 ④ 文档健康块保真、C8 autodev SKILL 双副本一致、C9 孤儿文档（WARN）、C10 L1 段数与测试数。②<code>Makefile</code> 新增 <code>docs-check</code> 并置于 <code>full</code> 首位——文档没对齐就不该谈测试全绿。③本页六处存量漂移一次修完：L1 36/5→37/6 段、L3 徽标「未开始」→「已完成 · 5 腿 / 41s」并补 RESTART 腿、U-L3-01/02 与 U-L4-01 从「空着」改「已实现」、计数句 12/14→7/7、refs-check-p10 的计数据实改为 31（两处，原写 24）、自述日期 11-11→11-12；两表补 <code>data-state</code> 等属性，页面从此可被脚本核对。④<code>progress.html:271</code> 的层错证据路径（外层 <code>docs/evidence/2026-10-29/</code> 写成内层相对路径）改为 <code>../docs/evidence/…</code> 并注明在外层。⑤「使用说明」改口径：本页以 DSH 写入为准，人工勾选仅供临时查看，push 仍手动。⑥autodev SKILL 增 §7.5 文档同步、§8 改为自动提交、干预点从四类减为三类。前后对照证据：<code>docs/evidence/2026-11-12/docs-check-before.log</code>（28 fail / 6 warn）与 <code>docs-check-after.log</code>（0 fail）。</li>
     <li><b>2026-11-12</b> 连续流生命周期审计与两处修复（由「播放完成后会停下吗」一问触发，非 P 项轮次）：①<b>F1 采集测试分支起流不停</b>——<code>TEST_CAPTURE</code> 分支 <code>run_capture_test(); while(1);</code> 全程无 <code>audio_stop()</code>，而 <code>cap_play_tone</code> 会经 <code>hda_cont_play_note</code> 把 512KB 播放流置 RUN；<code>audio_capture_stop</code> 只复位输入流 <code>sd_in</code>，两者互不代劳。修复前 <code>p10-probe-capture.log</code> 全文 0 命中 <code>continuous stream stopped</code>。②<b>F5 trace 事件名表缺 CAP_* 三个 case</b>——<code>hda_internal.h</code> 定义了 <code>HTEV_CAP_START/OVERFLOW/STOP</code>，但 <code>hda_trace_ev_name</code> 的 switch 漏了，全落 <code>default:"UNKNOWN"</code>；此前看不出是因为采集分支没有 <code>audio_stop</code> 就没有 dump，补了停流才暴露（6 行 <code>ev=UNKNOWN</code>，其 s 字段正是采集环大小与交付字节数）。③<b>F2 停流后重启不重置 <code>g_cont_data_end</code></b>（比 F1 严重）——<code>hda_cont_start</code> 初始化段复位 11 个状态量却漏 <code>data_end</code>，而 <code>sys_audio_stop</code> 把它写成会话总写入量；再起流时 <code>reserve</code> 取 <code>start = data_end</code> 得环外偏移 → <code>wait_until</code> 白等 3 轮超时 + 写入落进陈旧区段。补 1 行 <code>g_cont_data_end = 0;</code>。④<b>新增 RESTART 回归腿</b>：<code>TEST_SIGNAL=restart</code> 同镜像跑两轮独立会话（800ms→stop→200ms→stop），判据 <code>s1&gt;500 &amp;&amp; s2&lt;s1</code>——坐标残留时第二轮必须先播完陈旧区段，s2 必反超 s1。<b>反向验证</b>（同一镜像、仅差这一行）：修复前 <code>session1=1050 session2=1500 VERDICT:FAIL</code>、trace 里第二轮 <code>NOTE_SUBMIT s=201644</code>；修复后 <code>session1=1050 session2=452 PASS</code>、第二轮 <code>s=0</code>。s1 两版一致说明只动了一个变量。⑤一手依据补取 QEMU 源码：<code>intel-hda.c:577-604</code> RUN 清零只通知 codec 停流、不重置 LPIB；LPIB 唯一归零点在 RUN 0→1 的 <code>parse_bdl</code>（<code>:484-487</code>）。<b>实测</b>：<code>make test</code> 37 全绿、<code>make qtest</code> 15 PASS、<code>make full</code> <b>5 腿 5 通过 0 失败 55.4s exit=0</b>（新增 L3-D RESTART，CAPTURE 腿 5/5）。refs-check 49/49 PASS。审计与清单见 <code>docs/evidence/2026-11-11/stream-lifecycle-audit.md</code>（F1–F5 + 改动清单）。未修的 F3（中断等待路径不预填静音）因本机 HDA IRQ 11 被独占、中断分支不可达，留档待有中断条件时复核。</li>
     <li><b>2026-11-11</b> P11 L4 QEMU 整机自检落地（autodev 轮 4，方案 docs/tech-plan-selftest-l4.md）：内核新增 <code>SELFTEST</code> 段，冷启动打印四例结论后照常进 FAT/用户态，永不 abort 启动。①<b>信号量从空桩变真实现</b>——上游 <code>kernel/sem.c</code> 四个 <code>sys_sem_*</code> 全是 <code>return -1;</code>（2015-11-25 起原样），<code>kernel/callout.c:158</code> 的 <code>sem_create</code> 调用方因该文件不在 COBJS 从未被编译；现补 16 槽静态池 + <code>sleep_on/wake_up</code> 等待队列：<code>sem_wait</code> 在 <code>save_flags_cli</code> 内循环「计数≤0 则入队睡眠」，<code>sem_signal</code> 递增后 <code>wake_up(wq,-1)</code> 全唤由各自重查计数，<b>检查-睡眠全程关中断</b>以堵 OSDev 单列的 lost wake-up 竞态；<code>sem_destroy</code> 在有等待者时拒绝，避免 <code>sleep_on</code> 摘链解引用空指针。保留 id 包装（<code>sys_sem_*</code> 按「池下标+1」转发）不动既有签名。②<b>四例自检</b>（<code>kernel/selftest.c</code>）：allocator 反复分配-释放断言返回同址、再连开 8×512B 按奇偶释序后要 2048B 断言落进原区间（证合并）；semaphore 用 <code>sys_task_create(0,…)</code> 建内核线程握手（线程先置标志再 signal、主线程 wait 后 <code>sys_task_wait</code> 回收，断言 rc/标志/退出码，注释说明置标志必须在 signal 之前）；tick 有界自旋（上限 5×10⁷ 次读）等 <code>g_timer_ticks</code> 跳变，不用 sleep；hda 断言 <code>g_hda</code> 的 mmio_base/codec_cad/output_dac/output_pin。每例先打 <code>SELFTEST [i/4] &lt;名字&gt;</code> 再打 <code>: PASS|FAIL</code>（OSDev 明确建议先打测试名，因为自检可能挂住），末尾 <code>SELFTEST: RESULT PASS n/4</code>；<b>每行 &lt; 100 字符</b>，避开 <code>printk.c:9</code> 的 <code>char buf[128]</code> 越界读（该处用 <code>vsnprintf</code> 返回值当写入长度，超长会打垃圾）。③<b>并入 make full</b>：<code>tests/full_run.py</code> 加第 4 条腿 L4（6 条串口断言），不新建 make 目标，串口落 <code>l4_selftest.log</code>。自检点定在 <code>startup.c:116 hda_init()</code> 之后、FAT 之前（此刻 task0 在跑、中断已开、只有 task0 一个任务）。<b>实测全绿</b>：make full 4 腿 4 通过 0 失败 27.9s RC=0（L1 37、L2 15、L3 3、L4 4/4），串口逐行为 begin/4 例 PASS/RESULT PASS 4/4；<b>反向验证</b>把 hda 判据改反后 L4 立刻 FAIL RC=1（等满 90s 腿超时属预期），恢复后复绿——未放宽任何断言。本轮<b>未碰</b> userapp/、include/、tests/*.c、根 Makefile、QEMU 3.1.50、宿主音频，未新增 syscall（<code>ST-SYSCALL-NR</code> 只管 audio 号段）。</li>
-    <li><b>2026-11-11</b> P10 L3 整机 none 后端回归落地（autodev 轮 3，方案 docs/tech-plan-full-none.md）：D10 早已写定但仓库里根本不存在的 <code>make full</code> 补齐——新 tests/full_run.py 用 Python 标准库编排三条腿，全程 <code>QEMU_AUDIO_DRV=none</code>、无 monitor/watcher（D10）、不碰宿主声卡（D9）、不动 QEMU 3.1.50（D8）：①L3-A PLAY（TEST_MODE=1 TEST_SIGNAL=sine）断音量 syscall→BDL 128x4KB→流启动→停流 underruns=0→状态 syscall；②L3-B WAV（SORT_DEMO=1）断盘上 wav 读取与 3 路混音提交（song.wav 不在 git，改用 tracked 的 s*.wav）；③L3-C CAPTURE（CAPTURE_TEST=1）断 1s 采集 len/path=OK + 3s 采集 wraps=1 overruns=0 + API 契约 0/0/-2/0 + AUDIO_VERDICT v=2。可行性由一手源码坐实：noaudio.c 的 no_read/no_run_in 按 QEMU_CLOCK_VIRTUAL 推进并把缓冲清零（gitee-p10-noaudio-excerpt.txt），故「管线照跑、样本恒静音」，L3 只断行为不断样本——与 P05b「模拟器值非真值」口径一致。后端选择被 D8/D9 夹死：-audio-help 实测本机 only none(双路)/wav(不支持采集)/dsound(碰宿主设备)。顺带修 make qtest：原 <code>"${HOME:-${USERPROFILE}}/.local/bin/uv.exe"</code> 在 MSYS bash 下 HOME 恒为 /home/Administrator，命令根本跑不起来（p10-uv-path-bug.log），改成 USERPROFILE 优先后不再依赖调用方手工导 HOME。实测 make full 墙钟 29.2-29.6s、make clean 后冷起点 35.7s（D2 预算 60s 内）、退出码均 0：L1 37/37、L2 15/15、L3 3/3；hda_tests fast 仍 14/16（唯二存量 ST-ENUM-TABLE/ST-SYSCALL-NR）。**自修 1 轮**：L3-A 首跑两条断言写错（音量行实为 100 非 80；position 后多了冒号），按实跑串口改正后全绿——未放宽任何断言。另：初稿引用的 docs/evidence/2026-11-10/build-j4.log 实际不存在，据此「-j 必现 file truncated」的说法本轮实测 6/6 无法复现（p10-build-parallel-check.log），已从 tech-plan 与 Makefile 注释删除该依据，串行改为成本取舍而非硬约束。refs-check-p10 24/24 PASS。</li>
+    <li><b>2026-11-11</b> P10 L3 整机 none 后端回归落地（autodev 轮 3，方案 docs/tech-plan-full-none.md）：D10 早已写定但仓库里根本不存在的 <code>make full</code> 补齐——新 tests/full_run.py 用 Python 标准库编排三条腿，全程 <code>QEMU_AUDIO_DRV=none</code>、无 monitor/watcher（D10）、不碰宿主声卡（D9）、不动 QEMU 3.1.50（D8）：①L3-A PLAY（TEST_MODE=1 TEST_SIGNAL=sine）断音量 syscall→BDL 128x4KB→流启动→停流 underruns=0→状态 syscall；②L3-B WAV（SORT_DEMO=1）断盘上 wav 读取与 3 路混音提交（song.wav 不在 git，改用 tracked 的 s*.wav）；③L3-C CAPTURE（CAPTURE_TEST=1）断 1s 采集 len/path=OK + 3s 采集 wraps=1 overruns=0 + API 契约 0/0/-2/0 + AUDIO_VERDICT v=2。可行性由一手源码坐实：noaudio.c 的 no_read/no_run_in 按 QEMU_CLOCK_VIRTUAL 推进并把缓冲清零（gitee-p10-noaudio-excerpt.txt），故「管线照跑、样本恒静音」，L3 只断行为不断样本——与 P05b「模拟器值非真值」口径一致。后端选择被 D8/D9 夹死：-audio-help 实测本机 only none(双路)/wav(不支持采集)/dsound(碰宿主设备)。顺带修 make qtest：原 <code>"${HOME:-${USERPROFILE}}/.local/bin/uv.exe"</code> 在 MSYS bash 下 HOME 恒为 /home/Administrator，命令根本跑不起来（p10-uv-path-bug.log），改成 USERPROFILE 优先后不再依赖调用方手工导 HOME。实测 make full 墙钟 29.2-29.6s、make clean 后冷起点 35.7s（D2 预算 60s 内）、退出码均 0：L1 37/37、L2 15/15、L3 3/3；hda_tests fast 仍 14/16（唯二存量 ST-ENUM-TABLE/ST-SYSCALL-NR）。**自修 1 轮**：L3-A 首跑两条断言写错（音量行实为 100 非 80；position 后多了冒号），按实跑串口改正后全绿——未放宽任何断言。另：初稿引用的 docs/evidence/2026-11-10/build-j4.log 实际不存在，据此「-j 必现 file truncated」的说法本轮实测 6/6 无法复现（p10-build-parallel-check.log），已从 tech-plan 与 Makefile 注释删除该依据，串行改为成本取舍而非硬约束。refs-check-p10 31/31 PASS（docs/evidence/2026-11-11）。</li>
     <li><b>2026-11-11</b> P05b 删 SNR/THD 真值指标落地（autodev 轮 2，方案 docs/tech-plan-metrics-purge.md）：guest 侧真值指标链整体删除——metrics.h/.c 删 thd_pct/thd_n_pct/snr_db 字段、MET_THD_N_MAX_PCT/MET_SNR_MIN_DB 常量与谐波剥离计算（fit_strip 剥离分支随之清为 fit_power），met_verdict 改 met_verdict(rms)（非静音即 PASS，判据降为通路活性，真值门线随真机路线废弃 decisions-qemu-only.md D-Q5）；AUDIO_VERDICT 行 v=1→v=2（删 thd_n=/snr= 字段，升版本防旧脚本误读；实跑 CAPTURE_TEST=1 验证出行）。调研先行：套件与 serial_parser 对串口行 0 依赖（Q-* 的 SNR/THD 判定来自宿主 wav 分析），删字段零破坏（p05b-recon.log）。L1：metrics 段 5→2 条（U-L1-07/08/09 随指标删除），40→37 全绿（p05b-make-test.log）；fixture 删 sine_1k_plus_h2_h3/noise_white_seed1234/dc_offset_100 三个仅被删用例消费的 case，gen_vectors.py 同步、重生成与手改值逐位一致；hda_tests fast 14/16 不退化（唯二存量，p05b-hda-fast.log）；宿主 tools/audio_metrics.py 不动（D11 唯一指标源强化——SNR/THD 现仅存宿主一处）。refs-check-p05b 24/24 PASS（2026-11-11 目录）。</li>
     <li><b>2026-11-10</b> P07 初始化三项落地（autodev 首轮，QEMU-only 后第一个代码轮）：①GCAP 解码——新 kernel/hda_regs.c/.h（hda_gcap_decode 纯函数 + sd_index 换算），hda.c 打印改新格式，旧码三字段整体错位 8 位修正；②流索引运行时化——struct hda_dev 增 sd_in/sd_out/gcap_ok64/cap_vref，hda_stream.c/hda_capture.c 全部流寄存器访问由常量改 g_hda 字段（QEMU 下值等价 0/4），tag 与索引解耦（HDA_OUTPUT_TAG 宏，byte2 不再借序号字面量）；③EAPD——门控两条（pin cap 0Ch bit16 ← 2026-11-10 一手订正：AC_PINCAP_EAPD 在 pin cap 不在 widget cap，tech-plan §6.1；或 profile eapd=1）+ 0x70C 发送 + 0xF0C 回读打印，QEMU profile 置 0 不发、链路零扰动（QEMU hda-codec 无此 case、default fail 回 0，摘录 4）；④VrefEn——hda_capture pin ctrl 合成写 IN_EN|vref（默认 Hi-Z 与旧码逐位同，profile vref 档须落 (0x37&lt;&lt;8) 掩码内）+ 回读告警；⑤Unsol 处置——GCTL 去 UNSOL（QEMU 全文无 unsol 逻辑 + wmask 0x0103 一手证据，摘录 1/2）。**自修 1 轮**：INTCTL 逐流位（0x80000011）实测使 Q-SINE 劣化（SNR -9.37/2.01dB vs 基线 96.74，非确定值、单跑可复现），按 tech-plan §11 回退行只写 GIE——回退后单用例立即回基线（THD+N 0.0017%）、fast 套件 14/16（唯二失败=存量 ST-ENUM-TABLE/ST-SYSCALL-NR）。L1 新增 tests/test_hda_regs.c T1–T4（40 条全绿）；qtest 15 PASS/0 FAIL。证据 docs/evidence/2026-11-10/：p07-serial.log（串口 Select-String 复核）、p07-make-test/qtest/hda-tests-fast-final/qsine-rerun/qsine-fix1.log、gitee-p07-intelhda-excerpt.txt（Gitee mirrors/qemu 一手摘录 6 段+人读结论）、refs-check-p07.log 27/27 PASS。调研与方案订正均落 tech-plan-hda.md（§4.4 回退注记/§6.1 EAPD 位订正/§6.2 QEMU 行为一手确认）。</li>
     <li><b>2026-11-10</b> QEMU-only 修订（只改文档，不改代码）：去掉治具机实机验证，QEMU 3.1.50 成为唯一与最终验证平台（docs/decisions-qemu-only.md，grill 三轮收敛）。删除：阶段 1/2、治具四件节（含 P01，编号留空洞）、L5 层（手动 3.5mm 回环）、U-L1-05/U-L5-02（真机受阻用例）、decisions-audio-test.md §5（治具四件/目标平台）及各处真机语义。改造：P05b「真机阈值定稿」→「删除 SNR/THD 真值指标代码」（真值档位原靠真机回环定档，真机废弃后无定档通道，模拟器值非真值，只留 overruns/过零样本/峰值行为指标；代码清理立 P 项先调研再动）；P11「目标机自检」→「QEMU 整机自检（并入 make full）」；P07 去真机化（QEMU 侧仅验 verb 发送与回读）。P13 差分不升格，维持提交前可选档（QEMU 单档为最高验证档）。决策依据：osdev wiki「模拟器能跑不等于真机能跑」警告（docs/evidence/2026-10-31/osdev-bochs-emulator-comparison-excerpt.txt）——该局限已知并接受。evidence 目录实查无真机路线专属文件，仅 refs-check-autodev.log 一行检查对象（§5）已删、追加修订说明。git 历史可回溯全部被删内容。</li>

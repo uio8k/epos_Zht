@@ -1,4 +1,4 @@
-﻿# L3 整机 none 后端回归技术方案：P10（`make full`）
+# L3 整机 none 后端回归技术方案：P10（`make full`）
 
 日期：2026-11-11（autodev 轮 3）。决策来源 `docs/decisions-audio-test.md` D10（入口统一
 `make test` / `make qtest` / `make full`）与 D8（不动 QEMU 3.1.50，日常用 `none` 后端）；
@@ -234,6 +234,9 @@ UV ?= "$${USERPROFILE:-$${HOME}}/.local/bin/uv.exe"
 1. `make full` 在**干净 shell**（不预设 `HOME`）下一条命令跑完，退出码 0。
 2. 同条件下 `make qtest` 恢复可用（修复前复现为 exit 2，见 `p10-uv-path-bug.log`；修复后 exit 0、15/15）。
 3. `make test` 仍 37/37 全绿；`hda_tests --suite fast` 仍 14/16（唯二存量）。
+   〔2026-11-12 追注：此项记录的是本方案落地时（`271fe3d`）的基线。此后 `2fce427` 在
+   `kernel/hda_trace.c:46-48` 补齐三个 CAP trace case，`ST-ENUM-TABLE` 转 PASS，现行基线是
+   **15/16，唯一 FAIL = `ST-SYSCALL-NR`**。原句保留以便回看当时的验收口径。〕
 4. 三条腿的断言全部命中，原始串口落 `docs/evidence/2026-11-11/p10-make-full.log`（含各腿串口路径 `tests/build/l3_*.log`）。
 5. `git status --short` 收尾只出现 `Makefile`、`tests/full_run.py`、`progress.html`、
    `docs/**`——`kernel/`、`userapp/` 零命中。

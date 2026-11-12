@@ -1,0 +1,42 @@
+﻿# docs-check AFTER refactor - expected GREEN (0 fail / 1 warn; the warn is by design, see D-D7)
+# date: 2026-11-12  cwd: E:\ComputerScience\epos_Zht\epos_Zht
+# HEAD: 2fce427  branch: x86 (pre-commit working tree)
+# note: the 4th health block records the count of files under docs/evidence, so every
+#       evidence log of this round must exist as a stub BEFORE the final --sync.
+#       That is why this file already exists when the check below runs.
+# cmd 1: uv run --no-project python tools/check_docs.py --selftest
+selftest: 10 cases
+PASS baseline-green
+PASS C1-dangling-inner-ref
+PASS C1-outer-ref-fallback
+PASS C2-stated-date
+PASS C3-refscheck-count
+PASS C4-open-blocked-by-done
+PASS C5-none-without-blocked-by
+PASS C6-count-sentence
+PASS C7-block-tampered
+PASS C8-skill-drift
+selftest RESULT: 10/10 pass
+
+# exit=0
+
+# cmd 2: uv run --no-project python tools/check_docs.py
+docs-check: repo=E:\\ComputerScience\\epos_Zht\\epos_Zht workspace=E:\\ComputerScience\\epos_Zht
+WARN C3  refs-check-research.log -> no SUMMARY line; counted 27 PASS lines instead
+--- checks ---
+C1   ok    0 fail / 0 warn
+C2   ok    0 fail / 0 warn
+C3   WARN  0 fail / 1 warn
+C4   ok    0 fail / 0 warn
+C5   ok    0 fail / 0 warn
+C6   ok    0 fail / 0 warn
+C7   ok    0 fail / 0 warn
+C8   ok    0 fail / 0 warn
+C9   ok    0 fail / 0 warn
+C10  ok    0 fail / 0 warn
+RESULT PASS (0 fail / 1 warn) 0.15s
+
+# exit=0
+
+# note 2: WARN C3 (refs-check-research.log has no SUMMARY line) is retained on purpose:
+#         docs/evidence is append-only (D-D7), the old log is not edited to satisfy the script.

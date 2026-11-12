@@ -18,12 +18,13 @@
 | D-A4 | 选题 = **自动选 + 报备**：按 progress.html 选下一个可做 P 项（data-done=0、依赖满足、同级取靠前），开工前 AskUserQuestion 报备，用户有否决/换项窗口 | 用户不必事事钦点，但保留控制权（grill 第 1 轮确认） |
 | D-A5 | tech-plan **落盘即继续**动代码，不等审批；**重大路线变更**（调研结论推翻原定路线，如 Bochs→VBox 量级）必须停下问 | AGENTS.md 只要求"动代码前有调研摘录与 tech-plan"，未要求审批环节；路线级反转影响后续排期，属于用户决策 |
 | D-A6 | 测试失败**自修 ≤2 轮**，仍红带完整证据（测试日志、refs-check、最近 diff）停下问 | 有些失败是路线级结论（Bochs 证伪教训），机器不该硬修，也不许放宽断言或删用例来"变绿" |
-| D-A7 | 硬干预点四类（任何步骤一律先问）：git 提交、安装/升级宿主软件、不可逆/破坏性操作（含改 QEMU 3.1.50=D8、超范围碰 kernel/userapp/tests）、git push | 提交是用户检查产物的最后闸门；装宿主软件动宿主系统（NDIS 网络闪断类）；破坏性操作不可逆；push 是外发动作（grill 第 1 轮四项全选确认） |
+| D-A7 | 硬干预点四类（任何步骤一律先问）：git 提交〔**已废止 → 见 D-A13 / D-D3**：提交改为自动，不再询问〕、安装/升级宿主软件、不可逆/破坏性操作（含改 QEMU 3.1.50=D8、超范围碰 kernel/userapp/tests）、git push | 提交是用户检查产物的最后闸门；装宿主软件动宿主系统（NDIS 网络闪断类）；破坏性操作不可逆；push 是外发动作（grill 第 1 轮四项全选确认） |
 | D-A8 | 流程性干预点三个：选题报备（D-A4）、重大路线变更（D-A5）、自修 2 轮仍红（D-A6） | 与 D-A7 四类合并构成全部停机点，SKILL.md §9 单列 |
 | D-A9 | 决策记录**留文件**：本文件（docs/decisions-autodev.md），随内层仓库 git 提交 | 与 decisions-audio-test.md 同范式；grill 开场问确认 |
 | D-A10 | 上下文将耗尽时按会话续跑机制继续，**不提前截断闸门** | 单 P 项全闸门可能超单次上下文；续跑从断点恢复而非重做 |
 | D-A11 | **终态判定**（2026-11-11 追加）：选题前先跑 `tools/check_progress.py --json`，按 `ELIGIBLE` / `BLOCKED` / `TERMINAL` 三态分派；`TERMINAL` 用固定句式收工「根据开发计划，当前已完成，暂无可自动化开发任务。」，且不 commit、不改 progress.html、不新造 P 项。判定逻辑只此一处实现，页面 JS 不重算 | 原 D-A3/D-A4 只有「有活干」的正向分支，无「全部做完」的出口；判定若靠模型自评会漂移，故落成脚本单一实现。三态互斥穷尽：有可做项 → `ELIGIBLE`；无但被挡 → `BLOCKED`；剩余全是有意悬置 → `TERMINAL` |
 | D-A12 | **两份 SKILL 副本归一**：`.dsh/skills/autodev/SKILL.md` 为准，`.zcode/skills/autodev/SKILL.md` 为镜像（逐行一致，仅 `ask_user_question` / `AskUserQuestion` 大小写不同）；任何改动必须同步两份，不得只改一边 | D-A1 原定 `.zcode`，但 `.dsh` 那份先加上了附 A 而分叉（前 24 行相同、之后不一致）；两边都是工作区级发现路径，只改一边会出现「同一个 /autodev 两种行为」 |
+| D-A13 | **取消「git 提交」干预点**（2026-11-12 追加）：轮末一律自动提交，**连代码轮也不问**；提交后汇报 commit hash + `git show --stat`，不请求确认。硬干预点由四类减为三类（装宿主软件、不可逆/破坏性操作、git push）。前提见 D-D8：开工树必须干净，有并发会话改动时停下报备，不替他人提交 | D-A7 把提交定为「用户检查产物的最后闸门」，前提是用户会逐轮审 diff；实际每轮都只回一句「继续」，闸门退化为等待。用户 2026-11-12 明确选择最激进档（grill 六问之三：一律自动提交），控制权改由「可随时回看的 git 历史 + 每轮汇报的 stat」承载。push 仍手动——远端外发与本地提交不同级 |
 
 ## 3. 铁律继承（skill 正文显式声明冲突时以下列为准）
 
@@ -52,5 +53,8 @@
 | `docs/evidence/2026-11-10/refs-check-autodev.log` | 本文件 文件:行号 引用的 Select-String 复核 |
 | `docs/evidence/2026-11-11/autodev-terminal-check.log` | D-A11 的判定实测（三态 + 结构错误 + 两种解释器） |
 | `docs/evidence/2026-11-11/refs-check-autodev-terminal.log` | 本次新增 D-A11/D-A12 与 SKILL 2.5 节的行号复核 |
+| `外层\AGENTS.md` | 交差硬规则表（2026-11-12 追加 6 行文档托管规则，见 D-D1/D-D2/D-D4/D-D7/D-A12） |
+| `epos_Zht\tools\check_docs.py` | 文档一致性检查（C1–C10），`make docs-check` 入口；D-D4 的落点 |
+| `epos_Zht\docs\decisions-docs.md` | 文档托管决策 D-D1–D-D8（文档归属单一事实源） |
 
 静态验证（已做）：frontmatter name/description 齐全、description <1024 字符、触发语义前置（skill 加载合规）。

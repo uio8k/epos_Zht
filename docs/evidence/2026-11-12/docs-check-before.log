@@ -1,0 +1,61 @@
+﻿# docs-check BEFORE refactor - expected RED (known drift pins, pre D-D4 landing)
+# date: 2026-11-12  cwd: E:\ComputerScience\epos_Zht\epos_Zht
+# HEAD: 2fce427  branch: x86
+# git status --short (this round so far: tools/check_docs.py + docs/tech-plan-docs.md are new)
+?? docs/evidence/2026-11-12/
+?? docs/tech-plan-docs.md
+?? tools/check_docs.py
+# cmd: uv run --no-project python tools/check_docs.py   (expect exit 1 / red)
+# known drift pinned by this log: README dead link x2, CODEBUDDY dead link x2,
+#   progress.html:271 layer-wrong evidence path, refs-check-p10 24 vs 31,
+#   L3 badge says not-started, U-L3/U-L4 rows say empty, 12/14 count, header date lag,
+#   no data-state attributes on either table, no DOCS-HEALTH block.
+docs-check: repo=E:\\ComputerScience\\epos_Zht\\epos_Zht workspace=E:\\ComputerScience\\epos_Zht
+FAIL C1  progress.html:271 -> docs/evidence/2026-10-29/verdict-big.png (not found)
+FAIL C1  README.md:6 -> docs/\u8fd0\u884c\u73af\u5883.md (not found)
+FAIL C1  README.md:106 -> docs/\u8fd0\u884c\u73af\u5883.md (not found)
+FAIL C1  docs/tech-plan-docs.md:3 -> docs/decisions-docs.md (not found)
+FAIL C1  docs/tech-plan-docs.md:48 -> docs/decisions-docs.md (not found)
+FAIL C1  docs/tech-plan-docs.md:54 -> epos_Zht/docs/\u8fd0\u884c\u73af\u5883.md (not found)
+FAIL C1  docs/tech-plan-docs.md:80 -> docs/\u8fd0\u884c\u73af\u5883.md (not found)
+FAIL C1  docs/tech-plan-docs.md:81 -> epos_Zht/docs/\u8fd0\u884c\u73af\u5883.md (not found)
+FAIL C1  docs/tech-plan-docs.md:82 -> docs/evidence/2026-10-29/verdict-big.png (not found)
+FAIL C1  docs/tech-plan-docs.md:91 -> docs/decisions-docs.md (not found)
+FAIL C1  CODEBUDDY.md:22 -> epos_Zht/docs/\u8fd0\u884c\u73af\u5883.md (not found)
+FAIL C1  CODEBUDDY.md:76 -> epos_Zht/docs/\u8fd0\u884c\u73af\u5883.md (not found)
+FAIL C2  progress.html:header -> \u66f4\u65b0\u4e8e 2026-11-11 != changelog first 2026-11-12
+FAIL C3  progress.html -> refs-check-p10 cited 24/24 but 2026-11-11/refs-check-p10.log says 31 PASS
+FAIL C5  L1 -> row lacks data-state (allowed: done/none/partial)
+FAIL C5  L2 -> row lacks data-state (allowed: done/none/partial)
+FAIL C5  L3 -> row lacks data-state (allowed: done/none/partial)
+FAIL C5  L4 -> row lacks data-state (allowed: done/none/partial)
+FAIL C4  U-L1-01\u202603 -> row lacks data-state (allowed: done/open)
+FAIL C4  U-L1-06\u202610 -> row lacks data-state (allowed: done/open)
+FAIL C4  U-L1-04 -> row lacks data-state (allowed: done/open)
+FAIL C4  U-L2-01 / 02 -> row lacks data-state (allowed: done/open)
+FAIL C4  U-L3-01 / 02 -> row lacks data-state (allowed: done/open)
+FAIL C4  U-L4-01 -> row lacks data-state (allowed: done/open)
+FAIL C4  U-L5-01 -> row lacks data-state (allowed: done/open)
+FAIL C6  progress.html -> page says 12/14 but table has 0 done / 7 rows
+FAIL C10 progress.html L1 row -> page says 5 \u6bb5 but run_tests.bat has 6
+FAIL C7  progress.html -> no DOCS-HEALTH block (BEGIN/END markers missing)
+WARN C3  refs-check-research.log -> no SUMMARY line; counted 27 PASS lines instead
+WARN C9  docs/decisions-adc.md -> 0 references from progress.html body
+WARN C9  docs/decisions-audio-test.md -> 0 references from progress.html body
+WARN C9  docs/decisions-autodev.md -> 0 references from progress.html body
+WARN C9  docs/tech-plan-docs.md -> 0 references from progress.html body
+WARN C10 make-test-autodev-terminal.log -> page says 36 \u6d4b\u8bd5 but log sums 37
+--- checks ---
+C1   FAIL  12 fail / 0 warn
+C2   FAIL  1 fail / 0 warn
+C3   FAIL  1 fail / 1 warn
+C4   FAIL  7 fail / 0 warn
+C5   FAIL  4 fail / 0 warn
+C6   FAIL  1 fail / 0 warn
+C7   FAIL  1 fail / 0 warn
+C8   ok    0 fail / 0 warn
+C9   WARN  0 fail / 4 warn
+C10  FAIL  1 fail / 1 warn
+RESULT FAIL (28 fail / 6 warn) 0.02s
+
+# exit=1
