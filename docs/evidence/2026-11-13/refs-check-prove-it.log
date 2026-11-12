@@ -1,0 +1,21 @@
+﻿ refs-check for D-A17 (prove-it embedded as autodev delivery layer) - 2026-11-13 00:01
+
+== decisions-autodev.md: D-A17 lines
+E:\ComputerScience\epos_Zht\epos_Zht\docs\decisions-autodev.md:31
+== SKILL.dsh prove-it anchors (path:line)
+E:\ComputerScience\epos_Zht\.dsh\skills\autodev\SKILL.md:109
+E:\ComputerScience\epos_Zht\.dsh\skills\autodev\SKILL.md:141
+E:\ComputerScience\epos_Zht\.dsh\skills\autodev\SKILL.md:200
+== SKILL.zcode prove-it anchors (path:line)
+E:\ComputerScience\epos_Zht\.zcode\skills\autodev\SKILL.md:109
+E:\ComputerScience\epos_Zht\.zcode\skills\autodev\SKILL.md:141
+E:\ComputerScience\epos_Zht\.zcode\skills\autodev\SKILL.md:200
+== dual-copy diff (expect AskUserQuestion line only, <= lines below)
+=> AskUserQuestion 鎶ュ锛屼簩閫変竴锛?*纭寮€宸?*锛堟帹鑽?閫夊畾椤癸紝description 鍐欓€夊畠鐨勭悊鐢憋級/ **鎹㈤」**锛坉escription 鎻愮ず鍦?Oth
+<= ask_user_question 鎶ュ锛屼簩閫変竴锛?*纭寮€宸?*锛堟帹鑽?閫夊畾椤癸紝description 鍐欓€夊畠鐨勭悊鐢憋級/ **鎹㈤」**锛坉escription 鎻愮ず鍦?O
+== check_docs.py MANIFEST D-A17
+E:\ComputerScience\epos_Zht\epos_Zht\tools\check_docs.py:110: (u"docs/decisions-autodev.md", u"定案 D-A1–D-A17（autodev 流程与分支管辖）", u"file"),
+== AGENTS.md D-A17 row (path:line)
+E:\ComputerScience\epos_Zht\AGENTS.md:23
+== END
+exit-ok
