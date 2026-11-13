@@ -22,51 +22,120 @@
 #include "kernel.h"
 #include "spinlock.h"
 
-int g_resched;
+volatile int g_resched_arr[NR_CPUS];
 struct tcb *g_task_head;
 struct tcb *g_task_running_arr[NR_CPUS];
 struct kernel_lock g_kernel_lock = { 0, NULL, 0 };
 struct tcb *task0;
 struct tcb *g_task_own_fpu;
+struct tcb *g_ap_idle[NR_CPUS];
+
+/* 亲和检查（S03 D3）：cpu_binded<0 任意核，否则只准跑在绑定的核上 */
+static int task_allowed_on(struct tcb *t, unsigned cpu)
+{
+    return (t->cpu_binded < 0) || ((unsigned)t->cpu_binded == cpu);
+}
+
+/* 当前核阻塞后的 idle 去处：CPU0 用 task0（教科书内核的空闲线程），
+   AP 用各自的 g_ap_idle（task0 属于 CPU0，借给 AP 会双跑互踩 kstack）。
+   AP idle 缺失只可能出现在配置矛盾（-smp 2 但创建失败）时，防御性停机。 */
+static struct tcb *idle_for(unsigned cpu)
+{
+    if (cpu == 0)
+        return task0;
+    if (g_ap_idle[cpu] == NULL) {
+        printk("fatal: no idle task for cpu%u\r\n", cpu);
+        for (;;)
+            cpu_idle();
+    }
+    return g_ap_idle[cpu];
+}
 
 /**
  * CPU调度器函数，这里只实现了轮转调度算法
+ *
+ * S03 双核化（docs/tech-plan-smp-prototype.md §4.1 D1-D4）：
+ *  - 挑选全程持 g_kernel_lock，选中即认领（READY→RUNNING），另一核的
+ *    挑选条件 state==TASK_STATE_READY 天然跳过已认领任务——双跑防护。
+ *    切出方的降级（RUNNING→READY）在 switch_to 保存现场之后做（认领
+ *    协议后半步）——降早了另一核会读到过期帧（实现期复查发现的真实
+ *    竞态，见 switch_to 注释）。
+ *  - 挑选与 fallback 都按 task_allowed_on 过滤亲和（C1：用户任务钉 CPU0）。
+ *  - cur==NULL（AP 落地初期）从表头认领第一个可用任务；没有就空手返回，
+ *    ap_main 继续 hlt idle。
  *
  * 注意：该函数的执行不能被中断
  */
 void schedule()
 {
     uint32_t flags;
-    struct tcb *select;
+    struct tcb *select, *cur = g_task_running;
+    unsigned cpu = lapic_id() & (NR_CPUS - 1);
 
     lock_irqsave(&g_kernel_lock, flags);
-    select = g_task_running;
+
+    if (cur == NULL) {
+        /* AP 认领首个任务：从任务表头线性找 READY 且亲和兼容者 */
+        select = g_task_head;
+        while (select != NULL) {
+            if ((select->tid != 0) &&
+                (select->state == TASK_STATE_READY) &&
+                task_allowed_on(select, cpu))
+                break;
+            select = select->next;
+        }
+        if (select != NULL) {
+            select->state = TASK_STATE_RUNNING;
+        }
+        lock_irqrestore(&g_kernel_lock, flags);
+        if (select != NULL)
+            /* old==NULL：无现场可存，直接进新任务。注意不要在这里先写
+               g_task_running——switch_to 以 current 作 old，提前认领会
+               让保存半段覆盖新任务的 INIT_TASK_CONTEXT 启动帧。 */
+            switch_to(select);
+        return;
+    }
+
+    select = cur;
     do {
         select = select->next;
         if(select == NULL)
             select = g_task_head;
-        if(select == g_task_running)
+        if(select == cur)
             break;
         if((select->tid != 0) &&
-           (select->state == TASK_STATE_READY))
+           (select->state == TASK_STATE_READY) &&
+           task_allowed_on(select, cpu))
             break;
     } while(1);
 
-    if(select == g_task_running) {
-        if(select->state == TASK_STATE_READY) {
+    if(select == cur) {
+        if(cur->state == TASK_STATE_READY ||
+           cur->state == TASK_STATE_RUNNING) {
+            /* 当前任务仍可跑（含 RUNNING：被时间片打断但无他者可选），
+               继续运行 */
+
             lock_irqrestore(&g_kernel_lock, flags);
             return;
         }
-        select = task0;
-    }
+        /* 当前已阻塞/退出：切到本核 idle */
+        select = idle_for(cpu);
 
-    //printk("0x%d -> 0x%d\r\n", (g_task_running == NULL) ? -1 : g_task_running->tid, select->tid);
+    } else {
+
+    }
 
     if(select->signature != TASK_SIGNATURE)
         printk("warning: kernel stack of task #%d overflow!!!", select->tid);
 
     g_resched = 0;
-    /* 切出前放锁（C6）：锁不能被 switch_to 冻结在被切出的核上 */
+
+    if (select != cur)
+        select->state = TASK_STATE_RUNNING;     /* 认领：另一核跳过它 */
+
+    /* 切出前放锁（C6）：锁不能被 switch_to 冻结在被切出的核上。
+       cur 的降级（RUNNING→READY）由 switch_to 在保存现场之后完成。 */
+
     lock_irqrestore(&g_kernel_lock, flags);
     switch_to(select);
 }
@@ -93,6 +162,7 @@ void sleep_on(struct wait_queue **head)
     kernel_lock_release(&g_kernel_lock);
 
     schedule();
+
 
     /* 唤醒后取回锁摘链，返回时放锁（调用方按 kernel.h 的契约处理） */
     kernel_lock_acquire(&g_kernel_lock);
@@ -212,6 +282,8 @@ struct tcb *sys_task_create(void *tos,
     new->state = TASK_STATE_READY;
     new->timeslice = TASK_TIMESLICE_DEFAULT;
     new->wq_exit = NULL;
+    new->cpu_binded = (ustack != 0) ? 0 : -1;  /* S03：用户任务钉 CPU0（C1），
+                                                  内核线程任意核 */
     new->next = NULL;
     new->signature = TASK_SIGNATURE;
 
@@ -224,6 +296,24 @@ struct tcb *sys_task_create(void *tos,
     lock_irqsave(&g_kernel_lock, flags);
     add_task(new);
     lock_irqrestore(&g_kernel_lock, flags);
+
+    return new;
+}
+
+/**
+ * 绑核版创建（S03）：把内核线程钉在指定核上。AP idle 任务与 SMP 验收
+ * demo 线程用它；创建逻辑与 sys_task_create 完全一致，仅覆盖亲和。
+ */
+struct tcb *sys_task_create_cpu(unsigned cpu, void (*func)(void *pv), void *pv)
+{
+    struct tcb *new;
+
+    if (cpu >= NR_CPUS)
+        return NULL;
+
+    new = sys_task_create(NULL, func, pv);
+    if (new != NULL)
+        new->cpu_binded = (int)cpu;
 
     return new;
 }
@@ -248,6 +338,7 @@ void sys_task_exit(int code_exit)
         g_task_own_fpu = NULL;
 
     /* 先放锁再调度（schedule 自带取锁，带着锁进去会自死锁） */
+
     lock_irqrestore(&g_kernel_lock, flags);
     schedule();
 }
@@ -328,8 +419,12 @@ void sys_task_yield()
  */
 void init_task()
 {
-    g_resched = 0;
-    g_task_running = NULL;
+    int i;
+    for (i = 0; i < NR_CPUS; i++) {
+        g_resched_arr[i] = 0;
+        g_task_running_arr[i] = NULL;
+        g_ap_idle[i] = NULL;
+    }
     g_task_head = NULL;
     g_task_own_fpu = NULL;
 

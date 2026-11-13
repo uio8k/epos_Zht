@@ -1,0 +1,6 @@
+﻿refs-check-s03 fixup round: previous FAIL item (smp.c cli window) was a multi-line regex mistake; Select-String is line-based. Other 33 items PASS unchanged (see refs-check-s03.log).
+PASS cli(); -> kernel\smp.c:174
+PASS schedule-in-loop -> kernel\smp.c:175
+PASS adjacency: schedule immediately after cli (line delta 1)
+RESULT: 3 pass / 0 fail
+SUMMARY: 3 PASS / 0 FAIL

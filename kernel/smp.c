@@ -1,11 +1,13 @@
 /**
  * vim: filetype=c:fenc=utf-8:ts=4:et:sw=4:sts=4
  *
- * SMP 最简原型：MPS 表解析 + AP 启动（S02）。
+ * SMP 最简原型：MPS 表解析 + AP 启动（S02）+ LAPIC timer 与 AP 调度（S03）。
  *
  * 调研与出处：docs/evidence/2026-11-13/s02-apboot-research-excerpt.txt
- * （QEMU apic.c 的 INIT/SIPI 投递、wait_for_sipi 门控、SVR 使能、ICR 位段）
- * 与 s01-lock-research-excerpt.txt（LAPIC ID 直读）。
+ * （QEMU apic.c 的 INIT/SIPI 投递、wait_for_sipi 门控、SVR 使能、ICR 位段）、
+ * s01-lock-research-excerpt.txt（LAPIC ID 直读）与
+ * docs/evidence/2026-11-14/s03-lapic-timer-research-excerpt.txt
+ * （TDCR/TICR/LVT timer 位段、EOI、periodic 周期式）。
  *
  * 关键设计事实（S02 实施期发现，[实测: kernel/machdep.c cstart 尾部]）：
  * cstart 主动取消了 [0,1MB) 除 VGA 显存外的全部映射（内核重定位到虚拟
@@ -102,19 +104,89 @@ static int mp_parse(void)
 }
 
 /**
+ * AP 的常驻 idle 线程（绑本核）：当前任务阻塞后 schedule 的 fallback
+ * 去处。它作为真实任务被认领/切换，与 CPU0 的 task0 互不相干。
+ */
+static void ap_idle_thread(void *pv)
+{
+    for (;;)
+        cpu_idle();
+}
+
+/**
+ * S03 验收演示线程（绑死 CPU1，S04 收进 selftest 后移除）：busy-wait
+ * 占核不让出——同核两个 tid 交错打印 = 时间片抢占的串口证据；每行带
+ * 本核节拍计数，独立递增 = 每核节拍证据。绑 CPU1 是为了不抢 CPU0 上
+ * 用户任务的算力（SORT_DEMO 不受干扰）。
+ */
+static void smp_demo_thread(void *pv)
+{
+    unsigned i, cpu = lapic_id() & (NR_CPUS - 1);
+
+    for (i = 0; i < 100; i++) {
+        mdelay(30);     /* 忙等：拉长到跨多个时间片（4 tick），让两个线程
+                           在同核上被时间片强制交错——抢占的串口证据 */
+        printk("smpdemo task#%d cpu=%u tick=%u iter=%u\r\n",
+               sys_task_getid(), cpu, g_cpu_ticks[cpu], i);
+    }
+    sys_task_exit(0);
+}
+
+/**
  * AP 落地后的主体（运行在 trampoline 给的内核栈上，g_task_running 为 NULL
- * ——PROLOGUE 对 NULL 直接走 3f 不拷贝，安全）。S02 只做：使能 LAPIC、
- * 打卡、hlt idle；S03 才有 LAPIC timer 与真实调度。
+ * ——PROLOGUE 对 NULL 直接走 3f 不拷贝，安全）。
+ *
+ * S03：使能 LAPIC 后给本核装上 periodic timer（TDCR→LVT→TICR，装填即起
+ * 表）并 sti——INIT 复位后 IF=0，没有节拍就没有调度。之后循环调
+ * schedule：cur==NULL 时从任务表头认领亲和兼容的 READY 任务（认领语义
+ * 见 task.c schedule 注释），没有就 hlt 等下一 tick。
  */
 void ap_main(void)
 {
     unsigned id = lapic_id();
 
     apic_write(LAPIC_SVR, APIC_SV_ENABLE | 0xff);    /* 使能本核 LAPIC */
+
+    /* 必须在武装 timer 之前装系统表：否则第一响 v=40 即打在复位值 IDT
+       上（见 ap_load_systables 注释） */
+    ap_load_systables();
+
+    /* LAPIC timer（D5）：BSP 的 LVT timer 不编程（C4：PIC 节拍只达
+       CPU0，墙钟语义零变化）；AP 每 10ms 一次 vector 0x40，ISR 写 EOI。 */
+    apic_write(LAPIC_TDCR, LAPIC_TDCR_DIV16);
+    apic_write(LAPIC_LVT_TIMER, LAPIC_TIMER_VECTOR | APIC_LVT_PERIODIC);
+    apic_write(LAPIC_TICR, LAPIC_TICR_10MS);
+
+    sti();
+
     g_ap_online[id] = 1;
-    printk("SMP: AP online, APIC ID=%u, entering idle loop\r\n", id);
-    for (;;)
+    printk("SMP: AP online, APIC ID=%u, LAPIC timer armed (10ms)\r\n", id);
+    for (;;) {
+        /* 认领+切换的「启动窗口」必须全程 IF=0：switch_to 装载新任务帧后
+           到 ret_from_syscall 的 iret 消费完帧之前，cur 已指向新任务而帧里
+           还是 INIT_TASK_CONTEXT——若中断插入，PROLOGUE 会把中断现场拷进
+           启动帧把它撕坏（-smp 2 首跑 demo 线程 iret 后 #GP → 三重故障
+           复位，-d int 日志实测定位）。BSP 侧所有 schedule 调用方都以
+           IF=0 进入（ISR 尾部/持锁睡眠点），唯 ap_main 是 IF=1 的线程
+           上下文，故在这里显式 cli。认领成功后本循环体不再回来（ap_main
+           现场被弃置，新任务以 iret 的 0x202 原子地开中断）；空手返回
+           （无可认领）时 sti 后 hlt 等下一 tick。 */
+        cli();
+        schedule();
+        sti();
         cpu_idle();
+    }
+}
+
+/**
+ * LAPIC timer 的中断处理（entry.S hwint_lapic_timer 直调）：节拍计数与
+ * 时间片扣减复用 isr_timer（per-CPU 语义已内建，D6 的墙钟规则也在里面）；
+ * fixed mode 必须写 EOI 清 ISR 位，否则顶住后续同 vector 投递。
+ */
+void isr_lapic_timer(uint32_t irq, struct context *ctx)
+{
+    isr_timer(irq, ctx);
+    apic_write(LAPIC_EOI, 0);
 }
 
 static void smp_boot_aps(void)
@@ -170,6 +242,14 @@ static void smp_boot_aps(void)
     for (i = 1; i < g_cpu_count; i++) {
         unsigned id = g_apic_ids[i];
 
+        /* AP 的 idle 任务必须先于 SIPI 存在（D3）：AP 当前任务阻塞后
+           schedule 的 fallback 要用它；绑本核，CPU0 永不挑选。 */
+        g_ap_idle[i] = sys_task_create_cpu(i, ap_idle_thread, NULL);
+        if (g_ap_idle[i] == NULL) {
+            printk("SMP: idle task for cpu%u failed, boot aborted\r\n", i);
+            return;
+        }
+
         apic_write(LAPIC_SVR, APIC_SV_ENABLE | 0xff);     /* BSP 本核 LAPIC 使能 */
         apic_write(LAPIC_ICR_LO, ICR_INIT);               /* INIT（shorthand=全部含自除外） */
         mdelay(10);                                       /* Intel MP 规范时序 */
@@ -204,6 +284,14 @@ void smp_init(void)
         return;
     }
     smp_boot_aps();
+
+    /* S03 验收演示（D7）：两个线程绑死 CPU1 busy-wait 互抢时间片，
+       串口证据由 AP 侧打印；S04 收进 selftest 后移除。 */
+    if (sys_task_create_cpu(1, smp_demo_thread, NULL) != NULL &&
+        sys_task_create_cpu(1, smp_demo_thread, NULL) != NULL)
+        printk("SMP: demo threads pinned to cpu1 spawned\r\n");
+    else
+        printk("SMP: demo thread spawn failed\r\n");
 }
 
 /**

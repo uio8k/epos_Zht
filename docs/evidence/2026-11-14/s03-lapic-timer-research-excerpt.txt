@@ -1,0 +1,152 @@
+S03 调研摘录：LAPIC timer（periodic）每核节拍
+=====================================================
+日期：2026-11-14。调研对象：QEMU 3.1.50 APIC 设备实现（仓内已存一手原文，
+docs/evidence/2026-11-13/qemu-src/apic-v3.1.0.c 与 apic_internal-v3.1.0.h，
+2026-11-13 自 gitee.com/mirrors/qemu raw v3.1.0 逐字抓取，本轮只引用不重下）。
+辅助线索 [检索: 百度搜索 "LAPIC timer periodic TDCR TICR calibration"]（仅定位
+用途，下文全部结论以 [src:] 一手原文为准）。
+
+§1 TDCR（divide configuration，偏移 0x3E0）→ count_shift 映射
+----------------------------------------------------------------
+[qemu-src/apic-v3.1.0.c:848-853]（write handler case 0x3e，逐字）：
+
+        case 0x3e:
+            {
+                int v;
+                s->divide_conf = val & 0xb;
+                v = (s->divide_conf & 3) | ((s->divide_conf >> 1) & 4);
+                s->count_shift = (v + 1) & 7;
+            }
+            break;
+
+推算：写 0x3 → divide_conf=3 → v=3 → count_shift=4，即 tick 单位 =
+虚拟时钟纳秒 >> 4 = 每 16ns 计 1（分频 ÷16）。
+
+§2 TICR（initial count，偏移 0x380）装填即起表
+----------------------------------------------------------------
+[qemu-src/apic-v3.1.0.c:841-847]（write handler case 0x38，逐字）：
+
+        case 0x38:
+            s->initial_count = val;
+            s->initial_count_load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            apic_timer_update(s, s->initial_count_load_time);
+            break;
+
+periodic 模式的计数读数与周期 [qemu-src/apic-v3.1.0.c:617-631]（逐字）：
+
+    static uint32_t apic_get_current_count(APICCommonState *s)
+    {
+        int64_t d;
+        uint32_t val;
+        d = (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - s->initial_count_load_time) >>
+            s->count_shift;
+        if (s->lvt[APIC_LVT_TIMER] & APIC_LVT_TIMER_PERIODIC) {
+            /* periodic */
+            val = s->initial_count - (d % ((uint64_t)s->initial_count + 1));
+        } else {
+            if (d >= s->initial_count)
+                val = 0;
+            else
+                val = s->initial_count - d;
+        }
+        return val;
+    }
+
+即 periodic 周期 = initial_count << count_shift 纳秒。HZ=100（10ms）取
+count_shift=4 → initial_count = 10,000,000ns >> 4 = 625000（U6 定标，
+S03 实测比对墙钟验证）。
+
+§3 LVT timer（偏移 0x320）位段与投递
+----------------------------------------------------------------
+LVT 寄存器组偏移 0x32..0x37（index 单位 0x10），timer=LVT[0] 即 0x320
+[qemu-src/apic-v3.1.0.c:721-724 读侧逐字]：
+
+        case 0x32 ... 0x37:
+            val = s->lvt[index - 0x32];
+            break;
+
+写侧（0x32 即 LVT timer）触发重算 [qemu-src/apic-v3.1.0.c:826-837，逐字]：
+
+        case 0x32 ... 0x37:
+            {
+                int n = index - 0x32;
+                s->lvt[n] = val;
+                if (n == APIC_LVT_TIMER) {
+                    apic_timer_update(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+                } else if (n == APIC_LVT_LINT0 && apic_check_pic(s)) {
+                    apic_update_irq(s);
+                }
+            }
+            break;
+
+位段定义 [qemu-src/apic_internal-v3.1.0.h:56-66，逐字]：
+
+    #define APIC_LVT_TIMER_SHIFT            17
+    #define APIC_LVT_MASKED_SHIFT           16
+    #define APIC_LVT_TIMER_PERIODIC         (1 << APIC_LVT_TIMER_SHIFT)
+    #define APIC_LVT_MASKED                 (1 << APIC_LVT_MASKED_SHIFT)
+
+（APIC_LVT_TIMER=0 是 LVT 槽位号见 :29；vector 占 bits 7..0，
+APIC_VECTOR_MASK=0xff 见 :53；delivery mode 占 bits 10..8。）
+
+到期投递 [qemu-src/apic-v3.1.0.c:645-651，逐字]：
+
+    static void apic_timer(void *opaque)
+    {
+        APICCommonState *s = opaque;
+
+        apic_local_deliver(s, APIC_LVT_TIMER);
+        apic_timer_update(s, s->next_time);
+    }
+
+apic_local_deliver 对 FIXED mode（LVT bits10..8=0）把 vector 投给本核
+[qemu-src/apic-v3.1.0.c:136-165，要点逐字]：
+
+        switch ((lvt >> 8) & 7) {
+        ...
+        case APIC_DM_FIXED:
+            trigger_mode = APIC_TRIGGER_EDGE;
+
+（APIC_DM_FIXED=0 [apic_internal-v3.1.0.h:38]。LVT masked 置位时直接
+return 不投递，:141-143。）
+
+结论：LVT timer 写 (vector | PERIODIC)（不置 MASKED）+ TDCR=0x3 +
+TICR=625000 → 本核每 10ms 收到一次 vector 中断，独立于 PIC（PIC 只到
+BSP LINTIN0，C4 已证）。
+
+§4 EOI（偏移 0xB0）
+----------------------------------------------------------------
+[qemu-src/apic-v3.1.0.c:801-804，逐字]：
+
+        case 0x0b: /* EOI */
+            apic_eoi(s);
+            break;
+
+LAPIC timer ISR 结束前必须写 EOI 清 ISR 位（fixed mode 边沿触发，不写
+EOI 后续同 vector 投递受 ISR/TPR 阻塞语义影响——原型下固定每 tick 写）。
+
+§5 向量选择与本仓中断布局
+----------------------------------------------------------------
+[实测: kernel/entry.S:335-426 + kernel/machdep.c:388-403]：PIC 16 个
+HWINT 占 IDT 0x20-0x2F；异常占 0x00-0x13；syscall 在 0x82；
+NR_IDT=131 [machdep.c:323]。选 LAPIC timer vector = 0x40（不与 0x20-0x2F
+冲突、0x40 < 131 免改 NR_IDT），新 asm 存根 hwint_lapic_timer +
+setidt(0x40, ...) [实测: machdep.c init_idt]。
+
+§6 g_resched 跨核问题与本仓调度器现状（改码依据）
+----------------------------------------------------------------
+[实测: kernel/entry.S:358] HWINT 尾部 `cmpl $0, _g_resched` 读的是全局
+标量——双核下 A 核 ISR 置位会被 B 核 HWINT 消费（在错误的核上调度）。
+[实测: kernel/task.c:37-72] schedule() 沿全局任务链表从 current 环走挑
+下一个 READY；运行中任务 state 保持 READY（无 RUNNING 态）→ 双核同时
+schedule 可选中同一任务双跑。S03 手术：①g_resched 数组化 per-CPU；
+②引入 TASK_STATE_RUNNING 认领语义（持内核锁内认领，另一核的挑选
+条件 state==READY 天然跳过）；③任务加 cpu_binded 字段：用户任务
+（tos!=0）钉 CPU0（C1）、内核线程任意核、AP idle 任务钉本核。
+
+§7 U6 定标验证方法
+----------------------------------------------------------------
+S03 实测：AP 侧每核节拍计数 g_cpu_ticks[] 与 BSP 墙钟 g_timer_ticks
+（只由 CPU0 推进，保证 gettimeofday/sys_sleep/音频计时语义不变）在
+-smp 2 下各自以 ~100Hz 递增；demo 线程打印 tick 计数差值对墙钟延时
+（mdelay 标定后的 loops_per_tick）交叉验证 10ms/tick。

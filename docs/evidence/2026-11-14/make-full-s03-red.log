@@ -1,0 +1,16 @@
+"${USERPROFILE:-${HOME}}/.local/bin/uv.exe" run --no-project python tools/check_docs.py
+docs-check: repo=E:\\ComputerScience\\epos_Zht\\epos_Zht workspace=E:\\ComputerScience\\epos_Zht
+FAIL C7  progress.html:health -> block differs from --sync output (22 vs 22 lines)
+--- checks ---
+C1   ok    0 fail / 0 warn
+C2   ok    0 fail / 0 warn
+C3   ok    0 fail / 0 warn
+C4   ok    0 fail / 0 warn
+C5   ok    0 fail / 0 warn
+C6   ok    0 fail / 0 warn
+C7   FAIL  1 fail / 0 warn
+C8   ok    0 fail / 0 warn
+C9   ok    0 fail / 0 warn
+C10  ok    0 fail / 0 warn
+RESULT FAIL (1 fail / 0 warn) 0.59s
+make: *** [Makefile:56: docs-check] Error 1

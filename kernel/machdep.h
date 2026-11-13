@@ -160,6 +160,7 @@ struct context {
 
 void isr_timer(uint32_t irq, struct context *ctx);
 void isr_keyboard(uint32_t irq, struct context *ctx);
+void ap_load_systables(void);   /* S03：AP 落地后装载内核 GDT/IDT（共用 BSP 的表） */
 
 void sys_beep(int freq);
 int  sys_audio_play_file_ms(const char *filename, uint32_t max_ms);

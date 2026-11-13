@@ -52,6 +52,26 @@
 
 依赖链 S01→S02→S03→S04（progress.html data-dep）。
 
+### 4.1 S03 实施设计（2026-11-14 开工前细化，依据 docs/evidence/2026-11-14/s03-lapic-timer-research-excerpt.txt）
+
+S02 交付后的新事实（S03 手术的全部动机）：
+
+| # | 现状 | 位置 | S03 对策 |
+|---|---|---|---|
+| D1 | HWINT 尾部读全局 `g_resched`——双核下 A 核 ISR 置位会被 B 核 HWINT 消费（错误核上调度） | `kernel/entry.S:358`（S02 树行号；S03 已由 RESCHED_AND_SCHEDULE per-CPU 直读替换） | g_resched 数组化 per-CPU（`g_resched_arr[NR_CPUS]` + kernel.h 宏按 lapic_id() 取下标），entry.S 的读改成 4 条 per-CPU 直读（复用 CURRENT_TO_EAX 的取核号模式） |
+| D2 | schedule() 环走挑 READY，运行中任务 state 恒为 READY（无 RUNNING 态）——双核同时调度可选中同一任务**双跑**（kstack 互踩） | `kernel/task.c:37-72`（S02 树行号，schedule 已重写） | 引入 `TASK_STATE_RUNNING` 认领语义：持内核锁内把选中任务置 RUNNING（另一核挑选条件 `state==TASK_STATE_READY` 天然跳过）；切出方降级（RUNNING→READY）在 **switch_to 保存现场之后**（实现期复查发现：若在 schedule 锁内提前降级，另一核可在保存完成前认领并装载过期帧——认领协议后半步见 switch_to 注释）；WAITING/ZOMBIE 切出方不动 |
+| D3 | 任务无 CPU 亲和字段——C1（用户任务钉 CPU0）无法表达；AP 也无自己的 idle 任务（cur 阻塞后无处可切，task0 属于 CPU0 不能借） | `kernel/task.c:190-229`（S02 树行号，sys_task_create 已加 cpu_binded） | tcb 加 `int cpu_binded`（-1=任意核；用户任务 tos!=0 建时钉 0；`sys_task_create_cpu(cpu,...)` 显式绑核，供 AP idle 任务与 S03 demo 线程使用）；schedule 挑选条件加 `task_allowed_on()`；fallback idle 按 CPU0→task0 / AP→g_ap_idle[cpu] 分派 |
+| D4 | switch_to 的保存半段对 `old->kstack` 取址——AP 落地初期 current==NULL 直接写空指针页 | `kernel/machdep.c:122-152`（S02 树行号，switch_to 已加 NULL 守卫与降级后半步） | 保存半段包进 `if (old != NULL)`（ap_main 认领首个任务时现场直接弃置，与 INIT_TASK_CONTEXT 的 fresh-task 启动帧衔接） |
+| D5 | AP 无节拍：LAPIC timer 未编程，AP 上任务的 timeslice 永不扣减，也就无时间片抢占 | `kernel/smp.c ap_main`（S02 树，S03 已加装表+timer+认领循环） | ap_main 里 `sti` + TDCR=0x3（÷16→count_shift=4）+ LVT timer=vector 0x40 \| PERIODIC（不 masked）+ TICR=625000（10^7ns>>4 → 10ms/tick，U6 定标，实测比对墙钟验证）；ISR 写 EOI（0xB0） |
+| D6 | 双核各 100Hz 会把全局墙钟 g_timer_ticks 推成 200Hz（gettimeofday/sys_sleep/音频计时全翻倍失真） | `kernel/timer.c:38`（S02 树行号） | 墙钟只由 CPU0 推进（`if (cpu == 0) g_timer_ticks++`）；每核另有 `g_cpu_ticks[NR_CPUS]` 独立计数（调度用 timeslice 本就按核扣减，无需全局量）。-smp 1 下 cpu 恒 0，行为与基线逐字节相同 |
+| D7 | 验收需要「AP 内核线程被时间片抢占」的串口证据 | — | smp_init（-smp 2 时）spawn 2 个绑死 CPU1 的 demo 线程：busy-wait 不让出，打印 `smpdemo task#T cpu=C tick=N iter=I`——同核两 tid 交错 = 抢占证据，tick 计数独立递增 = 每核节拍证据。S04 会把验收用例收进 selftest，届时移除本 demo |
+
+向量与 IDT：LAPIC timer 取 vector 0x40（PIC 占 0x20-0x2F、syscall 0x82、NR_IDT=131 免扩）[实测: kernel/machdep.c:323,388-405]；新 asm 存根 `hwint_lapic_timer`（HWINT 同构：fake frame→pushal→段重装→PROLOGUE→调 `isr_lapic_timer`→per-CPU resched 检查→schedule→ret_from_syscall）+ `setidt(0x40, ...)`。
+
+BSP 保持 PIC timer（C4：LINTIN0=ExtInt，PIC 只达 CPU0）；BSP 的 LAPIC LVT timer 不编程（TICR 恒 0，QEMU reset 时 LVT masked）——BSP 节拍语义零变化。
+
+验收判据（S03）：① `make test` 37 用例绿；② -smp 1 `make full` 五腿与基线一致（行为零变化）；③ -smp 2 串口：每核 tick 计数独立递增 + 同核两 demo tid 交错打印（时间片抢占）；④ SORT_DEMO 在 -smp 2 下仍成功（demo 绑 CPU1，不抢 CPU0）。
+
 ## 5 相容核对
 
 - D-A16：本 tech-plan 为前置设计，编码待 /autodev 触发；触发只授权当轮报备的 Sxx。
@@ -72,6 +92,8 @@
 | U9 | **（S01 实施期新增，已解）LAPIC MMIO 页不在页表**：分页开启后 VA 0xFEE00000 未映射，第一次时钟中断的 PROLOGUE 直读即 page fault（首跑 CAPTURE 腿串口 0 字节，证据 make-full-s01-red-boot-hang.log）。解法：init_paging 在开分页前恒等映射 LAPIC 页（PD 槽 0x3FB——首版误写 0x3FA——PT 槽 0x200，V+W）。S02 AP 启动复用同映射 | 已实测修复，回归五腿验证 |
 | U10 | **（S02 实施期新增，已解）[0,1MB) 低地址映射被 cstart 主动取消**：[实测: machdep.c cstart 尾部] `for(i=0;i<0x100000;i+=PAGE_SIZE) if(i!=0xB8000) *vtopte(i+KERNBASE)=0;` + PD[0..19] 清零——S02 初版「低地址恒等映射」假设整个不成立。连锁坑（串口路标/页表转储实测定位）：①MP 表扫描需在 KERNBASE 别名临时映射（用完还原）；②trampoline 页拷贝目标走 KERNBASE 别名、源直接用链接期虚拟地址；③**PD[0] 是 vm86 时代的「伪页表」**（cstart 清零后 vm86 区域的 PTE 写落在 PD[0] 指向的帧里，转储实测 0x6067=帧 0x6000 兼任 PT0）——**绝不能重建**：首版重建 PD[0] 顶掉运行期累积的 v86 映射，五腿 WAV(VBE)/CAPTURE 二阶段挂死（bisect 二分实证：仅 reserve 即复现 3/5）；④AP 开分页后从线性 0x8000 取指 → 0x8000 的低别名 PTE 必须写进现存伪页表 | 最终解：**smp_init 挪到 vm86_init/selftest 之后**（届时伪页表就位）+ smp_boot_aps 里只往伪页表 entry 2 加一个 trampoline PTE——[实测: s02-final-smp2-sortdemo.log] -smp 2 双核在线下 VBE 成功设模式，五腿 5/5 |
 | U11 | **（S02 实施期新增，已解）trampoline 自身三坑**：mini-GDT 描述符双字字节序写反（0xffff0000 应为 0x0000ffff，base 变 0xFF）；16 位远跳 CS 误写 0x10（数据段）应为 0x08（代码段）；串口路标（outb 0x3F8 单字节）是定位 AP 死点的有效手段（R-G-P-3-C-X-F 七点全部走通后移除） | 已实测修复，-smp 2 上线验证 |
+| U12 | **（S03 实施期新增，已解）schedule 环走死循环**：重写时循环体误写成 `select = cur->next`（每圈都取 cur 的 next），应为 `select = select->next` 沿链推进——task0 被 tid==0 跳过后永远回到 cur->next，select==cur 的退出条件永不满足，首次「线程退出→fallback 切 task0」即死循环（五腿 0/5，L4 串口挂 `[2/4] semaphore`）。定位手段：串口单字节路标（e-f-1-D-G-T-x-1，`2` 后无输出）+ QMP pmemsave 转储走页表解码任务链表——链表完好、cur=ZOMBIE、锁被 cur 递归持有，锁定环走不推进 | 已实测修复，五腿复跑验证 |
+| U13 | **（S03 实施期新增，已解）AP 系统表缺失**：trampoline 只带 mini-GDT，IDT/TR 保持复位值——S02 里 AP 从不收中断故从未暴露；S03 装 LAPIC timer 后第一响 v=40 即打在 base=0 的 IDT 上（[实测: docs/evidence/2026-11-14/s03-smp2-crash-int.log] event 81：GDT=mini 0x806e、IDT=0/0xffff、垃圾门 → #GP e=0x202 → #DF 复位循环）。解法：ap_main 先调 ap_load_systables()（装载与 BSP 共用的 GDT/IDT；TR 不装——ltr 要求 available 描述符而公共 TSS 已被 BSP 置 busy，且 C1 下 AP 只跑内核态线程不经 TSS 换栈）。另连带修「认领启动窗口」：ap_main 是唯一以 IF=1 调 schedule 的上下文，switch_to→iret 消费启动帧之前中断插入会被 PROLOGUE 撕坏帧——ap_main 循环 cli/sti 包住（BSP 全部调用方天然 IF=0） | 已实测修复，-smp 2 冒烟复跑（无复位、demo 交替、SONG 流正常） |
 
 **S01 实施期设计增补**（不改变路线）：① init_paging 新增 LAPIC 页恒等映射（U9，首跑把 PD 槽写成 0x3FA、实为 0x3FB，二轮修正）；② switch_to 的 asm 操作数从 "m"(g_task_running) 改为显式 old->kstack / new->kstack 字段地址（g_task_running 数组化后不能作 asm 存储器操作数），存取同一字段语义不变；③ run_as_task0 的 "m" 操作数改指 _g_task_running_arr——"m" 装载的即 arr[0] 值（task0 指针），单次解引用到 kstack 与原版一致（首版误加一次解引用致复位循环，冒烟抓到）。
 

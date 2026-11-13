@@ -118,14 +118,24 @@ void disable_irq(uint32_t irq)
 
 /**
  * 把CPU从当前线程切换去运行线程new，即上下文切换（Context switch）
+ *
+ * 调用方契约（S03）：进入本函数到 new 被启动（ret_from_syscall 的 iret
+ * 消费完 INIT_TASK_CONTEXT 启动帧）的整个窗口必须 IF=0——窗口内 cur 已
+ * 指向 new 而启动帧未消费，中断插入会让 PROLOGUE 撕坏帧（见 smp.c
+ * ap_main 注释）。BSP 侧全部调用方天然满足；ap_main 显式 cli。
  */
 void switch_to(struct tcb *new)
 {
     /* S01：g_task_running 已数组化（kernel.h），asm 操作数改用显式的
-       old/new->kstack 地址；存/取的都是 kstack 字段，语义逐字节不变。 */
+       old/new->kstack 地址；存/取的都是 kstack 字段，语义逐字节不变。
+       S03：old==NULL（AP 落地初期认领首个任务）时跳过保存半段——ap_main
+       的现场直接弃置，新任务的 INIT_TASK_CONTEXT 启动帧由装载半段的
+       ret 直接进入；「m"(old->kstack) 在 old==NULL 时是空指针取址，写即
+       缺页，必须有此守卫。 */
     struct tcb *old = g_task_running;
 
-    __asm__ __volatile__ (
+    if (old != NULL)
+        __asm__ __volatile__ (
             "pushfl\n\t"
             "pushal\n\t"
             "pushl $1f\n\t"
@@ -134,6 +144,15 @@ void switch_to(struct tcb *new)
             :
             :"m"(old->kstack)
             :"memory");
+
+    /* S03 认领协议后半步：现场保存完毕才把切出方降回 READY。降级必须在
+       保存之后——若在 schedule 锁内提前降级，另一核可能在此处保存完成前
+       认领它并装载旧帧（过期帧竞态）。此刻降级后另一核认领它，读到的
+       kstack 必是本函数刚写好的新帧，恢复路径（1f 起）天然衔接。锁外单字
+       写，x86 原子，另一核在内核锁内读，最坏读到旧值 RUNNING（跳过），
+       语义安全。WAITING/ZOMBIE 的切出方（sleep_on/exit 已置）不动。 */
+    if (old != NULL && old->state == TASK_STATE_RUNNING)
+        old->state = TASK_STATE_READY;
 
     g_task_running = new;
 
@@ -316,6 +335,7 @@ extern idt_handler_t
     IDT_INTERRUPT(04),IDT_INTERRUPT(05), IDT_INTERRUPT(06), IDT_INTERRUPT(07),
     IDT_INTERRUPT(08),IDT_INTERRUPT(09), IDT_INTERRUPT(10), IDT_INTERRUPT(11),
     IDT_INTERRUPT(12),IDT_INTERRUPT(13), IDT_INTERRUPT(14), IDT_INTERRUPT(15);
+extern idt_handler_t hwint_lapic_timer;    /* S03，见 kernel/entry.S */
 
 /**
  * `struct gate_descriptor' comes from FreeBSD
@@ -402,10 +422,38 @@ static void init_idt()
     setidt(ICU_IDT_OFFSET+14,&IDT_INTERRUPT(14), GT_386INTR, SEL_KPL);
     setidt(ICU_IDT_OFFSET+15,&IDT_INTERRUPT(15), GT_386INTR, SEL_KPL);
 
+    /* S03：LAPIC timer（vector 0x40，仅 AP 编程使用；BSP 的 LAPIC LVT
+       timer 不编程，节拍语义零变化）。0x40 不与 PIC 0x20-0x2F、syscall
+       0x82 冲突，NR_IDT=131 免扩。 */
+    setidt(0x40, &hwint_lapic_timer, GT_386INTR, SEL_KPL);
+
     setidt(0x82, &int0x82_syscall, GT_386INTR, SEL_UPL/*!*/);
 
     rd.limit = NR_IDT*sizeof(idt[0]) - 1;
     rd.base = (uint32_t) idt;
+    lidt(&rd);
+}
+
+/**
+ * AP 落地后装载内核级系统表（S03）：trampoline 自带的 mini-GDT 只供进入
+ * C 之前使用，IDT/TR 仍是复位值（IDT base=0、limit=0xffff）——AP 收到的
+ * 第一个中断即从垃圾门进入 → #GP → 三重故障复位（-d int 实测：LAPIC
+ * timer 第一响 v=40 时 AP 的 GDT 仍是 mini、IDT 为 0，S02 无中断源故从未
+ * 暴露）。BSP 由 cstart 的 init_gdt/init_idt 装载；AP 复用同一份表
+ * （原型单 GDT/IDT/公共 TSS，C1/F4）。TR 不装：ltr 要求 available 描述符
+ * 而公共 TSS 已被 BSP 置 busy，且 C1 下 AP 只跑内核态线程，中断/异常均
+ * 不经 TSS 换栈。
+ */
+void ap_load_systables(void)
+{
+    struct region_descriptor rd;
+
+    rd.limit = NR_GDT*sizeof(gdt[0]) - 1;
+    rd.base  = (uint32_t) gdt;
+    lgdt(&rd);
+
+    rd.limit = NR_IDT*sizeof(idt[0]) - 1;
+    rd.base  = (uint32_t) idt;
     lidt(&rd);
 }
 

@@ -25,17 +25,25 @@
 /*记录系统启动以来，定时器中断的次数*/
 unsigned volatile g_timer_ticks = 0;
 
+/*每核节拍计数（S03）：BSP 的 PIC tick 与 AP 的 LAPIC tick 各自递增，
+  「每核 ticks 独立递增」的验收证据面；调度时间片扣减本就按核进行*/
+volatile unsigned g_cpu_ticks[NR_CPUS] = {0, 0};
+
 /**
- * 定时器的中断处理程序
+ * 定时器的中断处理程序（BSP PIC tick 与 AP LAPIC tick 共用）
  */
 void isr_timer(uint32_t irq, struct context *ctx)
 {
     uint32_t flags;
+    unsigned cpu = lapic_id() & (NR_CPUS - 1);
 
-    /* g_timer_ticks 自增与时间片扣减都动跨核共享量，进内核锁；ISR 内自旋
-       锁合法——只在其它核正持锁时短暂自旋（-smp 1 下等价原来的裸写）。 */
+    /* 节拍自增与时间片扣减都动跨核共享量，进内核锁；ISR 内自旋锁合法
+       ——只在其它核正持锁时短暂自旋（-smp 1 下等价原来的裸写）。 */
     lock_irqsave(&g_kernel_lock, flags);
-    g_timer_ticks++;
+    g_cpu_ticks[cpu]++;
+    if (cpu == 0)
+        g_timer_ticks++;    /* 墙钟只由 CPU0 推进：双核若都计入，
+                               gettimeofday/sys_sleep/音频计时会快一倍 */
     //sys_putchar('.');
 
     if(g_task_running != NULL) {

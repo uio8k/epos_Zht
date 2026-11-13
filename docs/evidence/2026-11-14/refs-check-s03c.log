@@ -1,0 +1,38 @@
+﻿refs-check-s03c: merged re-run of all S03 claims (supersedes s03/s03b partial rounds). All patterns checked with Select-String against current tree; qemu-src citations verified against stored v3.1.0 source.
+PASS kernel.h TASK_STATE_RUNNING -> kernel\kernel.h:80
+PASS kernel.h cpu_binded -> kernel\kernel.h:94
+PASS kernel.h g_resched_arr macro -> kernel\kernel.h:133
+PASS kernel.h g_cpu_ticks extern -> kernel\kernel.h:138
+PASS task.c select->next walk -> kernel\task.c:85
+PASS task.c claim RUNNING -> kernel\task.c:88
+PASS task.c cpu_binded init -> kernel\task.c:285
+PASS task.c sys_task_create_cpu -> kernel\task.c:307
+PASS task.c g_resched_arr define -> kernel\task.c:25
+PASS timer.c wall clock cpu0 only -> kernel\timer.c:44
+PASS timer.c g_cpu_ticks define -> kernel\timer.c:30
+PASS entry.S RESCHED_AND_SCHEDULE -> kernel\entry.S:254
+PASS entry.S hwint_lapic_timer -> kernel\entry.S:442
+PASS entry.S g_resched_arr extern -> kernel\entry.S:24
+PASS machdep.c switch_to NULL guard -> kernel\machdep.c:137
+PASS machdep.c demote after save -> kernel\machdep.c:154
+PASS machdep.c setidt 0x40 -> kernel\machdep.c:428
+PASS machdep.c ap_load_systables -> kernel\machdep.c:447
+PASS machdep.h ap_load_systables decl -> kernel\machdep.h:163
+PASS smp.h TICR 625000 -> kernel\smp.h:38
+PASS smp.h LVT periodic bit -> kernel\smp.h:29
+PASS smp.c ap_load_systables call -> kernel\smp.c:152
+PASS smp.c cli breadcrumb -> kernel\smp.c:174
+PASS smp.c schedule after cli -> kernel\smp.c:175
+PASS smp.c TICR arm -> kernel\smp.c:158
+PASS smp.c EOI write -> kernel\smp.c:189
+PASS smp.c demo pinned cpu1 -> kernel\smp.c:290
+PASS smp.c idle task create -> kernel\smp.c:247
+PASS startup.c smp_init after selftest -> kernel\startup.c:131
+PASS machdep.c NR_IDT 131 -> kernel\machdep.c:343
+PASS qemu TDCR count_shift -> docs\evidence\2026-11-13\qemu-src\apic-v3.1.0.c:851
+PASS qemu periodic count -> docs\evidence\2026-11-13\qemu-src\apic-v3.1.0.c:624
+PASS qemu TICR load -> docs\evidence\2026-11-13\qemu-src\apic-v3.1.0.c:622
+PASS qemu EOI -> docs\evidence\2026-11-13\qemu-src\apic-v3.1.0.c:801
+PASS qemu LVT bits header -> docs\evidence\2026-11-13\qemu-src\apic_internal-v3.1.0.h:65
+
+SUMMARY: 35 PASS / 0 FAIL

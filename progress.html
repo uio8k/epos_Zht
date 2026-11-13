@@ -211,7 +211,7 @@ footer p{max-width:none}
 <header>
   <div>
     <h1>EPOS SMP（多核）开发进度</h1>
-    <div class="sub">唯一进度文档 · 更新于 2026-11-13 · 状态写在每条目的 <code>data-done</code> 里，随 git 提交；<code>data-dep</code> / <code>data-optional</code> 供 <code>tools/check_progress.py</code> 判定终态，表格行的 <code>data-state</code> 供 <code>tools/check_docs.py</code> 核对文档一致性（<code>make docs-check</code>）。本文件是唯一人工界面，其余文档由 DSH 维护：<code>docs/decisions-docs.md</code> D-D1</div>
+    <div class="sub">唯一进度文档 · 更新于 2026-11-14 · 状态写在每条目的 <code>data-done</code> 里，随 git 提交；<code>data-dep</code> / <code>data-optional</code> 供 <code>tools/check_progress.py</code> 判定终态，表格行的 <code>data-state</code> 供 <code>tools/check_docs.py</code> 核对文档一致性（<code>make docs-check</code>）。本文件是唯一人工界面，其余文档由 DSH 维护：<code>docs/decisions-docs.md</code> D-D1</div>
   </div>
   <button class="btn" id="export" disabled>导出并覆盖 progress.html</button>
 </header>
@@ -253,12 +253,12 @@ footer p{max-width:none}
       </label>
       <span class="state">已完成</span>
     </li>
-    <li class="item" data-id="S03" data-stage="0" data-done="0" data-dep="S02">
-      <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-S03"></span>
+    <li class="item" data-id="S03" data-stage="0" data-done="1" data-dep="S02">
+      <span class="check" role="checkbox" aria-checked="true" tabindex="0" aria-labelledby="l-S03"></span>
       <label class="label" id="l-S03">S03 每核节拍与调度：LAPIC timer（PIC 仅达 CPU0——MPS LINTIN0=ExtInt 实证）+ schedule per-CPU 收尾 + HWINT 直调 schedule
-        <span class="ev">依据：tech-plan §3 C4/C6；[src: apic-v3.1.0.c:622-651]；验收 = 每核 ticks 独立递增、AP 线程被时间片抢占</span>
+        <span class="ev">实测 = -smp 2 每核 tick 独立递增（g_cpu_ticks cpu=1: 4→19…）+ AP 上两个 demo 线程按 ~4-tick 时间片强制交替（task#3/task#4 轮转，串口证据）+ 五腿 5/5（35.2s 与基线一致）+ 单元 ALL PASS + qtest 15/15；证据 docs/evidence/2026-11-14/（refs-check-s03c.log 35/35、s03-final-smp2-serial.log、s03-smp2-crash-int.log）</span>
       </label>
-      <span class="state">待做</span>
+      <span class="state">已完成</span>
     </li>
     <li class="item" data-id="S04" data-stage="0" data-done="0" data-dep="S03">
       <span class="check" role="checkbox" aria-checked="false" tabindex="0" aria-labelledby="l-S04"></span>
@@ -283,8 +283,8 @@ footer p{max-width:none}
         <tr><td><code>docs/decisions-autodev.md</code></td><td>定案 D-A1–D-A17（autodev 流程与分支管辖）</td><td>2026-11-13</td><td>0</td><td>DSH</td></tr>
         <tr><td><code>docs/decisions-docs.md</code></td><td>定案 D-D1–D-D8（文档托管）</td><td>2026-11-12</td><td>0</td><td>DSH</td></tr>
         <tr><td><code>docs/decisions-adc.md</code></td><td>定案（ADC 历史，2026-10-28）</td><td>2026-10-28</td><td>0</td><td>DSH</td></tr>
-        <tr><td><code>docs/tech-plan-*.md</code></td><td>方案（8 份）</td><td>2026-11-13 (mtime)</td><td>0</td><td>DSH</td></tr>
-        <tr><td><code>docs/evidence/</code></td><td>证据（7 目录 / 155 文件）</td><td>2026-11-13</td><td>0</td><td>DSH</td></tr>
+        <tr><td><code>docs/tech-plan-*.md</code></td><td>方案（8 份）</td><td>2026-11-14 (mtime)</td><td>0</td><td>DSH</td></tr>
+        <tr><td><code>docs/evidence/</code></td><td>证据（8 目录 / 166 文件）</td><td>2026-11-14</td><td>0</td><td>DSH</td></tr>
         <tr><td><code>README.md</code></td><td>驱动说明入口</td><td>2026-11-12</td><td>0</td><td>DSH</td></tr>
         <tr><td><code>../AGENTS.md</code></td><td>交差硬规则表</td><td>2026-11-13 (mtime)</td><td>0</td><td>DSH</td></tr>
         <tr><td><code>../CODEBUDDY.md</code></td><td>架构与常用命令</td><td>2026-11-12 (mtime)</td><td>0</td><td>DSH</td></tr>
@@ -294,7 +294,7 @@ footer p{max-width:none}
       </tbody>
     </table>
   </div>
-  <p class="small">自检 <code>tools/check_docs.py --sync</code> 生成：C1–C10 中除本块保真（C7）外 <b>0 失败 / 0 警告</b> · 生成于 2026-11-13 · 红了先修再 --sync</p>
+  <p class="small">自检 <code>tools/check_docs.py --sync</code> 生成：C1–C10 中除本块保真（C7）外 <b>0 失败 / 0 警告</b> · 生成于 2026-11-14 · 红了先修再 --sync</p>
 <!-- DOCS-HEALTH:END -->
   </div>
 </section>
@@ -307,6 +307,7 @@ footer p{max-width:none}
   <p>git push 仍由你决定——本地提交自动，远端推送手动（<code>docs/decisions-docs.md</code> D-D3）。</p>
   <h2 style="font-size:13px;margin-top:20px">变更记录</h2>
   <ul class="list">
+    <li><b>2026-11-14</b> S03 每核节拍与调度完成（/autodev 第三轮）：AP 装 LAPIC periodic timer（TDCR=0x3→÷16、TICR=625000→10ms/tick，定标出处 [src: apic-v3.1.0.c:848-853,617-631]；ISR 写 EOI；IDT 新增 vector 0x40 存根 hwint_lapic_timer）；调度双核化——g_resched 数组化 per-CPU（旧全局标量会被别核 HWINT 错误消费）、引入 TASK_STATE_RUNNING 认领语义（持内核锁内认领，双跑防护；切出方降级挪到 switch_to 保存现场之后——降早了另一核会装载过期帧）、tcb 加 cpu_binded（用户任务钉 CPU0=C1、内核线程任意核、AP 有自己的 idle 任务）；墙钟 g_timer_ticks 只由 CPU0 推进（双核若都计入 gettimeofday/音频计时会快一倍），每核另有 g_cpu_ticks 独立计数；switch_to 支持 old==NULL（AP 认领首任务）；ap_main 装载内核 GDT/IDT（trampoline 的 mini-GDT 与复位值 IDT 在首个中断即崩——-d int 实测 v=40 打在 base=0 上，S02 无中断源故从未暴露）+ 认领窗口 cli（PROLOGUE 会撕坏未消费的启动帧）。实施期两 bug 实测定位：①schedule 环走误写 cur->next 死循环（五腿 0/5，路标+pmemsave 转储锁定）；②AP 系统表缺失复位循环（见上）。验收：-smp 2 每核 tick 独立递增 + AP 两 demo 线程按 ~4-tick 时间片强制交替（串口）+ 五腿 5/5（35.2s 基线一致）+ 单元 ALL PASS + qtest 15/15。方案 docs/tech-plan-smp-prototype.md §4.1（U12/U13 落档）；证据 docs/evidence/2026-11-14/。</li>
     <li><b>2026-11-13</b> S02 AP 启动完成（/autodev 第二轮）：新增 kernel/smp.c/smp.h/smptramp.S（MPS 解析以 entry_count 为边界——SeaBIOS 的 base_len 字段多计尾巴不可信；trampoline 16 位实模式→mini-GDT→PE→挂共享页目录→PG→ap_main；INIT/SIPI 按 Intel MP 时序，构造出处 [src: apic-v3.1.0.c:547-551,820-823]）；NR_CPUS 1→2。实施期五连坑全部实测定位并修复（串口路标 outb 0x3F8 七点 + 页表转储）：①cstart 主动取消 [0,1MB) 除 VGA 外的映射——MP 扫描/trampoline 拷贝一律走 KERNBASE 别名；②mini-GDT 描述符双字字节序（0x0000ffff 非 0xffff0000）；③16 位远跳 CS 须为 0x08 代码段；④LAPIC 页恒等映射槽位 0x3FB（S01 遗留修正）；⑤PD[0] 是 vm86 伪页表（0x6067=帧 0x6000 兼任 PT0，运行期累积 v86 映射）——重建它即灭 v86，两次二分实证；终解 = smp_init 挪到 vm86_init/selftest 之后 + smp_boot_aps 只往伪页表 entry 2 加一个 trampoline PTE。验收：-smp 2 两核上线 + SORT_DEMO VBE 双核设模式成功 + make full 五腿 5/5（35.5s 与基线一致）。方案 docs/tech-plan-smp-prototype.md（U10/U11 落档）；证据 docs/evidence/2026-11-13/（s02-*.log、make-full-s02*.log、refs-check-s02.log 7/7）。</li>
     <li><b>2026-11-13</b> S01 锁与 per-CPU 基建完成（/autodev 首个 SMP 编码轮）：新增 kernel/spinlock.h（xchg 自旋锁 + owner/depth 递归内核锁 g_kernel_lock；kmalloc 配独立叶子锁 g_kmalloc_lock 防嵌套死锁）；task/sem/page/frame/timer/kbd/e1000/hda_stream/floppy/hda_trace/machdep 全部 save_flags_cli 共享区换锁；五个睡眠点改「放锁再 schedule」契约（C6，sleep_on 重写为锁内入队→放锁切出→取回摘链）；current per-CPU 化——g_task_running 数组化（kernel.h 宏保持调用侧零改动）+ entry.S PROLOGUE/EPILOGUE/sys_vm86 三处 LAPIC ID 直读手术（C5）+ switch_to/run_as_task0 asm 操作数改写；init_paging 恒等映射 LAPIC 页（PD 槽 0x3FB/PT 槽 0x200——首跑误写 0x3FA 致串口 0 字节回归，加 run_as_task0 双重解引用复位循环，两轮自修内闭合，红证据 make-full-s01-red-boot-hang.log + 两次冒烟串口）。验收（DSH 式入口 setvars.bat 链）：make test 37 PASS + qtest 15 PASS + 五腿 5/5（34.2s 与基线一致）+ SELFTEST 4/4。方案 docs/tech-plan-smp-prototype.md（实施期增补 U9/C2 细化）；证据 docs/evidence/2026-11-13/。</li>
     <li><b>2026-11-13</b> SMP 队列立项 S01–S04（前置设计轮，非编码轮——编码等 /autodev 触发，D-A16）：SMP 最简原型方案定稿 docs/tech-plan-smp-prototype.md（裁剪决策 C1 用户任务钉死 CPU0 / C2 全局大锁 / C3 不做 TLB shootdown / C4 LAPIC timer / C5 LAPIC ID 直读 mycpu / C6 睡眠放锁），调研取证落 docs/evidence/2026-11-13/（QEMU 3.1.50 -smp 2 实跑 MPS 解析：_MP_@0xF58A0、APIC ID 0/1、LINTIN0=ExtInt 证实 PIC 不达 AP；QEMU 源 apic.c/pc.c 逐字摘录 qemu-src/）。同日流程层：D-A17 prove-it 内嵌为 autodev 交差层。</li>

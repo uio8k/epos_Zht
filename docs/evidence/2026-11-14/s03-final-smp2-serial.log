@@ -1,0 +1,329 @@
+Welcome to EPOS
+Copyright (C) 2005-2015 MingJian Hong<hongmingjian@gmail.com>
+All rights reserved.
+
+RAM: 0x00002000 - 0x0009f000 (157 frames)
+RAM: 0x00136000 - 0x02fe0000 (11946 frames)
+Calibrating delay... 1710489600 loops per second (3420.97 BogoMIPS)
+task #0: Initializing IDE controller...Done
+task #0: Initializing PCI controller...Done
+E1000: On-board memory 0xfebc0000 mapped to 0xc3121000 (32 pages)
+E1000: IRQ=0x0b
+E1000: MAC address: 52:54:00:12:34:56
+HDA: Found device! BAR0 = 0xfebf0000
+HDA: PCI CMD before = 0x0103 (BME=0 MSE=1 IO=1)
+HDA: PCI CMD after  = 0x0107 (BME=1 MSE=1 IO=1)
+HDA: GCAP=0x4401 v1.0 OSS=4 ISS=4 BSS=0 64OK=1 in_sd=0 out_sd=4
+HDA: GCTL=0x00000001 (CRST=1)
+HDA: INTCTL set to 0x80000000
+HDA: STATESTS = 0x0001
+HDA: Codec 0 present.
+HDA: profile hit 8086:2668 -> qemu hda-duplex (ICH6)
+HDA: topology source=profile dac=0x02 pin=0x07 mixer=0x05 idx=0 hops=3
+HDA: Configuring path: DAC=0x02 Pin=0x07
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: EAPD pin=0x07 req=0x00 rd=0x00 (cap=0 profile=0)
+HDA: SET_CONVERTER_STREAM_CHANNEL verb=0x70640 (tag=4 sd=4)
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000040 cad=0
+HDA: GET_CONV resp=0x00000040 (期望 0x00 = tag<<4|ch)
+HDA: trace log enabled (65536 bytes, 2730 recs)
+HDA: IRQ 11 already owned, polling mode
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x0000001d cad=0
+HDA: verb resp data=0x00400101 cad=0
+HDA: verb resp data=0x00000010 cad=0
+HDA: verb resp data=0x0010011b cad=0
+HDA: verb resp data=0x00400001 cad=0
+HDA: verb resp data=0x00000020 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA-CAP: topology ADC=0x04 MicPin=0x05 (probed)
+HDA: verb resp data=0x00000001 cad=0
+HDA: verb resp data=0x00000005 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000020 cad=0
+HDA: verb resp data=0x00000020 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA-CAP: path ok Pin=0x05 -> ADC=0x04 (conn idx 0), input amp unmuted
+HDA: verb resp data=0x00000020 cad=0
+HDA: verb resp data=0x00000020 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA-CAP: state adc=0x04 pin=0x05 pinctrl=0x20 conn=0 fmt=0x0000 conv=0x00 amp_adc=0x0000 amp_pin=0x0000 sd0_ctl=0x000000
+SELFTEST: begin (4 cases)
+SELFTEST [1/4] allocator
+SELFTEST [1/4] allocator: PASS
+SELFTEST [2/4] semaphore
+SELFTEST [2/4] semaphore: PASS
+SELFTEST [3/4] tick
+SELFTEST [3/4] tick: PASS
+SELFTEST [4/4] hda
+SELFTEST [4/4] hda: PASS
+SELFTEST: RESULT PASS 4/4
+SMP: MPS fp@0x000f58a0 cfg@0x000f58b0 entries=21, 2 enabled processor(s)
+SMP: AP online, APIC ID=1, LAPIC timer armed (S10ms)
+MP: AP cpu1 (APIC ID=1) boot OK
+SMP: demo threads pinned to cpu1 spawned
+task #0: Initializing FAT file system...Done
+task #0: Loading a.out...Done
+task #0: Creating first user task...========================================
+=== EPOS HDA streaming audio demo ======
+=== Enya - We Wish You a Merry Christmas
+=== (mono 44.1kHz 16-bit PCM, ~220s)   =
+========================================
+
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: verb resp data=0x00000000 cad=0
+HDA: volume=80 gain=25
+[AUDIO] volume set to 80
+[SONG] streaming song.wav ...
+HDA: BDL ok entries=256 cbl=4194304
+HDA: continuous stream started (CBL=4194304, 44100Hz 1ch 16bit)
+HDA: streaming song.wav: 19403978 bytes (219999 ms), 1ch 44100Hz
+smpdemo task#3 cpu=1 tick=4 iter=0
+smpdemo task#3 cpu=1 tick=4 iter=1
+smpdemo task#3 cpu=1 tick=4 iter=2
+smpdemo task#3 cpu=1 tick=4 iter=3
+smpdemo task#3 cpu=1 tick=4 iter=4
+smpdemo task#3 cpu=1 tick=4 iter=5
+smpdemo task#3 cpu=1 tick=4 iter=6
+smpdemo task#3 cpu=1 tick=4 iter=7
+smpdemo task#3 cpu=1 tick=5 iter=8
+smpdemo task#3 cpu=1 tick=5 iter=9
+smpdemo task#3 cpu=1 tick=5 iter=10
+smpdemo task#3 cpu=1 tick=5 iter=11
+smpdemo task#3 cpu=1 tick=5 iter=12
+smpdemo task#3 cpu=1 tick=5 iter=13
+smpdemo task#3 cpu=1 tick=5 iter=14
+smpdemo task#3 cpu=1 tick=5 iter=15
+smpdemo task#3 cpu=1 tick=6 iter=16
+smpdemo task#3 cpu=1 tick=6 iter=17
+smpdemo task#3 cpu=1 tick=6 iter=18
+smpdemo task#3 cpu=1 tick=6 iter=19
+smpdemo task#3 cpu=1 tick=6 iter=20
+smpdemo task#3 cpu=1 tick=6 iter=21
+smpdemo task#3 cpu=1 tick=6 iter=22
+smpdemo task#3 cpu=1 tick=6 iter=23
+smpdemo task#3 cpu=1 tick=6 iter=24
+smpdemo task#3 cpu=1 tick=6 iter=25
+smpdemo task#3 cpu=1 tick=7 iter=26
+smpdemo task#3 cpu=1 tick=7 iter=27
+smpdemo task#3 cpu=1 tick=7 iter=28
+smpdemo task#3 cpu=1 tick=7 iter=29
+smpdemo task#3 cpu=1 tick=7 iter=30
+smpdemo task#3 cpu=1 tick=7 iter=31
+smpdemo task#3 cpu=1 tick=7 iter=32
+smpdemo task#3 cpu=1 tick=7 iter=33
+smpdemo task#4 cpu=1 tick=8 iter=0
+smpdemo task#4 cpu=1 tick=8 iter=1
+smpdemo task#4 cpu=1 tick=8 iter=2
+smpdemo task#4 cpu=1 tick=8 iter=3
+smpdemo task#4 cpu=1 tick=8 iter=4
+smpdemo task#4 cpu=1 tick=8 iter=5
+smpdemo task#4 cpu=1 tick=8 iter=6
+smpdemo task#4 cpu=1 tick=8 iter=7
+smpdemo task#4 cpu=1 tick=8 iter=8
+smpdemo task#4 cpu=1 tick=8 iter=9
+smpdemo task#4 cpu=1 tick=9 iter=10
+smpdemo task#4 cpu=1 tick=9 iter=11
+smpdemo task#4 cpu=1 tick=9 iter=12
+smpdemo task#4 cpu=1 tick=9 iter=13
+smpdemo task#4 cpu=1 tick=9 iter=14
+smpdemo task#4 cpu=1 tick=9 iter=15
+smpdemo task#4 cpu=1 tick=9 iter=16
+smpdemo task#4 cpu=1 tick=9 iter=17
+smpdemo task#4 cpu=1 tick=9 iter=18
+smpdemo task#4 cpu=1 tick=9 iter=19
+smpdemo task#4 cpu=1 tick=10 iter=20
+smpdemo task#4 cpu=1 tick=10 iter=21
+smpdemo task#4 cpu=1 tick=10 iter=22
+smpdemo task#4 cpu=1 tick=10 iter=23
+smpdemo task#4 cpu=1 tick=10 iter=24
+smpdemo task#4 cpu=1 tick=10 iter=25
+smpdemo task#4 cpu=1 tick=10 iter=26
+smpdemo task#4 cpu=1 tick=10 iter=27
+smpdemo task#4 cpu=1 tick=10 iter=28
+smpdemo task#4 cpu=1 tick=11 iter=29
+smpdemo task#4 cpu=1 tick=11 iter=30
+smpdemo task#4 cpu=1 tick=11 iter=31
+smpdemo task#4 cpu=1 tick=11 iter=32
+smpdemo task#4 cpu=1 tick=11 iter=33
+smpdemo task#4 cpu=1 tick=11 iter=34
+smpdemo task#4 cpu=1 tick=11 iter=35
+smpdemo task#4 cpu=1 tick=11 iter=36
+smpdemo task#4 cpu=1 tick=11 iter=37
+smpdemo task#4 cpu=1 tick=11 iter=38
+smpdemo task#3 cpu=1 tick=16 iter=34
+smpdemo task#3 cpu=1 tick=16 iter=35
+smpdemo task#3 cpu=1 tick=16 iter=36
+smpdemo task#3 cpu=1 tick=16 iter=37
+smpdemo task#3 cpu=1 tick=16 iter=38
+smpdemo task#3 cpu=1 tick=16 iter=39
+smpdemo task#3 cpu=1 tick=16 iter=40
+smpdemo task#3 cpu=1 tick=16 iter=41
+smpdemo task#3 cpu=1 tick=16 iter=42
+smpdemo task#3 cpu=1 tick=16 iter=43
+smpdemo task#3 cpu=1 tick=17 iter=44
+smpdemo task#3 cpu=1 tick=17 iter=45
+smpdemo task#3 cpu=1 tick=17 iter=46
+smpdemo task#3 cpu=1 tick=17 iter=47
+smpdemo task#3 cpu=1 tick=17 iter=48
+smpdemo task#3 cpu=1 tick=17 iter=49
+smpdemo task#3 cpu=1 tick=17 iter=50
+smpdemo task#3 cpu=1 tick=17 iter=51
+smpdemo task#3 cpu=1 tick=18 iter=52
+smpdemo task#3 cpu=1 tick=18 iter=53
+smpdemo task#3 cpu=1 tick=18 iter=54
+smpdemo task#3 cpu=1 tick=18 iter=55
+smpdemo task#3 cpu=1 tick=18 iter=56
+smpdemo task#3 cpu=1 tick=18 iter=57
+smpdemo task#3 cpu=1 tick=18 iter=58
+smpdemo task#3 cpu=1 tick=18 iter=59
+smpdemo task#3 cpu=1 tick=18 iter=60
+smpdemo task#3 cpu=1 tick=19 iter=61
+smpdemo task#3 cpu=1 tick=19 iter=62
+smpdemo task#3 cpu=1 tick=19 iter=63
+smpdemo task#3 cpu=1 tick=19 iter=64
+smpdemo task#3 cpu=1 tick=19 iter=65
+smpdemo task#3 cpu=1 tick=19 iter=66
+smpdemo task#3 cpu=1 tick=19 iter=67
+smpdemo task#3 cpu=1 tick=19 iter=68
+smpdemo task#4 cpu=1 tick=11 iter=39
+smpdemo task#4 cpu=1 tick=20 iter=40
+smpdemo task#4 cpu=1 tick=20 iter=41
+smpdemo task#4 cpu=1 tick=20 iter=42
+smpdemo task#4 cpu=1 tick=20 iter=43
+smpdemo task#4 cpu=1 tick=20 iter=44
+smpdemo task#4 cpu=1 tick=20 iter=45
+smpdemo task#4 cpu=1 tick=20 iter=46
+smpdemo task#4 cpu=1 tick=20 iter=47
+smpdemo task#4 cpu=1 tick=20 iter=48
+smpdemo task#4 cpu=1 tick=21 iter=49
+smpdemo task#4 cpu=1 tick=21 iter=50
+smpdemo task#4 cpu=1 tick=21 iter=51
+smpdemo task#4 cpu=1 tick=21 iter=52
+smpdemo task#4 cpu=1 tick=21 iter=53
+smpdemo task#4 cpu=1 tick=21 iter=54
+smpdemo task#4 cpu=1 tick=21 iter=55
+smpdemo task#4 cpu=1 tick=21 iter=56
+smpdemo task#4 cpu=1 tick=22 iter=57
+smpdemo task#4 cpu=1 tick=22 iter=58
+smpdemo task#4 cpu=1 tick=22 iter=59
+smpdemo task#4 cpu=1 tick=22 iter=60
+smpdemo task#4 cpu=1 tick=22 iter=61
+smpdemo task#4 cpu=1 tick=22 iter=62
+smpdemo task#4 cpu=1 tick=22 iter=63
+smpdemo task#4 cpu=1 tick=22 iter=64
+smpdemo task#4 cpu=1 tick=23 iter=65
+smpdemo task#4 cpu=1 tick=23 iter=66
+smpdemo task#4 cpu=1 tick=23 iter=67
+smpdemo task#4 cpu=1 tick=23 iter=68
+smpdemo task#4 cpu=1 tick=23 iter=69
+smpdemo task#4 cpu=1 tick=23 iter=70
+smpdemo task#4 cpu=1 tick=23 iter=71
+smpdemo task#4 cpu=1 tick=23 iter=72
+smpdemo task#3 cpu=1 tick=28 iter=69
+smpdemo task#3 cpu=1 tick=28 iter=70
+smpdemo task#3 cpu=1 tick=28 iter=71
+smpdemo task#3 cpu=1 tick=28 iter=72
+smpdemo task#3 cpu=1 tick=28 iter=73
+smpdemo task#3 cpu=1 tick=28 iter=74
+smpdemo task#3 cpu=1 tick=28 iter=75
+smpdemo task#3 cpu=1 tick=28 iter=76
+smpdemo task#3 cpu=1 tick=29 iter=77
+smpdemo task#3 cpu=1 tick=29 iter=78
+smpdemo task#3 cpu=1 tick=29 iter=79
+smpdemo task#3 cpu=1 tick=29 iter=80
+smpdemo task#3 cpu=1 tick=29 iter=81
+smpdemo task#3 cpu=1 tick=29 iter=82
+smpdemo task#3 cpu=1 tick=29 iter=83
+smpdemo task#3 cpu=1 tick=29 iter=84
+smpdemo task#3 cpu=1 tick=29 iter=85
+smpdemo task#3 cpu=1 tick=30 iter=86
+smpdemo task#3 cpu=1 tick=30 iter=87
+smpdemo task#3 cpu=1 tick=30 iter=88
+smpdemo task#3 cpu=1 tick=30 iter=89
+smpdemo task#3 cpu=1 tick=30 iter=90
+smpdemo task#3 cpu=1 tick=30 iter=91
+smpdemo task#3 cpu=1 tick=30 iter=92
+smpdemo task#3 cpu=1 tick=30 iter=93
+smpdemo task#3 cpu=1 tick=30 iter=94
+smpdemo task#3 cpu=1 tick=31 iter=95
+smpdemo task#3 cpu=1 tick=31 iter=96
+smpdemo task#3 cpu=1 tick=31 iter=97
+smpdemo task#3 cpu=1 tick=31 iter=98
+smpdemo task#3 cpu=1 tick=31 iter=99
+smpdemo task#4 cpu=1 tick=31 iter=73
+smpdemo task#4 cpu=1 tick=31 iter=74
+smpdemo task#4 cpu=1 tick=31 iter=75
+smpdemo task#4 cpu=1 tick=32 iter=76
+smpdemo task#4 cpu=1 tick=32 iter=77
+smpdemo task#4 cpu=1 tick=32 iter=78
+smpdemo task#4 cpu=1 tick=32 iter=79
+smpdemo task#4 cpu=1 tick=32 iter=80
+smpdemo task#4 cpu=1 tick=32 iter=81
+smpdemo task#4 cpu=1 tick=32 iter=82
+smpdemo task#4 cpu=1 tick=32 iter=83
+smpdemo task#4 cpu=1 tick=32 iter=84
+smpdemo task#4 cpu=1 tick=32 iter=85
+smpdemo task#4 cpu=1 tick=33 iter=86
+smpdemo task#4 cpu=1 tick=33 iter=87
+smpdemo task#4 cpu=1 tick=33 iter=88
+smpdemo task#4 cpu=1 tick=33 iter=89
+smpdemo task#4 cpu=1 tick=33 iter=90
+smpdemo task#4 cpu=1 tick=33 iter=91
+smpdemo task#4 cpu=1 tick=33 iter=92
+smpdemo task#4 cpu=1 tick=33 iter=93
+smpdemo task#4 cpu=1 tick=34 iter=94
+smpdemo task#4 cpu=1 tick=34 iter=95
+smpdemo task#4 cpu=1 tick=34 iter=96
+smpdemo task#4 cpu=1 tick=34 iter=97
+smpdemo task#4 cpu=1 tick=34 iter=98
+smpdemo task#4 cpu=1 tick=34 iter=99

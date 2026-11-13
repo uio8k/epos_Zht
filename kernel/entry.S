@@ -21,11 +21,12 @@
     .extern _edata
     .extern _end
     .extern _g_intr_vector
-    .extern _g_resched
+    .extern _g_resched_arr
     .extern _schedule
     .extern _g_task_running_arr
     .extern _syscall
     .extern _exception
+    .extern _isr_lapic_timer
 
 
 #define KERNBASE 0xC0000000
@@ -247,6 +248,19 @@ _exception_simd_fp:
     movl %ecx, (%eax); \
     3:
 
+/* S03：强制重调度标志已数组化 per-CPU（kernel.h g_resched_arr）——旧全局
+   标量在双核下会被另一核的 HWINT 错误消费。取核号复用 CURRENT_TO_EAX
+   的 LAPIC ID 直读模式；有请求则在本核直接调 schedule。 */
+#define RESCHED_AND_SCHEDULE \
+    movl $0xFEE00020, %eax; \
+    movl (%eax), %eax; \
+    shrl $24, %eax; \
+    movl _g_resched_arr(,%eax,4), %eax; \
+    testl %eax, %eax; \
+    je 4f; \
+    call _schedule; \
+    4:
+
 exception_common:
     pushal
     pushl %fs
@@ -355,10 +369,7 @@ _ret_from_syscall:
     ; \
     enable_icus; \
     ; \
-    cmpl $0, _g_resched; \
-    je 4f; \
-    call _schedule; \
-    4:; \
+    RESCHED_AND_SCHEDULE; \
     jmp _ret_from_syscall
 
     .globl _hwint00
@@ -424,6 +435,33 @@ _hwint14:
     .globl _hwint15
 _hwint15:
     HWINT(15, ENABLE_ICU1_AND_2)
+
+# S03：LAPIC timer（vector 0x40，仅 AP 编程）的中断存根。与 HWINT 同构，
+# 差异：不走 g_intr_vector（irq 号硬编 0x40 直调 isr_lapic_timer，EOI 在
+# C 侧写 LAPIC 0xB0），也没有 PIC 的 EOI 例程。
+    .globl _hwint_lapic_timer
+_hwint_lapic_timer:
+    subl $8, %esp           # fake exception and errorcode
+
+    pushal
+    pushl %fs
+    pushl %ds
+    pushl %es
+
+    movl $KDSEL, %eax
+    movw %ax, %fs
+    movw %ax, %ds
+    movw %ax, %es
+
+    PROLOGUE
+
+    pushl %esp
+    pushl $0x40
+    call _isr_lapic_timer
+    addl $8, %esp
+
+    RESCHED_AND_SCHEDULE
+    jmp _ret_from_syscall
 
 #
 # `lgdt' comes from FreeBSD

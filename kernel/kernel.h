@@ -77,8 +77,13 @@ struct tcb {
     int         tid;         /* task id */
     int         state;       /* -1:waiting,0:running,1:ready,2:zombie */
 #define TASK_STATE_WAITING  -1
+#define TASK_STATE_RUNNING   0
 #define TASK_STATE_READY     1
 #define TASK_STATE_ZOMBIE    2
+    /* S03 双跑保护：RUNNING 表示「已认领，正跑在某个核上」。schedule 挑选
+       条件只认 READY（RUNNING 被另一核挑中会双跑互踩 kstack）；认领/降级
+       全部在 g_kernel_lock 内完成。task0/AP idle 由 run_as_task0/认领路径
+       直接上核，同样遵守该语义。 */
 
     int         timeslice;   //时间片
 #define TASK_TIMESLICE_DEFAULT 4
@@ -86,6 +91,10 @@ struct tcb {
     int         code_exit;   //保存该线程的退出代码
     struct wait_queue *wq_exit; //等待该线程退出的队列
 
+    int         cpu_binded;  /* S03 CPU 亲和：<0 任意核；>=0 只准跑在该核。
+                                用户任务（tos!=0）创建即钉 CPU0（C1）；内核
+                                线程 -1；AP idle/demo 线程用
+                                sys_task_create_cpu 显式绑核。 */
     struct tcb  *next;
     struct fpu   fpu;        //数学协处理器的寄存器
 
@@ -107,12 +116,27 @@ extern struct tcb *g_task_head;
 extern struct tcb *task0;
 extern struct tcb *g_task_own_fpu;
 
+/* AP 的 idle 任务（S03）：smp_boot_aps 在 INIT/SIPI 之前为每个 AP 创建
+   （绑本核），AP 当前任务阻塞后 schedule 的 fallback 去处——task0 属于
+   CPU0，绝不能被 AP 借跑。-smp 1 下不创建（恒 NULL）。 */
+extern struct tcb *g_ap_idle[NR_CPUS];
+
 /* 全局内核锁（S01，docs/tech-plan-smp-prototype.md C2）：owner+depth 递归
    自旋锁，lock_irqsave/lock_irqrestore 用法见 spinlock.h；定义在 kernel/task.c。
    睡眠契约：sleep_on 调用方必须持有本锁且 depth==1（sleep_on 切出前放锁）。 */
 extern struct kernel_lock g_kernel_lock;
 
-extern int g_resched;
+/* 强制重调度请求，per-CPU（S03）：本核 ISR 置位、本核 HWINT 尾部消费——
+   全局标量在双核下会被别的核错误消费（entry.S:358 旧读法），数组化后
+   语义收敛到「核内」。entry.S 读 _g_resched_arr（取核号 4 条指令）。 */
+extern volatile int g_resched_arr[NR_CPUS];
+#define g_resched (g_resched_arr[lapic_id() & (NR_CPUS - 1)])
+
+/* 每核节拍计数（S03）：本核 LAPIC/PIC timer ISR 各自递增。墙钟
+   g_timer_ticks 只由 CPU0 推进（否则双核 200Hz 会把 gettimeofday/
+   sys_sleep/音频计时推快一倍），本数组才是「每核节拍独立」的证据面。 */
+extern volatile unsigned g_cpu_ticks[NR_CPUS];
+
 void schedule();
 void switch_to(struct tcb *new);
 
@@ -174,6 +198,9 @@ int     sys_putchar(int c);
 int     sys_getchar();
 
 struct tcb *sys_task_create(void *tos, void (*func)(void *pv), void *pv);
+/* 绑核版创建（S03）：内核线程钉在指定核上（AP idle 任务、SMP demo 线程
+   用）。tos 恒 NULL（纯内核线程）；cpu 越界返回 NULL。 */
+struct tcb *sys_task_create_cpu(unsigned cpu, void (*func)(void *pv), void *pv);
 void        sys_task_exit(int code_exit);
 int         sys_task_wait(int tid, int *pcode_exit);
 int         sys_task_getid();
