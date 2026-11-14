@@ -72,6 +72,18 @@ BSP 保持 PIC timer（C4：LINTIN0=ExtInt，PIC 只达 CPU0）；BSP 的 LAPIC 
 
 验收判据（S03）：① `make test` 37 用例绿；② -smp 1 `make full` 五腿与基线一致（行为零变化）；③ -smp 2 串口：每核 tick 计数独立递增 + 同核两 demo tid 交错打印（时间片抢占）；④ SORT_DEMO 在 -smp 2 下仍成功（demo 绑 CPU1，不抢 CPU0）。
 
+### 4.2 S04 实施设计（2026-11-14 开工前细化，依据 docs/evidence/2026-11-14/s04-e2e-research-excerpt.txt）
+
+| # | 项 | 内容 | 落点 |
+|---|---|---|---|
+| E1 | smp_init 前移 | start_user_task 里挪到 selftest_run 之前（vm86_init 之后——U10 约束仍满足：PD[0] 伪页表已就位）；AP 在 selftest 期间在线空转，既有 4 用例仍全在 CPU0 | `kernel/startup.c` |
+| E2 | demo 收编 | 删除 smp_init 的 demo spawn 与 smp_demo_thread（验收职责由 selftest SMP 用例接管，避免 demo 输出混入 L4 断言窗口）；新增 smp_online_count() 访问器 | `kernel/smp.c` `kernel/kernel.h` |
+| E3 | SMP 用例 ×3 | ①smp-dual：绑 cpu0/cpu1 两线程各自无锁自增私有计数 20000，断言两计数达 N 且自报 lapic_id 与绑核一致，cpu1 线程内嵌 U5 FPU 断言（2.0×2×2×2=16.0 精确值，#NM→x87 状态自洽）；②smp-mutex：两线程对同一计数器各加 10000 次（sem 保护，锁失效则跨核竞争丢计数——弄坏必红）；③smp-crosswake：bind-1 线程 sem_wait 睡眠、主线程确认就位后 signal、断言跨核唤醒（rc==0、自报 cpu=1）。全部有界（AP offline 先于 task_wait 快速 FAIL，D8） | `kernel/selftest.c`（SELFTEST_CASES 4→7） |
+| E4 | 测试入口泛化 | full_run.py L4 断言泛化：总数 (\d+) 捕获 + 保留前四项具名 PASS 行 + RESULT PASS n/n 要求 n=n；五腿 QEMU 命令加 -smp 2（x86 分支内核无 SMP 代码，-smp 2 下 AP 永不被启动、PIC 不达 AP，行为与 -smp 1 等价——共享层改动，提交后 cherry-pick 同步 x86） | `tests/full_run.py`（共享层） |
+| E5 | 构建入口 | qemu/qemudbg 目标加 -smp 2（D8 只改参数） | `Makefile:67,84`（S03 树行号） |
+
+验收判据（S04）：① selftest 7 用例全 PASS（L4 腿 -smp 2 下 SELFTEST: RESULT PASS 7/7 + 三个 SMP 用例串口行带真实数值）；② 五腿 verdict 与基线一致（现在是真正的 -smp 2 档全量）；③ U5 FPU 断言 PASS（串口 SMPTEST 行可见）；④ 单元 37 + qtest 15 不劣化。
+
 ## 5 相容核对
 
 - D-A16：本 tech-plan 为前置设计，编码待 /autodev 触发；触发只授权当轮报备的 Sxx。
@@ -93,6 +105,7 @@ BSP 保持 PIC timer（C4：LINTIN0=ExtInt，PIC 只达 CPU0）；BSP 的 LAPIC 
 | U10 | **（S02 实施期新增，已解）[0,1MB) 低地址映射被 cstart 主动取消**：[实测: machdep.c cstart 尾部] `for(i=0;i<0x100000;i+=PAGE_SIZE) if(i!=0xB8000) *vtopte(i+KERNBASE)=0;` + PD[0..19] 清零——S02 初版「低地址恒等映射」假设整个不成立。连锁坑（串口路标/页表转储实测定位）：①MP 表扫描需在 KERNBASE 别名临时映射（用完还原）；②trampoline 页拷贝目标走 KERNBASE 别名、源直接用链接期虚拟地址；③**PD[0] 是 vm86 时代的「伪页表」**（cstart 清零后 vm86 区域的 PTE 写落在 PD[0] 指向的帧里，转储实测 0x6067=帧 0x6000 兼任 PT0）——**绝不能重建**：首版重建 PD[0] 顶掉运行期累积的 v86 映射，五腿 WAV(VBE)/CAPTURE 二阶段挂死（bisect 二分实证：仅 reserve 即复现 3/5）；④AP 开分页后从线性 0x8000 取指 → 0x8000 的低别名 PTE 必须写进现存伪页表 | 最终解：**smp_init 挪到 vm86_init/selftest 之后**（届时伪页表就位）+ smp_boot_aps 里只往伪页表 entry 2 加一个 trampoline PTE——[实测: s02-final-smp2-sortdemo.log] -smp 2 双核在线下 VBE 成功设模式，五腿 5/5 |
 | U11 | **（S02 实施期新增，已解）trampoline 自身三坑**：mini-GDT 描述符双字字节序写反（0xffff0000 应为 0x0000ffff，base 变 0xFF）；16 位远跳 CS 误写 0x10（数据段）应为 0x08（代码段）；串口路标（outb 0x3F8 单字节）是定位 AP 死点的有效手段（R-G-P-3-C-X-F 七点全部走通后移除） | 已实测修复，-smp 2 上线验证 |
 | U12 | **（S03 实施期新增，已解）schedule 环走死循环**：重写时循环体误写成 `select = cur->next`（每圈都取 cur 的 next），应为 `select = select->next` 沿链推进——task0 被 tid==0 跳过后永远回到 cur->next，select==cur 的退出条件永不满足，首次「线程退出→fallback 切 task0」即死循环（五腿 0/5，L4 串口挂 `[2/4] semaphore`）。定位手段：串口单字节路标（e-f-1-D-G-T-x-1，`2` 后无输出）+ QMP pmemsave 转储走页表解码任务链表——链表完好、cur=ZOMBIE、锁被 cur 递归持有，锁定环走不推进 | 已实测修复，五腿复跑验证 |
+| U14 | **（S04 实施期新增，已解）schedule fallback 自唤醒**：task0（主线程上下文）sleep_on 等待绑在别的核上的线程时，CPU0 的 walk 因亲和过滤无可跑任务，fallback `idle_for(0)=task0==cur`——switch_to 自切换直接恢复刚保存的睡眠帧＝伪唤醒，task0 以 WAITING 状态继续跑并把还活着的线程当 ZOMBIE 提前收割（remove+kfree 快于 AP 的 10ms tick，线程一次没跑过）。实测：SMPTEST dual n1=0 / mutex counter=10000 / crosswake rc=-1 三案齐发；pmemsave 转储铁证 task0 state=WAITING、g_cpu_ticks={988,956}（AP 完全健康）。解法：sys_task_wait 改 yield 轮询（与 sys_sleep 的 _sleep 同一习语），每圈重查状态无伪唤醒窗口；schedule 层的 fallback 自切换隐患保留为已知原型局限（task0 不再 sleep，触发面归零；其余核 fallback 均为 per-AP idle ≠ cur） | 已实测修复，三 SMP 用例转绿（见 make-full-s04.log） |
 | U13 | **（S03 实施期新增，已解）AP 系统表缺失**：trampoline 只带 mini-GDT，IDT/TR 保持复位值——S02 里 AP 从不收中断故从未暴露；S03 装 LAPIC timer 后第一响 v=40 即打在 base=0 的 IDT 上（[实测: docs/evidence/2026-11-14/s03-smp2-crash-int.log] event 81：GDT=mini 0x806e、IDT=0/0xffff、垃圾门 → #GP e=0x202 → #DF 复位循环）。解法：ap_main 先调 ap_load_systables()（装载与 BSP 共用的 GDT/IDT；TR 不装——ltr 要求 available 描述符而公共 TSS 已被 BSP 置 busy，且 C1 下 AP 只跑内核态线程不经 TSS 换栈）。另连带修「认领启动窗口」：ap_main 是唯一以 IF=1 调 schedule 的上下文，switch_to→iret 消费启动帧之前中断插入会被 PROLOGUE 撕坏帧——ap_main 循环 cli/sti 包住（BSP 全部调用方天然 IF=0） | 已实测修复，-smp 2 冒烟复跑（无复位、demo 交替、SONG 流正常） |
 
 **S01 实施期设计增补**（不改变路线）：① init_paging 新增 LAPIC 页恒等映射（U9，首跑把 PD 槽写成 0x3FA、实为 0x3FB，二轮修正）；② switch_to 的 asm 操作数从 "m"(g_task_running) 改为显式 old->kstack / new->kstack 字段地址（g_task_running 数组化后不能作 asm 存储器操作数），存取同一字段语义不变；③ run_as_task0 的 "m" 操作数改指 _g_task_running_arr——"m" 装载的即 arr[0] 值（task0 指针），单次解引用到 kstack 与原版一致（首版误加一次解引用致复位循环，冒烟抓到）。

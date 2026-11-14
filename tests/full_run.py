@@ -23,7 +23,11 @@
 第四条腿是 P11 的 L4 内核自检（docs/tech-plan-selftest-l4.md）：
   L4 SELFTEST   默认构建                       冷启动打印的 SELFTEST 段全 PASS
                 kernel/selftest.c 在 hda_init() 之后跑分配器往返、信号量握手、
-                tick 前进、HDA 探测四项，输出走串口，故这里只断那几个固定行。
+                tick 前进、HDA 探测 + SMP 用例（x86_SMP 分支），输出走串口，
+                这里断前四项的固定行 + RESULT PASS n/n（n=n，用例总数随分支）。
+                S04 起五腿统一以 -smp 2 启动（x86 分支内核无 SMP 代码，AP 不
+                被启动、PIC 不达 AP，行为与 -smp 1 等价；tech-plan-smp-prototype
+                §4.2 E4）。
 
 用法（入口 make full / make full-l3）：
   uv run --no-project python tests/full_run.py            # 四条腿全跑
@@ -135,20 +139,20 @@ LEGS = [
         "id": "L4",
         "name": "SELFTEST",
         "build": [],
-        "why": "内核整机自检：分配器往返 + 信号量握手 + tick 前进 + HDA 探测（kernel/selftest.c）",
+        "why": "内核整机自检（kernel/selftest.c，用例数随分支）：分配器/信号量/tick/HDA 既有四项 + SMP 分支的 smp-dual/mutex/crosswake",
         "checks": [
-            (r"SELFTEST: begin \(4 cases\)",
-             "自检段起跑（冷启动即执行，不依赖用户态）"),
-            (r"SELFTEST \[1/4\] allocator: PASS",
+            (r"SELFTEST: begin \((\d+) cases\)",
+             "自检段起跑（冷启动即执行，不依赖用户态；用例总数随分支）"),
+            (r"SELFTEST \[1/\d+\] allocator: PASS",
              "分配器往返：kmalloc/kfree 后同尺寸再申请拿回同一地址"),
-            (r"SELFTEST \[2/4\] semaphore: PASS",
+            (r"SELFTEST \[2/\d+\] semaphore: PASS",
              "信号量握手：内核线程 signal -> 主线程 wait -> task_wait 回收"),
-            (r"SELFTEST \[3/4\] tick: PASS",
+            (r"SELFTEST \[3/\d+\] tick: PASS",
              "tick 前进：g_timer_ticks 在定时器中断下自增"),
-            (r"SELFTEST \[4/4\] hda: PASS",
+            (r"SELFTEST \[4/\d+\] hda: PASS",
              "HDA 探测：MMIO/codec/DAC/Pin 四项事实齐全"),
-            (r"SELFTEST: RESULT PASS 4/4",
-             "四项全通过（任一项 FAIL 则该行变 FAIL 且数字不足）"),
+            (r"SELFTEST: RESULT PASS (\d+)/\1",
+             "全部用例通过（反向引用强制通过数==总数；任一 FAIL 即不匹配）"),
         ],
     },
 ]
@@ -223,7 +227,7 @@ def run_leg(leg):
     env = dict(os.environ)
     env["QEMU_AUDIO_DRV"] = "none"     # D8/D9：唯一可行的后端（tech-plan §3.4）
 
-    cmd = [exe, "-m", "48", "-boot", "order=c", "-vga", "std",
+    cmd = [exe, "-m", "48", "-smp", "2", "-boot", "order=c", "-vga", "std",
            "-drive", "format=raw,file=%s,index=0,media=disk" % HD_IMG.replace("\\", "/"),
            "-device", "intel-hda", "-device", "hda-duplex",
            "-serial", "file:%s" % serial.replace("\\", "/"),

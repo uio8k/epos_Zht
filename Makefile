@@ -64,7 +64,7 @@ full: docs-check test qtest full-l3
 
 .PHONY: qemu
 qemu: hd.img
-	-qemu-system-i386$(W) -m 48 -boot order=c -vga std -drive format=raw,file=$^,index=0,media=disk -device intel-hda -device hda-duplex -serial file:userapp/serial.log
+	-qemu-system-i386$(W) -smp 2 -m 48 -boot order=c -vga std -drive format=raw,file=$^,index=0,media=disk -device intel-hda -device hda-duplex -serial file:userapp/serial.log
 
 .PHONY: qemudbg
 qemudbg: MODE=debug
@@ -81,7 +81,7 @@ ifeq ($(shell uname -s),Darwin)
 			   -e 'end run'
 endif
 endif
-	-qemu-system-i386$(W) -S -s -m 48 -boot order=c -vga std -drive format=raw,file=$^,index=0,media=disk -device intel-hda -device hda-duplex -serial file:userapp/serial.log
+	-qemu-system-i386$(W) -S -s -smp 2 -m 48 -boot order=c -vga std -drive format=raw,file=$^,index=0,media=disk -device intel-hda -device hda-duplex -serial file:userapp/serial.log
 
 .PHONY: bochs
 bochs: hd.img

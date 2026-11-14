@@ -258,6 +258,7 @@ int sys_gettimeofday(struct timeval *tv, struct timezone *tz);
    之后调用（mdelay 依赖 loops_per_tick）。-smp 1 下两者均为空转。 */
 void     smp_init(void);
 void     smp_reserve_trampoline(void);
+int      smp_online_count(void);  /* S04：在线 AP 数（selftest SMP 用例前置判定） */
 
 void     mi_startup();
 #endif /*_KERNEL_H*/

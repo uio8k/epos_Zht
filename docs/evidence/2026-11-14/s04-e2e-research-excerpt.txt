@@ -1,0 +1,70 @@
+S04 调研摘录：端到端收编（-smp 2 进构建/测试 + selftest SMP 用例）
+=====================================================================
+日期：2026-11-14。本轮为工程收编轮，调研对象全部为仓内一手证据（代码与
+既往实测），无新增外部依赖；外部结论沿用 S01-S03 摘录（docs/evidence/
+2026-11-13/ 与 2026-11-14/s03-lapic-timer-research-excerpt.txt）。
+
+§1 selftest 现状与 L4 腿断言的耦合
+----------------------------------------------------------------
+[实测: kernel/selftest.c:21] SELFTEST_CASES=4；[实测: kernel/selftest.c:220-251]
+selftest_run 逐例打印 "SELFTEST [i/N] name: PASS/FAIL" + "SELFTEST: RESULT
+PASS n/N"。[实测: tests/full_run.py:135-151] L4 腿 checks 硬编码 "begin
+(4 cases)"、"[1/4] allocator: PASS"…、"RESULT PASS 4/4"。
+结论：加用例必须同步泛化 full_run.py 的 L4 断言（共享流程层，改动提交后
+须 cherry-pick 同步 x86 分支，D-A14/SKILL §1.5）。泛化方式：总数用 (\d+)
+捕获、保留前四项具名 PASS 行、RESULT PASS n/n 要求 n=n——两分支同版脚本
+均可用（x86 树 4/4，x86_SMP 树 7/7）。
+
+§2 selftest 与 smp_init 的顺序约束
+----------------------------------------------------------------
+[实测: kernel/startup.c:114-131（S03 树）] start_user_task 顺序 =
+vm86_init → e1000_init → hda_init → selftest_run → smp_init → FAT。
+SMP 用例需要 AP 在线 → smp_init 必须前移到 selftest_run 之前。
+约束核对（S02 的 U10 教训）：smp_boot_aps 需要 PD[0] 伪页表就位
+（vm86_init 之后 ✓）、kmalloc（mi_startup ✓）、mdelay（calibrate_delay ✓
+——start_user_task 开头已调）。前移不违反 U10。
+smp_init 前移后 AP 在 selftest 期间在线空转（无 bind-1 READY 任务即
+hlt），既有 4 用例仍全在 CPU0 跑——[实测: docs/evidence/2026-11-14/
+s03-final-smp2-serial.log] AP 认领机制与五腿基线已验证。
+
+§3 S03 demo 线程收编
+----------------------------------------------------------------
+[实测: kernel/smp.c smp_init（S03 树）] smp_init 末尾 spawn 两个绑 cpu1
+的 demo 线程（100 迭代打印）。S04 用 selftest SMP 用例取代其验收职责，
+smp_init 内的 spawn 块与 smp_demo_thread 移除——避免 demo 输出混入
+L4 串口断言窗口。
+
+§4 SMP 用例的可测行为（正向判据）
+----------------------------------------------------------------
+- 双核并行：绑 cpu0/cpu1 的两内核线程各自无锁自增私有计数到 N，task_wait
+  回收后断言两计数均达 N 且线程自报的 lapic_id 与绑核一致——线程确实
+  在两个核上各自执行（-smp 1 下 bind-1 线程永不运行，用例不可能假绿）。
+- 锁互斥：两线程对同一计数器各加 N 次，sem 保护——锁失效时跨核竞争必然
+  丢计数（counter < 2N），「弄坏必红」。
+- 跨核唤醒：bind-1 线程 sem_wait 睡眠，主线程（cpu0）确认其就位后
+  sem_signal——wake_up 置 READY 无 IPI，AP 在其下一 tick（≤10ms）拾取；
+  断言线程被唤醒（rc==0、自报 cpu=1）。延迟上界由 S03 的 tick 机制保证
+  [src: kernel/smp.c ap_main 认领循环]。
+- U5（FPU 跨核）：bind-1 线程做 x87 浮点乘（volatile float，-O2 无 SSE
+  时走 x87），switch_to 每次置 TS → AP 线程首条 x87 触发 #NM →
+  [实测: kernel/machdep.c #NM 处理器（S01 加锁版）] fninit/恢复 → 计算值
+  自洽即断言。2.0×2×2×2=16.0 精确可表示，断言 (int)x==16 无舍入噪声。
+
+§5 -smp 2 进构建/测试入口
+----------------------------------------------------------------
+[实测: Makefile:67,84] qemu/qemudbg 目标无 -smp；[实测: tests/full_run.py
+run_leg cmd] 五腿 QEMU 命令无 -smp。-smp 2 加进两处（D8 只改参数不动
+QEMU 本体）。x86 分支风险核对：其内核无任何 SMP 代码（无 smp_init、
+PROLOGUE 读全局标量），-smp 2 下 AP 永不被启动、PIC 只达 BSP——行为与
+-smp 1 等价，共享层 full_run.py 加 -smp 2 对 x86 分支安全 [src:
+kernel/entry.S（x86 分支 CURRENT 单条 movl）、MPS LINTIN0 实测——PIC
+不达 AP，QEMU 多出来的 CPU 不会投递任何中断到无 LAPIC 编程的内核]。
+
+§6 既有护栏
+----------------------------------------------------------------
+- D6：selftest 每行 < 100 字符（printk buf[128]）。
+- D8：自检永不 abort 启动；每个用例有界——SMP 用例的等待全部有界
+  （task_wait 的目标线程在 -smp 2 下必然可调度；AP offline 时先于
+  task_wait 快速 FAIL，detail="ap offline"）。
+- 五腿 verdict 口径不变：L3 音频腿构建参数/断言不动，仅 QEMU 多一颗
+  空转 AP。

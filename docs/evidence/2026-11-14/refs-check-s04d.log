@@ -1,0 +1,25 @@
+﻿refs-check-s04d: merged authoritative re-run (supersedes s04/s04b/s04c rounds: CJK mojibake, PS subexpression expansion of Makefile W var, over-escaped backslashes).
+PASS startup.c smp_init call -> kernel\startup.c:125
+PASS startup.c S02/S04 comment -> kernel\startup.c:118
+PASS selftest CASES 7 -> kernel\selftest.c:23
+PASS selftest dual N -> kernel\selftest.c:251
+PASS selftest fpu assert -> kernel\selftest.c:267
+PASS selftest mutex sem_wait -> kernel\selftest.c:159
+PASS selftest crosswake parked -> kernel\selftest.c:382
+PASS selftest smp names -> kernel\selftest.c:445
+PASS task.c task_wait poll -> kernel\task.c:378
+PASS task.c U14 comment -> kernel\task.c:376
+PASS smp.c online_count BSP -> kernel\smp.c:278
+PASS kernel.h online_count decl -> kernel\kernel.h:261
+PASS full_run.py -smp 2 -> tests\full_run.py:230
+FAIL full_run.py begin regex -> literal 'begin \(\d+ cases\)' not found in tests\full_run.py
+PASS full_run.py backreference -> tests\full_run.py:154
+FAIL full_run.py hda 4/N -> literal '[4/\d+] hda: PASS' not found in tests\full_run.py
+PASS Makefile qemu smp2 -> Makefile:67
+PASS Makefile qemudbg smp2 -> Makefile:84
+PASS excerpt U5 cited -> docs\evidence\2026-11-14\s04-e2e-research-excerpt.txt:48
+PASS tech-plan U14 row -> docs\tech-plan-smp-prototype.md:108
+PASS tech-plan 4.2 section -> docs\tech-plan-smp-prototype.md:75
+PASS smp.c demo removed -> absent (expected)
+
+SUMMARY: 20 PASS / 2 FAIL

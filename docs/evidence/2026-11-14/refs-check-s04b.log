@@ -1,0 +1,25 @@
+﻿refs-check-s04b: ASCII literal patterns with -SimpleMatch (supersedes s04 regex round whose CJK patterns mojibaked under PS5.1).
+PASS startup.c smp_init call -> kernel\startup.c:125
+PASS startup.c S02/S04 comment -> kernel\startup.c:118
+PASS selftest CASES 7 -> kernel\selftest.c:23
+PASS selftest dual N -> kernel\selftest.c:251
+PASS selftest fpu assert -> kernel\selftest.c:267
+PASS selftest mutex sem_wait -> kernel\selftest.c:159
+PASS selftest crosswake parked -> kernel\selftest.c:382
+PASS selftest smp names -> kernel\selftest.c:445
+PASS task.c task_wait poll -> kernel\task.c:378
+PASS task.c U14 comment -> kernel\task.c:376
+PASS smp.c online_count BSP -> kernel\smp.c:278
+FAIL smp.c demo removed -> literal 'smp_demo_thread' not found in kernel\smp.c
+PASS kernel.h online_count decl -> kernel\kernel.h:261
+PASS full_run.py -smp 2 -> tests\full_run.py:230
+FAIL full_run.py begin regex -> literal 'begin \(\d+ cases\)' not found in tests\full_run.py
+PASS full_run.py backreference -> tests\full_run.py:154
+FAIL full_run.py hda 4/N -> literal '[4/\d+] hda: PASS' not found in tests\full_run.py
+FAIL Makefile qemu smp2 -> literal 'qemu-system-i386 -smp 2' not found in Makefile
+PASS Makefile qemudbg smp2 -> Makefile:84
+FAIL excerpt exists+cited -> literal 'E3' not found in docs\evidence\2026-11-14\s04-e2e-research-excerpt.txt
+PASS tech-plan U14 row -> docs\tech-plan-smp-prototype.md:108
+PASS tech-plan 4.2 section -> docs\tech-plan-smp-prototype.md:75
+
+SUMMARY: 17 PASS / 5 FAIL

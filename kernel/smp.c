@@ -114,25 +114,6 @@ static void ap_idle_thread(void *pv)
 }
 
 /**
- * S03 验收演示线程（绑死 CPU1，S04 收进 selftest 后移除）：busy-wait
- * 占核不让出——同核两个 tid 交错打印 = 时间片抢占的串口证据；每行带
- * 本核节拍计数，独立递增 = 每核节拍证据。绑 CPU1 是为了不抢 CPU0 上
- * 用户任务的算力（SORT_DEMO 不受干扰）。
- */
-static void smp_demo_thread(void *pv)
-{
-    unsigned i, cpu = lapic_id() & (NR_CPUS - 1);
-
-    for (i = 0; i < 100; i++) {
-        mdelay(30);     /* 忙等：拉长到跨多个时间片（4 tick），让两个线程
-                           在同核上被时间片强制交错——抢占的串口证据 */
-        printk("smpdemo task#%d cpu=%u tick=%u iter=%u\r\n",
-               sys_task_getid(), cpu, g_cpu_ticks[cpu], i);
-    }
-    sys_task_exit(0);
-}
-
-/**
  * AP 落地后的主体（运行在 trampoline 给的内核栈上，g_task_running 为 NULL
  * ——PROLOGUE 对 NULL 直接走 3f 不拷贝，安全）。
  *
@@ -284,14 +265,22 @@ void smp_init(void)
         return;
     }
     smp_boot_aps();
+}
 
-    /* S03 验收演示（D7）：两个线程绑死 CPU1 busy-wait 互抢时间片，
-       串口证据由 AP 侧打印；S04 收进 selftest 后移除。 */
-    if (sys_task_create_cpu(1, smp_demo_thread, NULL) != NULL &&
-        sys_task_create_cpu(1, smp_demo_thread, NULL) != NULL)
-        printk("SMP: demo threads pinned to cpu1 spawned\r\n");
-    else
-        printk("SMP: demo thread spawn failed\r\n");
+/**
+ * 在线核数（S04）：BSP 恒在线（g_ap_online 只记 AP，BSP 从不置位），
+ * 加上各 AP 的上线标志。selftest 的 SMP 用例用它在 task_wait 之前快速
+ * 判定 AP 是否真的在线（offline 时绑核线程永不运行，不能等 task_wait
+ * 挂死）。-smp 1 恒为 1；-smp 2 双核在线为 2。
+ */
+int smp_online_count(void)
+{
+    unsigned i, n = 1;      /* BSP 恒在线 */
+
+    for (i = 1; i < NR_CPUS; i++)
+        if (g_ap_online[i])
+            n++;
+    return n;
 }
 
 /**

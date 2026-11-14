@@ -115,20 +115,22 @@ void start_user_task()
     e1000_init();         //初始化E1000网卡
     hda_init();           //初始化HDA音频
     /*
-     * L4 整机自检（P11）：此刻 task0 在跑、中断已开，HDA 探测结果已填进
-     * g_hda，故四项用例中的 hda 一项能读到真实数据。自检永不 abort 启动，
-     * 结果由 tests/full_run.py 的 L4 腿断言（docs/tech-plan-selftest-l4.md）。
-     */
-    selftest_run();
-
-    /*
-     * S02：MPS 解析 + AP 启动。放在 selftest 之后：vm86_init 的低地址
-     * 映射（PD[0] 伪页表）必须先就位，smp_boot_aps 才能以「只加一个
-     * PTE」的方式拿到 0x8000 的低别名——在 vm86_init 之前跑会走
-     * smp_reserve 的重建分支顶掉伪页表，v86 区域映射全灭（实测
-     * make-full-s02-bisect2.log 五腿 3/5 的根因）。
+     * S02/S04：MPS 解析 + AP 启动。必须在 vm86_init 之后（U10：vm86_init
+     * 的低地址映射——PD[0] 伪页表——必须先就位，smp_boot_aps 才能以「只
+     * 加一个 PTE」的方式拿到 0x8000 的低别名；在 vm86_init 之前跑会顶掉
+     * 伪页表，v86 区域映射全灭，实测 make-full-s02-bisect2.log 五腿 3/5
+     * 的根因）；S04 起挪到 selftest_run 之前——selftest 的 SMP 用例需要
+     * AP 在线，此时 AP 无任务可领只会 idle，既有用例仍全在 CPU0 跑。
      */
     smp_init();
+
+    /*
+     * L4 整机自检（P11/S04）：此刻 task0 在跑、中断已开，HDA 探测结果已
+     * 填进 g_hda，hda 一项能读到真实数据；SMP 用例（smp-dual/mutex/
+     * crosswake）在 AP 已在线的前提下跑。自检永不 abort 启动，结果由
+     * tests/full_run.py 的 L4 腿断言（docs/tech-plan-selftest-l4.md）。
+     */
+    selftest_run();
 
     /*
      * 初始化FAT文件系统

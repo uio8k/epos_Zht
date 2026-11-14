@@ -1,0 +1,42 @@
+== L3 整机回归：QEMU 3.1.50 + none 后端 ==
+   仓库：E:\ComputerScience\epos_Zht\epos_Zht
+   后端：QEMU_AUDIO_DRV=none（不碰宿主声卡，D9）
+
+== L4 SELFTEST ==
+   覆盖：内核整机自检（kernel/selftest.c，用例数随分支）：分配器/信号量/tick/HDA 既有四项 + SMP 分支的 smp-dual/mutex/crosswake
+   构建：make hd.img 
+   构建 OK（2.4s）
+   运行：QEMU_AUDIO_DRV=none qemu-system-i386w.exe ...（无 monitor / 无 watcher）
+   [PASS] 自检段起跑（冷启动即执行，不依赖用户态；用例总数随分支）
+   [PASS] 分配器往返：kmalloc/kfree 后同尺寸再申请拿回同一地址
+   [PASS] 信号量握手：内核线程 signal -> 主线程 wait -> task_wait 回收
+   [PASS] tick 前进：g_timer_ticks 在定时器中断下自增
+   [PASS] HDA 探测：MMIO/codec/DAC/Pin 四项事实齐全
+   [FAIL] 全部用例通过（反向引用强制通过数==总数；任一 FAIL 即不匹配）
+          期望匹配：SELFTEST: RESULT PASS (\d+)/\1
+   用时：构建 2.4s + 运行 90.1s；串口 5466 字节 -> tests\build\l4_selftest.log
+   --- 串口尾部 ---
+   | 
+   | 
+   | 
+   | HDA: verb resp data=0x00000000 cad=0
+   | 
+   | HDA: verb resp data=0x00000000 cad=0
+   | 
+   | HDA: verb resp data=0x00000000 cad=0
+   | 
+   | HDA: volume=80 gain=25
+   | 
+   | [AUDIO] volume set to 80
+   | 
+   | [SONG] streaming song.wav ...
+   | 
+   | HDA: BDL ok entries=256 cbl=4194304
+   | 
+   | HDA: continuous stream started (CBL=4194304, 44100Hz 1ch 16bit)
+   | 
+   | HDA: streaming song.wav: 19403978 bytes (219999 ms), 1ch 44100Hz
+
+== 汇总：1 腿，0 通过，1 失败，用时 92.5s ==
+   L4     SELFTEST FAIL
+EXIT=1

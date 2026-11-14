@@ -367,11 +367,17 @@ int sys_task_wait(int tid, int *pcode_exit)
         return -1;
     }
 
-    if(tsk->state != TASK_STATE_ZOMBIE) {
-        /* sleep_on 返回时锁已放、中断仍关（睡眠前 save 的 EFLAGS），
-           先恢复中断态再重新持锁收尾（C6 睡眠契约） */
-        sleep_on(&tsk->wq_exit);
-        restore_flags(flags);
+    /* S04：轮询等待（与 sys_sleep 的 _sleep 同一 yield 轮询习语），每圈
+       重查状态、无伪唤醒窗口。不能 sleep_on：task0 在 selftest 里会等待
+       绑在别的核上的 SMP 线程，此时 CPU0 的 schedule fallback 只剩 task0
+       自己（别的核的任务被亲和过滤）——select==cur 的自切换会直接恢复刚
+       保存的睡眠帧＝伪唤醒，task0 以 WAITING 状态继续跑、把还活着的线程
+       当 ZOMBIE 提前收割（remove+kfree，快于 AP 的 10ms tick，线程一次都
+       没跑过）。实测：SMPTEST dual n1=0、mutex counter=10000、crosswake
+       rc=-1 全部源于此（pmemsave 转储：task0 state=WAITING）。 */
+    while (tsk->state != TASK_STATE_ZOMBIE) {
+        lock_irqrestore(&g_kernel_lock, flags);
+        sys_task_yield();
         lock_irqsave(&g_kernel_lock, flags);
     }
 
